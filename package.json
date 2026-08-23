@@ -1,0 +1,28 @@
+{
+  "name": "reforma-hub",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Reforma Hub - marketplace pay-per-lead de oficios y reformas",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "infra:up": "docker compose -f infra/docker-compose.yml up -d",
+    "infra:down": "docker compose -f infra/docker-compose.yml down",
+    "infra:reset": "docker compose -f infra/docker-compose.yml down -v && pnpm infra:up",
+    "api:dev": "cd apps/api && uv run uvicorn app.main:app --reload --port 8010",
+    "api:migrate": "cd apps/api && uv run alembic upgrade head",
+    "api:seed": "cd apps/api && uv run python -m scripts.seed",
+    "api:test": "cd apps/api && uv run pytest",
+    "api:lint": "cd apps/api && uv run ruff check . && uv run ruff format --check . && uv run mypy app",
+    "web:dev": "pnpm --filter web dev",
+    "web:test": "pnpm --filter web test",
+    "web:lint": "pnpm --filter web lint",
+    "dev": "pnpm infra:up && concurrently -n api,web -c blue,green \"pnpm api:dev\" \"pnpm web:dev\"",
+    "test": "pnpm api:test && pnpm web:test",
+    "lint": "pnpm api:lint && pnpm web:lint"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

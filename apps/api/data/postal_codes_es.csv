@@ -1,0 +1,92 @@
+# Semilla de codigos postales de Espana para desarrollo.
+# Cubre las 52 capitales de provincia y ciudades autonomas, mas varios distritos
+# de Madrid, Barcelona y Valencia, con el centroide aproximado de cada zona.
+# Para produccion, sustituye este fichero por el dataset completo (~11.000 codigos)
+# manteniendo las mismas columnas: el script de semilla no necesita cambios.
+code,city,province,latitude,longitude
+01001,Vitoria-Gasteiz,Alava,42.8467,-2.6716
+02001,Albacete,Albacete,38.9942,-1.8564
+03001,Alicante,Alicante,38.3452,-0.4815
+04001,Almeria,Almeria,36.8381,-2.4597
+05001,Avila,Avila,40.6565,-4.6818
+06001,Badajoz,Badajoz,38.8794,-6.9707
+07001,Palma,Baleares,39.5696,2.6502
+08001,Barcelona,Barcelona,41.3808,2.1686
+08002,Barcelona,Barcelona,41.3855,2.1734
+08005,Barcelona,Barcelona,41.3948,2.1962
+08013,Barcelona,Barcelona,41.4020,2.1810
+08021,Barcelona,Barcelona,41.3937,2.1400
+08028,Barcelona,Barcelona,41.3776,2.1240
+08901,L'Hospitalet de Llobregat,Barcelona,41.3597,2.0997
+09001,Burgos,Burgos,42.3439,-3.7101
+10001,Caceres,Caceres,39.4753,-6.3724
+11001,Cadiz,Cadiz,36.5297,-6.2926
+12001,Castellon de la Plana,Castellon,39.9864,-0.0513
+13001,Ciudad Real,Ciudad Real,38.9863,-3.9291
+14001,Cordoba,Cordoba,37.8882,-4.7794
+15001,A Coruna,A Coruna,43.3713,-8.3960
+16001,Cuenca,Cuenca,40.0704,-2.1374
+17001,Girona,Girona,41.9794,2.8214
+18001,Granada,Granada,37.1773,-3.5986
+19001,Guadalajara,Guadalajara,40.6320,-3.1615
+20001,Donostia-San Sebastian,Guipuzcoa,43.3183,-1.9812
+21001,Huelva,Huelva,37.2614,-6.9447
+22001,Huesca,Huesca,42.1401,-0.4089
+23001,Jaen,Jaen,37.7796,-3.7849
+24001,Leon,Leon,42.5987,-5.5671
+25001,Lleida,Lleida,41.6176,0.6200
+26001,Logrono,La Rioja,42.4650,-2.4487
+27001,Lugo,Lugo,43.0121,-7.5559
+28001,Madrid,Madrid,40.4239,-3.6873
+28002,Madrid,Madrid,40.4380,-3.6790
+28004,Madrid,Madrid,40.4238,-3.7009
+28005,Madrid,Madrid,40.4079,-3.7120
+28010,Madrid,Madrid,40.4325,-3.6997
+28013,Madrid,Madrid,40.4180,-3.7075
+28015,Madrid,Madrid,40.4300,-3.7120
+28017,Madrid,Madrid,40.4247,-3.6480
+28020,Madrid,Madrid,40.4531,-3.6934
+28025,Madrid,Madrid,40.3846,-3.7300
+28028,Madrid,Madrid,40.4290,-3.6660
+28034,Madrid,Madrid,40.4830,-3.7180
+28040,Madrid,Madrid,40.4400,-3.7250
+28045,Madrid,Madrid,40.3960,-3.6920
+28050,Madrid,Madrid,40.5010,-3.6760
+28801,Alcala de Henares,Madrid,40.4818,-3.3644
+28901,Getafe,Madrid,40.3082,-3.7325
+28911,Leganes,Madrid,40.3272,-3.7635
+28921,Alcorcon,Madrid,40.3459,-3.8249
+28931,Mostoles,Madrid,40.3227,-3.8649
+29001,Malaga,Malaga,36.7213,-4.4214
+30001,Murcia,Murcia,37.9861,-1.1303
+31001,Pamplona,Navarra,42.8125,-1.6458
+32001,Ourense,Ourense,42.3364,-7.8639
+33001,Oviedo,Asturias,43.3603,-5.8448
+33201,Gijon,Asturias,43.5322,-5.6611
+34001,Palencia,Palencia,42.0096,-4.5288
+35001,Las Palmas de Gran Canaria,Las Palmas,28.1248,-15.4300
+36001,Pontevedra,Pontevedra,42.4310,-8.6444
+36201,Vigo,Pontevedra,42.2328,-8.7226
+37001,Salamanca,Salamanca,40.9701,-5.6635
+38001,Santa Cruz de Tenerife,Santa Cruz de Tenerife,28.4636,-16.2518
+39001,Santander,Cantabria,43.4623,-3.8100
+40001,Segovia,Segovia,40.9429,-4.1088
+41001,Sevilla,Sevilla,37.3891,-5.9845
+41010,Sevilla,Sevilla,37.3798,-6.0060
+42001,Soria,Soria,41.7665,-2.4790
+43001,Tarragona,Tarragona,41.1189,1.2445
+44001,Teruel,Teruel,40.3456,-1.1065
+45001,Toledo,Toledo,39.8628,-4.0273
+46001,Valencia,Valencia,39.4757,-0.3776
+46002,Valencia,Valencia,39.4680,-0.3760
+46007,Valencia,Valencia,39.4610,-0.3830
+46015,Valencia,Valencia,39.4880,-0.3830
+46023,Valencia,Valencia,39.4520,-0.3450
+47001,Valladolid,Valladolid,41.6523,-4.7245
+48001,Bilbao,Vizcaya,43.2630,-2.9350
+48009,Bilbao,Vizcaya,43.2670,-2.9280
+49001,Zamora,Zamora,41.5033,-5.7446
+50001,Zaragoza,Zaragoza,41.6488,-0.8891
+50008,Zaragoza,Zaragoza,41.6380,-0.9010
+51001,Ceuta,Ceuta,35.8894,-5.3213
+52001,Melilla,Melilla,35.2923,-2.9381

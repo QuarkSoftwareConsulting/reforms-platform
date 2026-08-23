@@ -1,0 +1,98 @@
+[project]
+name = "reforma-hub-api"
+version = "0.1.0"
+description = "Reforma Hub API - marketplace pay-per-lead (arquitectura hexagonal)"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "asyncpg>=0.30.0",
+    "geoalchemy2>=0.16.0",
+    # geoalchemy2.shape.to_shape lo necesita para convertir el WKB de PostGIS.
+    "shapely>=2.0.6",
+    "alembic>=1.14.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.7.0",
+    "email-validator>=2.2.0",
+    "stripe>=11.4.0",
+    "firebase-admin>=6.6.0",
+    "boto3>=1.35.0",
+    "structlog>=24.4.0",
+    "python-multipart>=0.0.20",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.25.0",
+    "pytest-cov>=6.0.0",
+    "httpx>=0.28.0",
+    "ruff>=0.8.0",
+    "mypy>=1.14.0",
+    "types-boto3>=1.35.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "C4", "SIM", "RUF", "ASYNC", "PT"]
+ignore = ["B008"]  # FastAPI usa llamadas en defaults (Depends)
+
+[tool.ruff.lint.flake8-pytest-style]
+# Los objetos de valor del dominio senalan datos invalidos con ValueError; exigir
+# `match` en cada caso parametrizado solo anadiria ruido.
+raises-require-match-for = ["BaseException", "Exception", "OSError"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["N802"]
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["pydantic.mypy"]
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+warn_return_any = true
+disallow_untyped_defs = true
+
+# El nucleo (dominio + casos de uso) se valida en modo estricto: no depende de nada externo.
+[[tool.mypy.overrides]]
+module = ["app.domain.*", "app.application.*"]
+strict = true
+
+[[tool.mypy.overrides]]
+module = [
+    "geoalchemy2.*",
+    "firebase_admin.*",
+    "google.auth.*",
+    "stripe.*",
+    "boto3.*",
+    "botocore.*",
+    "shapely.*",
+]
+ignore_missing_imports = true
+
+[tool.uv]
+# El API es una aplicacion, no una libreria publicable: no se construye wheel.
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+asyncio_mode = "auto"
+# El engine de la BD de test es de ambito sesion, asi que fixtures y tests deben
+# compartir el mismo event loop.
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+markers = [
+    "integration: requiere Postgres+PostGIS real (docker compose up db-test)",
+]
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/main.py", "alembic/*"]

@@ -1,0 +1,39 @@
+# Node
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+
+# Env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Secrets
+firebase-service-account*.json
+*.pem
+
+# Infra
+infra/data/
+.firebase/
+firebase-debug.log
+ui-debug.log
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
