@@ -8,15 +8,19 @@ from app.application.ports.payment_port import (
     PaymentPort,
 )
 from app.application.ports.repositories import (
+    AdminLeadFilters,
     CategoryRepositoryPort,
+    LeadDashboardCounts,
     LeadRepositoryPort,
     LeadSearchFilters,
     LeadSearchRow,
+    PaidPurchaseMetrics,
     PostalCodeInfo,
     PostalCodeRepositoryPort,
     ProcessedEventRepositoryPort,
     ProfessionalRepositoryPort,
     PurchaseRepositoryPort,
+    PurchaseReviewRepositoryPort,
     UserRepositoryPort,
 )
 from app.application.ports.storage_port import PresignedUpload, StoragePort
@@ -24,15 +28,18 @@ from app.application.ports.token_verifier_port import AuthenticatedIdentity, Tok
 from app.application.ports.unit_of_work import UnitOfWork
 
 __all__ = [
+    "AdminLeadFilters",
     "AuthenticatedIdentity",
     "CategoryRepositoryPort",
     "CheckoutRequest",
     "CheckoutSession",
     "ClockPort",
     "IdGeneratorPort",
+    "LeadDashboardCounts",
     "LeadRepositoryPort",
     "LeadSearchFilters",
     "LeadSearchRow",
+    "PaidPurchaseMetrics",
     "PaymentEvent",
     "PaymentEventType",
     "PaymentPort",
@@ -42,6 +49,7 @@ __all__ = [
     "ProcessedEventRepositoryPort",
     "ProfessionalRepositoryPort",
     "PurchaseRepositoryPort",
+    "PurchaseReviewRepositoryPort",
     "StoragePort",
     "TokenVerifierPort",
     "UnitOfWork",

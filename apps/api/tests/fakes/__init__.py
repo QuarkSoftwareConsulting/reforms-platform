@@ -13,6 +13,7 @@ from tests.fakes.repositories import (
     InMemoryProcessedEventRepository,
     InMemoryProfessionalRepository,
     InMemoryPurchaseRepository,
+    InMemoryPurchaseReviewRepository,
     InMemoryUnitOfWork,
     InMemoryUserRepository,
 )
@@ -30,6 +31,7 @@ __all__ = [
     "InMemoryProcessedEventRepository",
     "InMemoryProfessionalRepository",
     "InMemoryPurchaseRepository",
+    "InMemoryPurchaseReviewRepository",
     "InMemoryUnitOfWork",
     "InMemoryUserRepository",
     "SequentialIdGenerator",

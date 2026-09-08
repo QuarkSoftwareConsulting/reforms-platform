@@ -18,7 +18,8 @@ export interface Category {
   id: string;
   slug: string;
   name: string;
-  lead_price: Money;
+  /** Precio de referencia del oficio. El de un lead concreto viene en `LeadPublic.price`. */
+  suggested_lead_price: Money;
 }
 
 export interface LeadPublic {
@@ -136,4 +137,67 @@ export interface ApiErrorBody {
   code: string;
   message: string;
   details?: Record<string, unknown> | null;
+}
+
+export interface AdminLead {
+  id: string;
+  title: string;
+  description: string;
+  city: string;
+  province: string;
+  postal_code_prefix: string;
+  category: Category;
+  photo_urls: string[];
+  created_at: string;
+  status: "published" | "exhausted" | "disabled";
+  source: "organic" | "admin";
+  purchases_count: number;
+  max_purchases: number;
+  remaining_slots: number;
+  price: Money;
+}
+
+export interface AdminLeadList {
+  items: AdminLead[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface AdminMetrics {
+  leads_total: number;
+  leads_published: number;
+  leads_exhausted: number;
+  leads_disabled: number;
+  leads_organic: number;
+  leads_admin: number;
+  professionals_total: number;
+  paid_purchases: number;
+  paid_leads: number;
+  coverage_rate: number;
+  liquidity: number;
+  revenue_by_currency: Record<string, Money>;
+}
+
+export interface AdminProfessional {
+  id: string;
+  business_name: string;
+  postal_code: string;
+  city: string | null;
+  province: string | null;
+  service_radius_km: number;
+  categories: Category[];
+}
+
+export interface AdminProfessionalList {
+  items: AdminProfessional[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface AdminPurchase {
+  purchase: Purchase;
+  professional: AdminProfessional | null;
+  review_count: number;
 }

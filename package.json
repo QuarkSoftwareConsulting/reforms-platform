@@ -20,7 +20,8 @@
     "web:lint": "pnpm --filter web lint",
     "dev": "pnpm infra:up && concurrently -n api,web -c blue,green \"pnpm api:dev\" \"pnpm web:dev\"",
     "test": "pnpm api:test && pnpm web:test",
-    "lint": "pnpm api:lint && pnpm web:lint"
+    "lint": "pnpm api:lint && pnpm web:lint",
+    "verify:flow": "cd apps/api && uv run python -m scripts.verify_purchase_flow"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

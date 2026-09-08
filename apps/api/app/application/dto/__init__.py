@@ -15,8 +15,11 @@ from app.domain.models import (
     ClientContact,
     Lead,
     LeadPublicView,
+    LeadSource,
+    LeadStatus,
     Professional,
     Purchase,
+    PurchaseReview,
 )
 from app.domain.value_objects import Money
 
@@ -27,6 +30,9 @@ class ConsentInput:
     policy_version: str
     ip_address: str | None = None
     user_agent: str | None = None
+    channel: str | None = None
+    campaign_reference: str | None = None
+    accepted_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,6 +84,21 @@ class LeadDetail:
 
 
 @dataclass(frozen=True, slots=True)
+class LeadPricing:
+    """Vista de precios de un lead para el admin.
+
+    Lleva las dos cifras a la vez porque la decision del admin es comparativa:
+    ve el precio sugerido del oficio y decide si este contacto vale otra cosa.
+    """
+
+    lead_id: UUID
+    category: Category
+    suggested_price: Money
+    sale_price: Money
+    is_custom: bool
+
+
+@dataclass(frozen=True, slots=True)
 class StartPurchaseResult:
     purchase_id: UUID
     checkout_url: str
@@ -109,3 +130,72 @@ class UpsertProfessionalInput:
 class ProfessionalProfile:
     professional: Professional
     categories: list[Category]
+
+
+@dataclass(frozen=True, slots=True)
+class AdminLeadItem:
+    """Fila administrativa sin campos de contacto del cliente."""
+
+    lead: LeadPublicView
+    category: Category
+    price: Money
+    status: LeadStatus
+    source: LeadSource
+    purchases_count: int
+    max_purchases: int
+
+
+@dataclass(frozen=True, slots=True)
+class AdminLeadListResult:
+    items: list[AdminLeadItem]
+    total: int
+    limit: int
+    offset: int
+
+
+@dataclass(frozen=True, slots=True)
+class AdminPurchaseItem:
+    purchase: Purchase
+    professional: Professional | None
+    review_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class AdminProfessionalItem:
+    professional: Professional
+    categories: list[Category]
+
+
+@dataclass(frozen=True, slots=True)
+class AdminProfessionalListResult:
+    items: list[AdminProfessionalItem]
+    total: int
+    limit: int
+    offset: int
+
+
+@dataclass(frozen=True, slots=True)
+class AdminMetrics:
+    leads_total: int
+    leads_published: int
+    leads_exhausted: int
+    leads_disabled: int
+    leads_organic: int
+    leads_admin: int
+    professionals_total: int
+    paid_purchases: int
+    paid_leads: int
+    revenue_by_currency: dict[str, int]
+
+    @property
+    def coverage_rate(self) -> float:
+        return self.paid_leads / self.leads_total if self.leads_total else 0.0
+
+    @property
+    def liquidity(self) -> float:
+        return self.paid_purchases / self.leads_total if self.leads_total else 0.0
+
+
+@dataclass(frozen=True, slots=True)
+class PurchaseReviewEntry:
+    review: PurchaseReview

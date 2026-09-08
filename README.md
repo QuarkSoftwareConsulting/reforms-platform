@@ -3,13 +3,18 @@
 Marketplace **pay-per-lead** de oficios y reformas. Los clientes publican gratis lo que
 necesitan (carpintería, fontanería, pintura…); los profesionales navegan las solicitudes
 de su zona y **pagan por desbloquear el contacto** del cliente. Cada solicitud se vende a
-un máximo de 3 profesionales.
+un máximo de 3 profesionales, y **el precio de cada contacto lo fija el administrador**
+(la categoría solo aporta un precio sugerido).
 
 - **Fase 1 (esta):** flujo completo cliente → profesional → pago → contacto desbloqueado.
 - **Fase 2:** panel de administración, ingesta manual de leads, emails transaccionales,
   páginas SEO por oficio + ciudad, wallet prepago.
 
 Documentos de producto en [`docs/`](./docs).
+
+> Si trabajas con un agente de IA (Claude Code, Codex, Cursor, Copilot), las convenciones e
+> invariantes del proyecto están en [`AGENTS.md`](./AGENTS.md), con archivos más específicos
+> en `apps/api/` y `apps/web/`.
 
 ---
 
@@ -125,6 +130,16 @@ cambiar el tipo, no solo olvidar un `del`.
 **El consentimiento RGPD es un registro auditable.** `lead_consents` guarda versión de
 política, IP y user-agent tomados del servidor (nunca del cuerpo de la petición), y el
 dominio rechaza construir un lead orgánico sin él.
+
+**El precio es una decisión por contacto, no una propiedad del oficio.** Cada categoría
+tiene un precio *sugerido* (`categories.suggested_lead_price_cents`), y el admin puede
+fijar otro para un lead concreto (`leads.price_override_cents`) desde
+`PUT /api/v1/admin/leads/{id}/price`. Quién gana lo resuelve un solo método del dominio,
+`Lead.sale_price(suggested=...)`, y el importe se congela dentro del bloqueo de fila de la
+reserva: cambiar el precio después no altera compras ya creadas ni la sesión de checkout
+que se emitió. Subir el precio sugerido de un oficio tampoco toca los leads que ya tienen
+precio propio. La UI de administración llega en la Fase 2; de momento los endpoints se
+usan desde `/docs` o con un cliente HTTP.
 
 **Una compra reembolsada sigue ocupando plaza.** El dato personal ya se cedió al
 profesional, así que la plaza no se reutiliza; para retirar un lead problemático se

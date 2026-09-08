@@ -7,6 +7,9 @@ from app.infrastructure.adapters.db.repositories.lead_repository import SqlAlche
 from app.infrastructure.adapters.db.repositories.purchase_repository import (
     SqlAlchemyPurchaseRepository,
 )
+from app.infrastructure.adapters.db.repositories.purchase_review_repository import (
+    SqlAlchemyPurchaseReviewRepository,
+)
 from app.infrastructure.adapters.db.repositories.user_repository import (
     SqlAlchemyProfessionalRepository,
     SqlAlchemyUserRepository,
@@ -19,5 +22,6 @@ __all__ = [
     "SqlAlchemyProcessedEventRepository",
     "SqlAlchemyProfessionalRepository",
     "SqlAlchemyPurchaseRepository",
+    "SqlAlchemyPurchaseReviewRepository",
     "SqlAlchemyUserRepository",
 ]

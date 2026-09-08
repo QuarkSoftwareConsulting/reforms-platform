@@ -21,6 +21,7 @@ from app.domain.models import (
     LeadPhoto,
     Professional,
     Purchase,
+    PurchaseReview,
     User,
 )
 from app.domain.value_objects import Coordinates, Email, Money, PhoneNumber, PostalCode
@@ -30,6 +31,7 @@ from app.infrastructure.adapters.db.models import (
     LeadRow,
     PostalCodeRow,
     ProfessionalRow,
+    PurchaseReviewRow,
     UserRow,
 )
 
@@ -63,9 +65,19 @@ def category_to_domain(row: CategoryRow) -> Category:
         slug=row.slug,
         name_es=row.name_es,
         name_en=row.name_en,
-        lead_price=Money(row.lead_price_cents, row.currency),
+        suggested_lead_price=Money(row.suggested_lead_price_cents, row.currency),
         active=row.active,
     )
+
+
+def apply_category(row: CategoryRow, category: Category) -> CategoryRow:
+    row.slug = category.slug
+    row.name_es = category.name_es
+    row.name_en = category.name_en
+    row.suggested_lead_price_cents = category.suggested_lead_price.amount_cents
+    row.currency = category.suggested_lead_price.currency
+    row.active = category.active
+    return row
 
 
 # ------------------------------ User -------------------------------------
@@ -137,6 +149,8 @@ def lead_to_domain(row: LeadRow) -> Lead:
             user_agent=latest.user_agent,
             accepted_at=latest.accepted_at,
             max_recipients=latest.max_recipients,
+            channel=latest.external_channel,
+            campaign_reference=latest.external_campaign_reference,
         )
 
     return Lead(
@@ -166,6 +180,11 @@ def lead_to_domain(row: LeadRow) -> Lead:
             for p in sorted(row.photos, key=lambda p: p.sort_order)
         ],
         consent=consent,
+        price_override=(
+            Money(row.price_override_cents, row.price_override_currency)
+            if row.price_override_cents is not None and row.price_override_currency is not None
+            else None
+        ),
     )
 
 
@@ -186,6 +205,8 @@ def apply_lead(row: LeadRow, lead: Lead) -> LeadRow:
     row.max_purchases = lead.max_purchases
     row.purchases_count = lead.purchases_count
     row.published_at = lead.published_at
+    row.price_override_cents = lead.price_override.amount_cents if lead.price_override else None
+    row.price_override_currency = lead.price_override.currency if lead.price_override else None
     return row
 
 
@@ -218,6 +239,24 @@ def apply_purchase(row: LeadPurchaseRow, purchase: Purchase) -> LeadPurchaseRow:
     row.stripe_checkout_session_id = purchase.stripe_checkout_session_id
     row.stripe_payment_intent_id = purchase.stripe_payment_intent_id
     row.paid_at = purchase.paid_at
+    return row
+
+
+def purchase_review_to_domain(row: PurchaseReviewRow) -> PurchaseReview:
+    return PurchaseReview(
+        id=row.id,
+        purchase_id=row.purchase_id,
+        reviewed_by_user_id=row.reviewed_by_user_id,
+        note=row.note,
+        created_at=row.created_at,
+    )
+
+
+def apply_purchase_review(row: PurchaseReviewRow, review: PurchaseReview) -> PurchaseReviewRow:
+    row.purchase_id = review.purchase_id
+    row.reviewed_by_user_id = review.reviewed_by_user_id
+    row.note = review.note
+    row.created_at = review.created_at
     return row
 
 

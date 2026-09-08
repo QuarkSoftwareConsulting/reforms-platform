@@ -44,18 +44,19 @@ async def seed_categories(session_factory: async_sessionmaker[AsyncSession], pat
                     slug=row["slug"],
                     name_es=row["name_es"],
                     name_en=row["name_en"],
-                    lead_price_cents=int(row["lead_price_cents"]),
+                    suggested_lead_price_cents=int(row["suggested_lead_price_cents"]),
                     currency=row["currency"],
                     active=True,
                 )
-                # El precio y los nombres se actualizan; el id se conserva para no
-                # romper las referencias de leads ya publicados.
+                # El precio sugerido y los nombres se actualizan; el id se conserva
+                # para no romper las referencias de leads ya publicados. Los leads
+                # con precio propio fijado por el admin no se tocan.
                 .on_conflict_do_update(
                     index_elements=[CategoryRow.slug],
                     set_={
                         "name_es": row["name_es"],
                         "name_en": row["name_en"],
-                        "lead_price_cents": int(row["lead_price_cents"]),
+                        "suggested_lead_price_cents": int(row["suggested_lead_price_cents"]),
                         "currency": row["currency"],
                     },
                 )

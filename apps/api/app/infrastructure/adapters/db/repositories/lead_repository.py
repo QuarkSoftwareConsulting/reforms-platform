@@ -4,17 +4,19 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.application.ports import (
+    AdminLeadFilters,
+    LeadDashboardCounts,
     LeadRepositoryPort,
     LeadSearchFilters,
     LeadSearchRow,
 )
 from app.domain.exceptions import LeadNotFoundError
-from app.domain.models import Lead, LeadStatus, PurchaseStatus
+from app.domain.models import Lead, LeadSource, LeadStatus, PurchaseStatus
 from app.infrastructure.adapters.db.mappers import apply_lead, lead_to_domain, to_geography
 from app.infrastructure.adapters.db.models import (
     LeadConsentRow,
@@ -53,6 +55,8 @@ class SqlAlchemyLeadRepository(LeadRepositoryPort):
                     user_agent=lead.consent.user_agent,
                     max_recipients=lead.consent.max_recipients,
                     accepted_at=lead.consent.accepted_at,
+                    external_channel=lead.consent.channel,
+                    external_campaign_reference=lead.consent.campaign_reference,
                 )
             ]
             if lead.consent is not None
@@ -176,6 +180,47 @@ class SqlAlchemyLeadRepository(LeadRepositoryPort):
     async def count(self, filters: LeadSearchFilters) -> int:
         stmt = self._base_query(filters).with_only_columns(func.count(LeadRow.id))
         return (await self._session.execute(stmt)).scalar_one()
+
+    async def search_admin(self, filters: AdminLeadFilters) -> list[Lead]:
+        stmt = select(LeadRow).options(selectinload(LeadRow.photos), selectinload(LeadRow.consents))
+        if filters.category_id is not None:
+            stmt = stmt.where(LeadRow.category_id == filters.category_id)
+        if filters.status is not None:
+            stmt = stmt.where(LeadRow.status == filters.status)
+        if filters.source is not None:
+            stmt = stmt.where(LeadRow.source == filters.source)
+        stmt = stmt.order_by(LeadRow.created_at.desc()).limit(filters.limit).offset(filters.offset)
+        rows = (await self._session.execute(stmt)).scalars().all()
+        return [lead_to_domain(row) for row in rows]
+
+    async def count_admin(self, filters: AdminLeadFilters) -> int:
+        stmt = select(func.count(LeadRow.id))
+        if filters.category_id is not None:
+            stmt = stmt.where(LeadRow.category_id == filters.category_id)
+        if filters.status is not None:
+            stmt = stmt.where(LeadRow.status == filters.status)
+        if filters.source is not None:
+            stmt = stmt.where(LeadRow.source == filters.source)
+        return (await self._session.execute(stmt)).scalar_one()
+
+    async def dashboard_counts(self) -> LeadDashboardCounts:
+        stmt = select(
+            func.count(LeadRow.id),
+            func.sum(case((LeadRow.status == LeadStatus.PUBLISHED, 1), else_=0)),
+            func.sum(case((LeadRow.status == LeadStatus.EXHAUSTED, 1), else_=0)),
+            func.sum(case((LeadRow.status == LeadStatus.DISABLED, 1), else_=0)),
+            func.sum(case((LeadRow.source == LeadSource.ORGANIC, 1), else_=0)),
+            func.sum(case((LeadRow.source == LeadSource.ADMIN, 1), else_=0)),
+        )
+        row = (await self._session.execute(stmt)).one()
+        return LeadDashboardCounts(
+            total=int(row[0] or 0),
+            published=int(row[1] or 0),
+            exhausted=int(row[2] or 0),
+            disabled=int(row[3] or 0),
+            organic=int(row[4] or 0),
+            admin=int(row[5] or 0),
+        )
 
     async def _purchased_lead_ids(
         self, lead_ids: list[UUID], professional_id: UUID | None

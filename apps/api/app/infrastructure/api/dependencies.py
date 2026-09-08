@@ -24,15 +24,24 @@ from app.application.ports import (
     TokenVerifierPort,
 )
 from app.application.use_cases import (
+    ChangeLeadAvailability,
     CreateLead,
+    GetAdminMetrics,
     GetLeadDetail,
+    GetLeadPricing,
     GetProfessionalProfile,
     HandlePaymentEvent,
+    ListAdminLeads,
+    ListAdminProfessionals,
     ListCategories,
+    ListLeadPurchasesForAdmin,
     ListLeads,
     ListMyPurchases,
+    MarkPurchaseForReview,
     ReleaseExpiredReservations,
     RequestPhotoUpload,
+    SetCategorySuggestedPrice,
+    SetLeadPrice,
     StartLeadPurchase,
     SyncUserFromIdentity,
     UpsertProfessionalProfile,
@@ -47,6 +56,7 @@ from app.infrastructure.adapters.db.repositories import (
     SqlAlchemyProcessedEventRepository,
     SqlAlchemyProfessionalRepository,
     SqlAlchemyPurchaseRepository,
+    SqlAlchemyPurchaseReviewRepository,
     SqlAlchemyUserRepository,
 )
 from app.infrastructure.adapters.db.session import SqlAlchemyUnitOfWork
@@ -99,6 +109,7 @@ class RequestContainer:
     professionals: SqlAlchemyProfessionalRepository
     leads: SqlAlchemyLeadRepository
     purchases: SqlAlchemyPurchaseRepository
+    reviews: SqlAlchemyPurchaseReviewRepository
     categories: SqlAlchemyCategoryRepository
     postal_codes: SqlAlchemyPostalCodeRepository
     processed_events: SqlAlchemyProcessedEventRepository
@@ -113,6 +124,7 @@ class RequestContainer:
             professionals=SqlAlchemyProfessionalRepository(session),
             leads=SqlAlchemyLeadRepository(session),
             purchases=SqlAlchemyPurchaseRepository(session),
+            reviews=SqlAlchemyPurchaseReviewRepository(session),
             categories=SqlAlchemyCategoryRepository(session),
             postal_codes=SqlAlchemyPostalCodeRepository(session),
             processed_events=SqlAlchemyProcessedEventRepository(session),
@@ -161,6 +173,52 @@ class RequestContainer:
             web_base_url=self.infra.settings.public_web_url,
             reservation_ttl_minutes=self.infra.settings.purchase_reservation_ttl_minutes,
             enforce_category_match=self.infra.settings.enforce_category_match,
+        )
+
+    @property
+    def lead_pricing(self) -> GetLeadPricing:
+        return GetLeadPricing(leads=self.leads, categories=self.categories)
+
+    @property
+    def set_lead_price(self) -> SetLeadPrice:
+        return SetLeadPrice(leads=self.leads, categories=self.categories, uow=self.uow)
+
+    @property
+    def set_category_price(self) -> SetCategorySuggestedPrice:
+        return SetCategorySuggestedPrice(categories=self.categories, uow=self.uow)
+
+    @property
+    def admin_leads(self) -> ListAdminLeads:
+        return ListAdminLeads(leads=self.leads, categories=self.categories)
+
+    @property
+    def change_lead_availability(self) -> ChangeLeadAvailability:
+        return ChangeLeadAvailability(leads=self.leads, uow=self.uow)
+
+    @property
+    def admin_metrics(self) -> GetAdminMetrics:
+        return GetAdminMetrics(
+            leads=self.leads, purchases=self.purchases, professionals=self.professionals
+        )
+
+    @property
+    def lead_purchases_for_admin(self) -> ListLeadPurchasesForAdmin:
+        return ListLeadPurchasesForAdmin(
+            purchases=self.purchases, professionals=self.professionals, reviews=self.reviews
+        )
+
+    @property
+    def admin_professionals(self) -> ListAdminProfessionals:
+        return ListAdminProfessionals(professionals=self.professionals, categories=self.categories)
+
+    @property
+    def mark_purchase_for_review(self) -> MarkPurchaseForReview:
+        return MarkPurchaseForReview(
+            purchases=self.purchases,
+            reviews=self.reviews,
+            clock=self.infra.clock,
+            ids=self.infra.ids,
+            uow=self.uow,
         )
 
     @property

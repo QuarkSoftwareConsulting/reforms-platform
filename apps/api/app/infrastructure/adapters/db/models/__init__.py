@@ -9,6 +9,7 @@ from app.infrastructure.adapters.db.models.tables import (
     ProcessedPaymentEventRow,
     ProfessionalCategoryRow,
     ProfessionalRow,
+    PurchaseReviewRow,
     UserRow,
 )
 
@@ -23,5 +24,6 @@ __all__ = [
     "ProcessedPaymentEventRow",
     "ProfessionalCategoryRow",
     "ProfessionalRow",
+    "PurchaseReviewRow",
     "UserRow",
 ]

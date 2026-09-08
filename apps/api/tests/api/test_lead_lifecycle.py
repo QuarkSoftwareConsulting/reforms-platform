@@ -334,7 +334,7 @@ class TestPurchaseFlow:
             slug="fontaneria",
             name_es="Fontaneria",
             name_en="Plumbing",
-            lead_price_cents=700,
+            suggested_lead_price_cents=700,
             currency="EUR",
             active=True,
         )
@@ -349,6 +349,132 @@ class TestPurchaseFlow:
         purchase = await api.post(f"/leads/{plumbing_lead['id']}/purchase", headers=pro_auth)
         assert purchase.status_code == 409
         assert purchase.json()["code"] == "CATEGORY_MISMATCH"
+
+
+class TestAdminPricing:
+    """El precio de un contacto lo pone el admin; el sugerido del oficio es el fallback."""
+
+    async def test_admin_price_is_what_the_professional_sees_and_pays(
+        self,
+        api: AsyncClient,
+        carpentry_category: Category,
+        pro_auth: dict[str, str],
+        admin_auth: dict[str, str],
+        fake_gateway: FakePaymentGateway,
+    ) -> None:
+        created = await publish_lead(api, carpentry_category)
+        await create_profile(api, carpentry_category, pro_auth)
+
+        priced = await api.put(
+            f"/admin/leads/{created['id']}/price",
+            json={"amount_cents": 2500},
+            headers=admin_auth,
+        )
+        assert priced.status_code == 200, priced.text
+        assert priced.json()["sale_price"]["amount_cents"] == 2500
+        assert priced.json()["suggested_price"]["amount_cents"] == 500
+        assert priced.json()["is_custom"] is True
+
+        item = (await api.get("/leads", headers=pro_auth)).json()["items"][0]
+        assert item["price"]["amount_cents"] == 2500
+        assert item["category"]["suggested_lead_price"]["amount_cents"] == 500
+
+        purchase = (await api.post(f"/leads/{created['id']}/purchase", headers=pro_auth)).json()
+        assert purchase["amount"]["amount_cents"] == 2500
+        # Lo que se cobra en la pasarela tiene que ser lo mismo, no el sugerido.
+        assert fake_gateway.requests[-1].amount.amount_cents == 2500
+
+    async def test_clearing_the_price_returns_to_the_category_suggestion(
+        self,
+        api: AsyncClient,
+        carpentry_category: Category,
+        pro_auth: dict[str, str],
+        admin_auth: dict[str, str],
+    ) -> None:
+        created = await publish_lead(api, carpentry_category)
+        await create_profile(api, carpentry_category, pro_auth)
+        await api.put(
+            f"/admin/leads/{created['id']}/price",
+            json={"amount_cents": 2500},
+            headers=admin_auth,
+        )
+
+        cleared = await api.put(
+            f"/admin/leads/{created['id']}/price", json={"amount_cents": None}, headers=admin_auth
+        )
+
+        assert cleared.json()["is_custom"] is False
+        assert cleared.json()["sale_price"]["amount_cents"] == 500
+        detail = (await api.get(f"/leads/{created['id']}", headers=pro_auth)).json()
+        assert detail["lead"]["price"]["amount_cents"] == 500
+
+    async def test_category_suggestion_does_not_override_a_lead_price(
+        self,
+        api: AsyncClient,
+        carpentry_category: Category,
+        pro_auth: dict[str, str],
+        admin_auth: dict[str, str],
+    ) -> None:
+        priced = await publish_lead(api, carpentry_category)
+        plain = await publish_lead(api, carpentry_category)
+        await create_profile(api, carpentry_category, pro_auth)
+        await api.put(
+            f"/admin/leads/{priced['id']}/price", json={"amount_cents": 1500}, headers=admin_auth
+        )
+
+        response = await api.put(
+            f"/admin/categories/{carpentry_category.id}/suggested-price",
+            json={"amount_cents": 800},
+            headers=admin_auth,
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["suggested_lead_price"]["amount_cents"] == 800
+
+        prices = {
+            item["id"]: item["price"]["amount_cents"]
+            for item in (await api.get("/leads", headers=pro_auth)).json()["items"]
+        }
+        assert prices[priced["id"]] == 1500
+        assert prices[plain["id"]] == 800
+
+    async def test_a_professional_cannot_change_a_price(
+        self, api: AsyncClient, carpentry_category: Category, pro_auth: dict[str, str]
+    ) -> None:
+        created = await publish_lead(api, carpentry_category)
+
+        response = await api.put(
+            f"/admin/leads/{created['id']}/price", json={"amount_cents": 100}, headers=pro_auth
+        )
+
+        assert response.status_code == 403
+        assert response.json()["code"] == "PERMISSION_DENIED"
+
+    async def test_price_above_the_safety_cap_is_rejected(
+        self, api: AsyncClient, carpentry_category: Category, admin_auth: dict[str, str]
+    ) -> None:
+        created = await publish_lead(api, carpentry_category)
+
+        response = await api.put(
+            f"/admin/leads/{created['id']}/price",
+            json={"amount_cents": 10_000_000},
+            headers=admin_auth,
+        )
+
+        assert response.status_code == 422
+
+    async def test_price_in_another_currency_is_rejected(
+        self, api: AsyncClient, carpentry_category: Category, admin_auth: dict[str, str]
+    ) -> None:
+        created = await publish_lead(api, carpentry_category)
+
+        response = await api.put(
+            f"/admin/leads/{created['id']}/price",
+            json={"amount_cents": 2500, "currency": "USD"},
+            headers=admin_auth,
+        )
+
+        assert response.status_code == 422
+        assert response.json()["code"] == "CURRENCY_MISMATCH"
 
 
 class TestWebhookSecurity:

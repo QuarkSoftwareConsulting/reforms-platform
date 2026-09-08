@@ -122,6 +122,18 @@ class UnknownPostalCodeError(ValidationError):
     code = "UNKNOWN_POSTAL_CODE"
 
 
+class InvalidSalePriceError(ValidationError):
+    """El precio de venta indicado no es valido."""
+
+    code = "INVALID_SALE_PRICE"
+
+
+class CurrencyMismatchError(ValidationError):
+    """El precio debe estar en la misma divisa que el oficio."""
+
+    code = "CURRENCY_MISMATCH"
+
+
 class ConsentRequiredError(ValidationError):
     """Debes aceptar la politica de privacidad para publicar la solicitud."""
 
@@ -148,7 +160,9 @@ __all__ = [
     "CategoryNotFoundError",
     "ConsentRequiredError",
     "ContactLockedError",
+    "CurrencyMismatchError",
     "DomainError",
+    "InvalidSalePriceError",
     "LeadAlreadyPurchasedError",
     "LeadCapReachedError",
     "LeadNotFoundError",

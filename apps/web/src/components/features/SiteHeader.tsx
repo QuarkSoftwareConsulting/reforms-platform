@@ -29,6 +29,14 @@ export function SiteHeader() {
               >
                 {t("projects")}
               </Link>
+              {auth.me?.role === "admin" && (
+                <Link
+                  href={path(locale, "admin")}
+                  className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                >
+                  {t("admin")}
+                </Link>
+              )}
               <Link
                 href={path(locale, "myContacts")}
                 className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"

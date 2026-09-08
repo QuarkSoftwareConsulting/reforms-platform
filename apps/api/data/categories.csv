@@ -1,4 +1,4 @@
-slug,name_es,name_en,lead_price_cents,currency
+slug,name_es,name_en,suggested_lead_price_cents,currency
 albanileria,Albanileria,Masonry,500,EUR
 carpinteria,Carpinteria,Carpentry,500,EUR
 cerrajeria,Cerrajeria,Locksmithing,500,EUR

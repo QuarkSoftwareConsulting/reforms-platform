@@ -13,15 +13,24 @@ import pytest
 
 from app.application.ports import PostalCodeInfo
 from app.application.use_cases import (
+    ChangeLeadAvailability,
     CreateLead,
+    GetAdminMetrics,
     GetLeadDetail,
+    GetLeadPricing,
     GetProfessionalProfile,
     HandlePaymentEvent,
+    ListAdminLeads,
+    ListAdminProfessionals,
     ListCategories,
+    ListLeadPurchasesForAdmin,
     ListLeads,
     ListMyPurchases,
+    MarkPurchaseForReview,
     ReleaseExpiredReservations,
     RequestPhotoUpload,
+    SetCategorySuggestedPrice,
+    SetLeadPrice,
     StartLeadPurchase,
     SyncUserFromIdentity,
     UpsertProfessionalProfile,
@@ -40,6 +49,7 @@ from tests.fakes import (
     InMemoryProcessedEventRepository,
     InMemoryProfessionalRepository,
     InMemoryPurchaseRepository,
+    InMemoryPurchaseReviewRepository,
     InMemoryUnitOfWork,
     InMemoryUserRepository,
     SequentialIdGenerator,
@@ -65,6 +75,7 @@ class World:
     uow: InMemoryUnitOfWork
     leads: InMemoryLeadRepository
     purchases: InMemoryPurchaseRepository
+    reviews: InMemoryPurchaseReviewRepository
     professionals: InMemoryProfessionalRepository
     users: InMemoryUserRepository
     categories: InMemoryCategoryRepository
@@ -86,6 +97,15 @@ class World:
     get_profile: GetProfessionalProfile = field(init=False)
     list_categories: ListCategories = field(init=False)
     request_upload: RequestPhotoUpload = field(init=False)
+    lead_pricing: GetLeadPricing = field(init=False)
+    set_lead_price: SetLeadPrice = field(init=False)
+    set_category_price: SetCategorySuggestedPrice = field(init=False)
+    list_admin_leads: ListAdminLeads = field(init=False)
+    change_lead_availability: ChangeLeadAvailability = field(init=False)
+    admin_metrics: GetAdminMetrics = field(init=False)
+    list_lead_purchases: ListLeadPurchasesForAdmin = field(init=False)
+    list_admin_professionals: ListAdminProfessionals = field(init=False)
+    mark_purchase_for_review: MarkPurchaseForReview = field(init=False)
 
     def __post_init__(self) -> None:
         self.leads.purchase_index = self.purchases
@@ -149,6 +169,31 @@ class World:
         )
         self.list_categories = ListCategories(categories=self.categories)
         self.request_upload = RequestPhotoUpload(storage=self.storage)
+        self.lead_pricing = GetLeadPricing(leads=self.leads, categories=self.categories)
+        self.set_lead_price = SetLeadPrice(
+            leads=self.leads, categories=self.categories, uow=self.uow
+        )
+        self.set_category_price = SetCategorySuggestedPrice(
+            categories=self.categories, uow=self.uow
+        )
+        self.list_admin_leads = ListAdminLeads(leads=self.leads, categories=self.categories)
+        self.change_lead_availability = ChangeLeadAvailability(leads=self.leads, uow=self.uow)
+        self.admin_metrics = GetAdminMetrics(
+            leads=self.leads, purchases=self.purchases, professionals=self.professionals
+        )
+        self.list_lead_purchases = ListLeadPurchasesForAdmin(
+            purchases=self.purchases, professionals=self.professionals, reviews=self.reviews
+        )
+        self.list_admin_professionals = ListAdminProfessionals(
+            professionals=self.professionals, categories=self.categories
+        )
+        self.mark_purchase_for_review = MarkPurchaseForReview(
+            purchases=self.purchases,
+            reviews=self.reviews,
+            clock=self.clock,
+            ids=self.ids,
+            uow=self.uow,
+        )
 
     # ------------------------- atajos de escenario -----------------------
 
@@ -177,6 +222,7 @@ def world() -> World:
         uow=uow,
         leads=InMemoryLeadRepository(uow=uow),
         purchases=InMemoryPurchaseRepository(),
+        reviews=InMemoryPurchaseReviewRepository(),
         professionals=InMemoryProfessionalRepository(),
         users=InMemoryUserRepository(),
         categories=InMemoryCategoryRepository(),
@@ -190,13 +236,16 @@ def world() -> World:
 
 @pytest.fixture
 def carpentry(world: World) -> Category:
-    return world.add_category(slug="carpinteria", lead_price=Money(500, "EUR"))
+    return world.add_category(slug="carpinteria", suggested_lead_price=Money(500, "EUR"))
 
 
 @pytest.fixture
 def plumbing(world: World) -> Category:
     return world.add_category(
-        slug="fontaneria", name_es="Fontaneria", name_en="Plumbing", lead_price=Money(700, "EUR")
+        slug="fontaneria",
+        name_es="Fontaneria",
+        name_en="Plumbing",
+        suggested_lead_price=Money(700, "EUR"),
     )
 
 

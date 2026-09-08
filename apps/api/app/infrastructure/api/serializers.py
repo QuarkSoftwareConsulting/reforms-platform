@@ -6,7 +6,19 @@ dos cosas que no pertenecen al dominio.
 
 from __future__ import annotations
 
-from app.application.dto import LeadDetail, LeadListItem, LeadListResult, PurchasedContact
+from app.application.dto import (
+    AdminLeadItem,
+    AdminLeadListResult,
+    AdminMetrics,
+    AdminProfessionalItem,
+    AdminProfessionalListResult,
+    AdminPurchaseItem,
+    LeadDetail,
+    LeadListItem,
+    LeadListResult,
+    LeadPricing,
+    PurchasedContact,
+)
 from app.application.ports import PresignedUpload, StoragePort
 from app.domain.models import (
     Category,
@@ -15,9 +27,20 @@ from app.domain.models import (
     LeadPublicView,
     Professional,
     Purchase,
+    PurchaseReview,
     User,
 )
 from app.domain.value_objects import Money
+from app.infrastructure.api.schemas.admin import (
+    AdminLeadListOut,
+    AdminLeadOut,
+    AdminMetricsOut,
+    AdminProfessionalListOut,
+    AdminProfessionalOut,
+    AdminPurchaseOut,
+    LeadPricingOut,
+    PurchaseReviewOut,
+)
 from app.infrastructure.api.schemas.common import MoneyOut
 from app.infrastructure.api.schemas.leads import (
     CategoryOut,
@@ -49,7 +72,7 @@ def category_out(category: Category, locale: str) -> CategoryOut:
         id=category.id,
         slug=category.slug,
         name=category.name(locale),
-        lead_price=money_out(category.lead_price),
+        suggested_lead_price=money_out(category.suggested_lead_price),
     )
 
 
@@ -174,6 +197,114 @@ def professional_out(
         province=professional.province,
         service_radius_km=professional.service_radius_km,
         categories=[category_out(category, locale) for category in categories],
+    )
+
+
+def lead_pricing_out(pricing: LeadPricing, locale: str) -> LeadPricingOut:
+    return LeadPricingOut(
+        lead_id=pricing.lead_id,
+        category=category_out(pricing.category, locale),
+        suggested_price=money_out(pricing.suggested_price),
+        sale_price=money_out(pricing.sale_price),
+        is_custom=pricing.is_custom,
+    )
+
+
+def admin_lead_out(item: AdminLeadItem, *, storage: StoragePort, locale: str) -> AdminLeadOut:
+    """Serializa el inventario admin sin abrir campos de contacto del cliente."""
+    view = item.lead
+    return AdminLeadOut(
+        id=view.id,
+        title=view.title,
+        description=view.description,
+        city=view.city,
+        province=view.province,
+        postal_code_prefix=view.postal_code_prefix,
+        category=category_out(item.category, locale),
+        photo_urls=[storage.public_url(key) for key in view.photo_keys],
+        created_at=view.created_at,
+        status=item.status.value,
+        source=item.source.value,
+        purchases_count=item.purchases_count,
+        max_purchases=item.max_purchases,
+        remaining_slots=view.remaining_slots,
+        price=money_out(item.price),
+    )
+
+
+def admin_lead_list_out(
+    result: AdminLeadListResult, *, storage: StoragePort, locale: str
+) -> AdminLeadListOut:
+    return AdminLeadListOut(
+        items=[admin_lead_out(item, storage=storage, locale=locale) for item in result.items],
+        total=result.total,
+        limit=result.limit,
+        offset=result.offset,
+    )
+
+
+def admin_metrics_out(metrics: AdminMetrics) -> AdminMetricsOut:
+    return AdminMetricsOut(
+        leads_total=metrics.leads_total,
+        leads_published=metrics.leads_published,
+        leads_exhausted=metrics.leads_exhausted,
+        leads_disabled=metrics.leads_disabled,
+        leads_organic=metrics.leads_organic,
+        leads_admin=metrics.leads_admin,
+        professionals_total=metrics.professionals_total,
+        paid_purchases=metrics.paid_purchases,
+        paid_leads=metrics.paid_leads,
+        coverage_rate=metrics.coverage_rate,
+        liquidity=metrics.liquidity,
+        revenue_by_currency={
+            currency: money_out(Money(amount, currency))
+            for currency, amount in metrics.revenue_by_currency.items()
+        },
+    )
+
+
+def admin_professional_out(item: AdminProfessionalItem, locale: str) -> AdminProfessionalOut:
+    professional = item.professional
+    return AdminProfessionalOut(
+        id=professional.id,
+        business_name=professional.business_name,
+        postal_code=professional.base_postal_code.value,
+        city=professional.city,
+        province=professional.province,
+        service_radius_km=professional.service_radius_km,
+        categories=[category_out(category, locale) for category in item.categories],
+    )
+
+
+def admin_professional_list_out(
+    result: AdminProfessionalListResult, locale: str
+) -> AdminProfessionalListOut:
+    return AdminProfessionalListOut(
+        items=[admin_professional_out(item, locale) for item in result.items],
+        total=result.total,
+        limit=result.limit,
+        offset=result.offset,
+    )
+
+
+def admin_purchase_out(item: AdminPurchaseItem, locale: str) -> AdminPurchaseOut:
+    professional = (
+        admin_professional_out(
+            AdminProfessionalItem(professional=item.professional, categories=[]), locale
+        )
+        if item.professional is not None
+        else None
+    )
+    return AdminPurchaseOut(
+        purchase=purchase_out(item.purchase),
+        professional=professional,
+        review_count=item.review_count,
+    )
+
+
+def purchase_review_out(review: PurchaseReview) -> PurchaseReviewOut:
+    return PurchaseReviewOut(
+        id=review.id, purchase_id=review.purchase_id, created_at=review.created_at
     )
 
 

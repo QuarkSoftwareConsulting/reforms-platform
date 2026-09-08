@@ -18,6 +18,7 @@ from app.domain.exceptions import (
     CategoryNotFoundError,
     ConsentRequiredError,
     UnknownPostalCodeError,
+    ValidationError,
 )
 from app.domain.models import (
     ClientContact,
@@ -97,16 +98,19 @@ class CreateLead:
     def _build_consent(
         self, data: CreateLeadInput, *, source: LeadSource, now: datetime
     ) -> ConsentRecord | None:
-        if source is LeadSource.ADMIN:
-            # El lead viene de una campana de marketing: el consentimiento se
-            # recogio en el canal de origen y el admin responde de su trazabilidad.
-            return None
         if data.consent is None or not data.consent.accepted:
             raise ConsentRequiredError()
+        if source is LeadSource.ADMIN and data.consent.channel is None:
+            raise ConsentRequiredError("Indica el canal donde se recogio el consentimiento")
+        accepted_at = data.consent.accepted_at or now
+        if accepted_at > now:
+            raise ValidationError("La fecha del consentimiento no puede estar en el futuro")
         return ConsentRecord(
             policy_version=data.consent.policy_version,
             ip_address=data.consent.ip_address,
             user_agent=data.consent.user_agent,
-            accepted_at=now,
+            accepted_at=accepted_at,
             max_recipients=self.max_purchases,
+            channel=data.consent.channel,
+            campaign_reference=data.consent.campaign_reference,
         )

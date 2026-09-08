@@ -18,7 +18,8 @@
     "profile": "My profile",
     "login": "Log in",
     "register": "I'm a professional",
-    "logout": "Log out"
+    "logout": "Log out",
+    "admin": "Admin"
   },
   "home": {
     "title": "Find the tradesperson you need",
@@ -150,6 +151,20 @@
     "goLogin": "Log in",
     "notConfigured": "Authentication is not configured in this environment."
   },
+  "admin": {
+    "title": "Administration",
+    "subtitle": "Operate lead supply, prices and support from one place.",
+    "saved": "Changes saved.",
+    "metrics": {"leads": "Total leads", "professionals": "Professionals", "coverage": "Lead coverage", "liquidity": "Lead liquidity", "paidPurchases": "Paid purchases", "revenue": "Confirmed revenue", "none": "No revenue yet", "organic": "Organic leads", "manual": "Manual leads"},
+    "manual": {"title": "Add manually captured lead", "category": "Trade", "categoryPlaceholder": "Select a trade", "titleLabel": "Job title", "description": "Job description", "postalCode": "Postal code", "name": "Client name", "phone": "Client phone", "email": "Client email", "channel": "Consent capture channel", "policy": "Policy version", "acceptedAt": "Consent accepted at", "campaign": "Campaign reference", "submit": "Publish manual lead"},
+    "categoryPricing": {"title": "Suggested category price", "category": "Trade", "placeholder": "Select a trade", "amount": "Amount in cents", "submit": "Save suggested price"},
+    "leads": {"title": "Lead inventory", "subtitle": "Moderate availability and set the exact price for each contact.", "status": "Status", "source": "Source", "category": "Trade", "all": "All", "slots": "{sold} of {max} slots sold", "location": "{category} · {city}", "price": "Price in cents", "savePrice": "Save price", "purchases": "View purchases", "disable": "Disable", "republish": "Republish"},
+    "status": {"published": "Published", "exhausted": "Sold out", "disabled": "Disabled"},
+    "source": {"organic": "Organic", "admin": "Manual"},
+    "purchases": {"title": "Purchases for {lead}", "empty": "No purchases for this lead yet.", "unknownProfessional": "Unknown professional", "reviews": "Review notes: {count}", "reviewNote": "Support note", "markReview": "Mark for review"},
+    "purchaseStatus": {"reserved": "Payment pending", "paid": "Paid", "expired": "Expired", "failed": "Failed", "refunded": "Refunded"},
+    "professionals": {"title": "Professional directory", "subtitle": "Consult registered professional profiles.", "search": "Search business or area", "location": "{city} · {distance} km"}
+  },
   "errors": {
     "generic": "Something went wrong. Please try again.",
     "network": "We couldn't reach the server.",
@@ -164,6 +179,8 @@
     "PROFILE_INCOMPLETE": "Complete your profile to continue.",
     "PROFESSIONAL_NOT_FOUND": "You haven't created your professional profile yet.",
     "CATEGORY_NOT_FOUND": "That trade isn't available.",
+    "INVALID_SALE_PRICE": "That price isn't valid for a contact.",
+    "CURRENCY_MISMATCH": "The price must be in the same currency as the trade.",
     "VALIDATION_ERROR": "Please check the form.",
     "UNAUTHENTICATED": "Your session expired. Please log in again.",
     "PERMISSION_DENIED": "You don't have permission for this action.",

@@ -28,7 +28,7 @@ const LEAD: LeadPublic = {
     id: "cat-1",
     slug: "carpinteria",
     name: "Carpinteria",
-    lead_price: { amount_cents: 500, currency: "EUR", formatted: "5.00 €" },
+    suggested_lead_price: { amount_cents: 500, currency: "EUR", formatted: "5.00 €" },
   },
   photo_urls: ["https://cdn.test/a.jpg"],
   created_at: new Date(Date.now() - 3 * 3600_000).toISOString(),

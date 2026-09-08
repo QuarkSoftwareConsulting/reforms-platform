@@ -122,7 +122,7 @@ async def carpentry(session: AsyncSession) -> Category:
         slug="carpinteria",
         name_es="Carpinteria",
         name_en="Carpentry",
-        lead_price_cents=500,
+        suggested_lead_price_cents=500,
         currency="EUR",
         active=True,
     )
@@ -133,7 +133,7 @@ async def carpentry(session: AsyncSession) -> Category:
         slug=row.slug,
         name_es=row.name_es,
         name_en=row.name_en,
-        lead_price=Money(row.lead_price_cents, row.currency),
+        suggested_lead_price=Money(row.suggested_lead_price_cents, row.currency),
     )
 
 

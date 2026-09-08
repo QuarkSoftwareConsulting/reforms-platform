@@ -73,6 +73,11 @@ class StartLeadPurchase:
             if category is None:
                 raise CategoryNotFoundError()
 
+            # El precio se congela aqui, dentro del bloqueo de fila: la compra se
+            # cobra al importe vigente en el instante de reservar la plaza, aunque
+            # el admin lo cambie mientras el profesional completa el checkout.
+            price = lead.sale_price(suggested=category.suggested_lead_price)
+
             existing = await self.purchases.find_active_for_lead_and_professional(
                 lead_id, professional_id, now=now
             )
@@ -90,7 +95,7 @@ class StartLeadPurchase:
                 id=self.ids.new_id(),
                 lead_id=lead.id,
                 professional_id=professional.id,
-                price=category.lead_price,
+                price=price,
                 status=PurchaseStatus.RESERVED,
                 created_at=now,
                 reserved_until=reserved_until,
@@ -106,7 +111,7 @@ class StartLeadPurchase:
                     purchase_id=purchase.id,
                     lead_id=lead.id,
                     professional_id=professional.id,
-                    amount=category.lead_price,
+                    amount=price,
                     product_name=f"{category.name(locale)} - {lead.location.city}",
                     product_description=lead.title,
                     customer_email=None,
@@ -136,7 +141,7 @@ class StartLeadPurchase:
             purchase_id=purchase.id,
             checkout_url=session.url,
             checkout_session_id=session.id,
-            amount=category.lead_price,
+            amount=price,
             expires_at=reserved_until,
         )
 

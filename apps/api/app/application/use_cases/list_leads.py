@@ -64,7 +64,9 @@ class ListLeads:
             LeadListItem(
                 lead=row.lead.public_view(),
                 category=categories[row.lead.category_id],
-                price=categories[row.lead.category_id].lead_price,
+                price=row.lead.sale_price(
+                    suggested=categories[row.lead.category_id].suggested_lead_price
+                ),
                 distance_km=row.distance_km,
                 already_purchased=row.purchased_by_requester,
             )

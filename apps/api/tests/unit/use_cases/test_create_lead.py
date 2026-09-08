@@ -81,12 +81,19 @@ async def test_rejects_unaccepted_consent_checkbox(world: World, carpentry: Cate
         )
 
 
-async def test_admin_lead_needs_no_web_consent(world: World, carpentry: Category) -> None:
+async def test_admin_lead_requires_external_consent(world: World, carpentry: Category) -> None:
     lead = await world.create_lead.execute(
-        lead_input(carpentry, consent=None), source=LeadSource.ADMIN
+        lead_input(
+            carpentry,
+            consent=ConsentInput(
+                accepted=True, policy_version="2026-01-v1", channel="Meta Lead Ads"
+            ),
+        ),
+        source=LeadSource.ADMIN,
     )
     assert lead.source is LeadSource.ADMIN
-    assert lead.consent is None
+    assert lead.consent is not None
+    assert lead.consent.channel == "Meta Lead Ads"
 
 
 async def test_unknown_postal_code_is_rejected(world: World, carpentry: Category) -> None:

@@ -11,7 +11,16 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
-from app.domain.models import Category, Lead, Professional, Purchase, User
+from app.domain.models import (
+    Category,
+    Lead,
+    LeadSource,
+    LeadStatus,
+    Professional,
+    Purchase,
+    PurchaseReview,
+    User,
+)
 from app.domain.value_objects import Coordinates, PostalCode
 
 
@@ -46,6 +55,34 @@ class LeadSearchRow:
     purchased_by_requester: bool
 
 
+@dataclass(frozen=True, slots=True)
+class AdminLeadFilters:
+    """Filtros del inventario administrativo, incluidas solicitudes retiradas."""
+
+    category_id: UUID | None = None
+    status: LeadStatus | None = None
+    source: LeadSource | None = None
+    limit: int = 20
+    offset: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class LeadDashboardCounts:
+    total: int
+    published: int
+    exhausted: int
+    disabled: int
+    organic: int
+    admin: int
+
+
+@dataclass(frozen=True, slots=True)
+class PaidPurchaseMetrics:
+    count: int
+    lead_count: int
+    revenue_by_currency: dict[str, int]
+
+
 class LeadRepositoryPort(ABC):
     @abstractmethod
     async def add(self, lead: Lead) -> Lead: ...
@@ -71,6 +108,15 @@ class LeadRepositoryPort(ABC):
 
     @abstractmethod
     async def count(self, filters: LeadSearchFilters) -> int: ...
+
+    @abstractmethod
+    async def search_admin(self, filters: AdminLeadFilters) -> list[Lead]: ...
+
+    @abstractmethod
+    async def count_admin(self, filters: AdminLeadFilters) -> int: ...
+
+    @abstractmethod
+    async def dashboard_counts(self) -> LeadDashboardCounts: ...
 
 
 class PurchaseRepositoryPort(ABC):
@@ -108,6 +154,14 @@ class PurchaseRepositoryPort(ABC):
     @abstractmethod
     async def has_paid_purchase(self, lead_id: UUID, professional_id: UUID) -> bool: ...
 
+    @abstractmethod
+    async def list_for_lead(
+        self, lead_id: UUID, *, limit: int = 100, offset: int = 0
+    ) -> list[Purchase]: ...
+
+    @abstractmethod
+    async def paid_metrics(self) -> PaidPurchaseMetrics: ...
+
 
 class UserRepositoryPort(ABC):
     @abstractmethod
@@ -133,6 +187,17 @@ class ProfessionalRepositoryPort(ABC):
     @abstractmethod
     async def update(self, professional: Professional) -> Professional: ...
 
+    @abstractmethod
+    async def list_admin(
+        self, *, query: str | None, limit: int, offset: int
+    ) -> list[Professional]: ...
+
+    @abstractmethod
+    async def count_admin(self, *, query: str | None) -> int: ...
+
+    @abstractmethod
+    async def count_all(self) -> int: ...
+
 
 class CategoryRepositoryPort(ABC):
     @abstractmethod
@@ -146,6 +211,10 @@ class CategoryRepositoryPort(ABC):
 
     @abstractmethod
     async def get_many(self, category_ids: set[UUID]) -> list[Category]: ...
+
+    @abstractmethod
+    async def update(self, category: Category) -> Category:
+        """Persiste cambios del catalogo (hoy solo el precio sugerido del oficio)."""
 
 
 class PostalCodeRepositoryPort(ABC):
@@ -165,3 +234,13 @@ class ProcessedEventRepositoryPort(ABC):
         Si devuelve False el evento ya se proceso y el caso de uso debe abortar sin
         repetir efectos.
         """
+
+
+class PurchaseReviewRepositoryPort(ABC):
+    """Historial append-only de revisiones solicitadas por administracion."""
+
+    @abstractmethod
+    async def add(self, review: PurchaseReview) -> PurchaseReview: ...
+
+    @abstractmethod
+    async def list_for_purchase(self, purchase_id: UUID) -> list[PurchaseReview]: ...

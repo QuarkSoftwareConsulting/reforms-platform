@@ -82,6 +82,7 @@ def make_lead(**kwargs: object) -> Lead:
         "published_at": NOW,
         "photos": [LeadPhoto(storage_key="leads/x/1.jpg", sort_order=0)],
         "consent": make_consent(),
+        "price_override": None,
     }
     defaults.update(kwargs)
     return Lead(**defaults)  # type: ignore[arg-type]
@@ -93,7 +94,7 @@ def make_category(**kwargs: object) -> Category:
         "slug": "carpinteria",
         "name_es": "Carpinteria",
         "name_en": "Carpentry",
-        "lead_price": Money(500, "EUR"),
+        "suggested_lead_price": Money(500, "EUR"),
         "active": True,
     }
     defaults.update(kwargs)

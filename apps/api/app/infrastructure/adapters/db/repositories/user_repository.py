@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, delete, select
+from sqlalchemy import ColumnElement, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -69,6 +69,41 @@ class SqlAlchemyProfessionalRepository(ProfessionalRepositoryPort):
         await self._session.flush()
         await self._replace_categories(professional)
         return professional
+
+    async def list_admin(self, *, query: str | None, limit: int, offset: int) -> list[Professional]:
+        stmt = (
+            select(ProfessionalRow)
+            .options(selectinload(ProfessionalRow.categories))
+            .execution_options(populate_existing=True)
+        )
+        if query:
+            pattern = f"%{query.strip()}%"
+            stmt = stmt.where(
+                or_(
+                    ProfessionalRow.business_name.ilike(pattern),
+                    ProfessionalRow.city.ilike(pattern),
+                    ProfessionalRow.province.ilike(pattern),
+                )
+            )
+        stmt = stmt.order_by(ProfessionalRow.created_at.desc()).limit(limit).offset(offset)
+        rows = (await self._session.execute(stmt)).scalars().all()
+        return [professional_to_domain(row) for row in rows]
+
+    async def count_admin(self, *, query: str | None) -> int:
+        stmt = select(func.count(ProfessionalRow.id))
+        if query:
+            pattern = f"%{query.strip()}%"
+            stmt = stmt.where(
+                or_(
+                    ProfessionalRow.business_name.ilike(pattern),
+                    ProfessionalRow.city.ilike(pattern),
+                    ProfessionalRow.province.ilike(pattern),
+                )
+            )
+        return (await self._session.execute(stmt)).scalar_one()
+
+    async def count_all(self) -> int:
+        return (await self._session.execute(select(func.count(ProfessionalRow.id)))).scalar_one()
 
     async def get(self, professional_id: UUID) -> Professional | None:
         row = await self._load_row(ProfessionalRow.id == professional_id)

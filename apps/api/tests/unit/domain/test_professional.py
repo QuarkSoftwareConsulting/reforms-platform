@@ -57,4 +57,4 @@ def test_category_price_must_be_positive() -> None:
     from app.domain.value_objects import Money
 
     with pytest.raises(ValidationError):
-        make_category(lead_price=Money(0, "EUR"))
+        make_category(suggested_lead_price=Money(0, "EUR"))

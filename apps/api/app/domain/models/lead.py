@@ -21,7 +21,8 @@ from app.domain.exceptions import (
     ValidationError,
 )
 from app.domain.models.enums import LeadSource, LeadStatus
-from app.domain.value_objects import Coordinates, Email, PhoneNumber, PostalCode
+from app.domain.models.pricing import assert_same_currency, assert_sellable_price
+from app.domain.value_objects import Coordinates, Email, Money, PhoneNumber, PostalCode
 
 MIN_DESCRIPTION_LENGTH = 20
 MAX_DESCRIPTION_LENGTH = 4000
@@ -66,10 +67,14 @@ class ConsentRecord:
     user_agent: str | None
     accepted_at: datetime
     max_recipients: int
+    channel: str | None = None
+    campaign_reference: str | None = None
 
     def __post_init__(self) -> None:
         if not self.policy_version.strip():
             raise ConsentRequiredError("Falta la version de la politica aceptada")
+        if self.channel is not None and not self.channel.strip():
+            raise ConsentRequiredError("Falta el canal de captacion")
 
 
 @dataclass(slots=True)
@@ -90,6 +95,8 @@ class Lead:
     published_at: datetime | None = None
     photos: list[LeadPhoto] = field(default_factory=list)
     consent: ConsentRecord | None = None
+    price_override: Money | None = None
+    """Precio fijado por el admin para este contacto. `None` = usar el de la categoria."""
 
     def __post_init__(self) -> None:
         self.title = self.title.strip()
@@ -107,11 +114,13 @@ class Lead:
             raise ValidationError("max_purchases debe ser al menos 1")
         if self.purchases_count < 0:
             raise ValidationError("purchases_count no puede ser negativo")
-        # Un lead organico sin consentimiento registrado nunca debe existir: seria
-        # una cesion de datos personales sin base legal.
-        if self.source is LeadSource.ORGANIC and self.consent is None:
+        if self.price_override is not None:
+            assert_sellable_price(self.price_override)
+        # Sin una prueba de consentimiento no se puede ceder ningun contacto,
+        # tampoco uno que el admin haya captado en un canal externo.
+        if self.consent is None:
             raise ConsentRequiredError(
-                "Un lead publicado por el cliente requiere registro de consentimiento"
+                "Un lead requiere registro de consentimiento para ceder sus datos"
             )
 
     # ----------------------------- Consultas -----------------------------
@@ -124,6 +133,20 @@ class Lead:
     @property
     def remaining_slots(self) -> int:
         return max(self.max_purchases - self.purchases_count, 0)
+
+    @property
+    def has_custom_price(self) -> bool:
+        """True si el admin le puso precio propio a este contacto."""
+        return self.price_override is not None
+
+    def sale_price(self, *, suggested: Money) -> Money:
+        """Precio al que se vende este contacto.
+
+        Unico sitio que responde "cuanto cuesta este lead": el precio de la
+        categoria es solo la sugerencia, y el admin puede haberla sustituido para
+        este contacto en concreto.
+        """
+        return self.price_override if self.price_override is not None else suggested
 
     # ----------------------------- Reglas --------------------------------
 
@@ -161,6 +184,20 @@ class Lead:
         self.purchases_count += 1
         if self.purchases_count >= self.max_purchases:
             self.status = LeadStatus.EXHAUSTED
+
+    def set_price_override(self, price: Money | None, *, suggested: Money) -> None:
+        """Fija (o borra, con `None`) el precio propio de este contacto.
+
+        No toca las compras ya creadas: cada `Purchase` guarda el importe con el
+        que se cobro, asi que cambiar el precio no altera lo facturado ni la sesion
+        de checkout de una reserva viva.
+        """
+        if price is None:
+            self.price_override = None
+            return
+        assert_same_currency(price, suggested)
+        assert_sellable_price(price)
+        self.price_override = price
 
     def disable(self) -> None:
         self.status = LeadStatus.DISABLED

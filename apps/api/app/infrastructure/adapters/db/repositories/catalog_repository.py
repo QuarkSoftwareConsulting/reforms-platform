@@ -14,9 +14,14 @@ from app.application.ports import (
     PostalCodeRepositoryPort,
     ProcessedEventRepositoryPort,
 )
+from app.domain.exceptions import CategoryNotFoundError
 from app.domain.models import Category
 from app.domain.value_objects import PostalCode
-from app.infrastructure.adapters.db.mappers import category_to_domain, postal_code_to_domain
+from app.infrastructure.adapters.db.mappers import (
+    apply_category,
+    category_to_domain,
+    postal_code_to_domain,
+)
 from app.infrastructure.adapters.db.models import (
     CategoryRow,
     PostalCodeRow,
@@ -48,6 +53,14 @@ class SqlAlchemyCategoryRepository(CategoryRepositoryPort):
         stmt = select(CategoryRow).where(CategoryRow.id.in_(category_ids))
         rows = (await self._session.execute(stmt)).scalars().all()
         return [category_to_domain(row) for row in rows]
+
+    async def update(self, category: Category) -> Category:
+        row = await self._session.get(CategoryRow, category.id)
+        if row is None:
+            raise CategoryNotFoundError()
+        apply_category(row, category)
+        await self._session.flush()
+        return category
 
 
 class SqlAlchemyPostalCodeRepository(PostalCodeRepositoryPort):

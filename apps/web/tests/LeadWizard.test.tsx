@@ -34,13 +34,13 @@ const CATEGORIES: Category[] = [
     id: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
     slug: "carpinteria",
     name: "Carpinteria",
-    lead_price: { amount_cents: 500, currency: "EUR", formatted: "5.00 €" },
+    suggested_lead_price: { amount_cents: 500, currency: "EUR", formatted: "5.00 €" },
   },
   {
     id: "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed",
     slug: "fontaneria",
     name: "Fontaneria",
-    lead_price: { amount_cents: 700, currency: "EUR", formatted: "7.00 €" },
+    suggested_lead_price: { amount_cents: 700, currency: "EUR", formatted: "7.00 €" },
   },
 ];
 

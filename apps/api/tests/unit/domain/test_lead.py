@@ -8,12 +8,15 @@ from app.domain.exceptions import (
     CategoryMismatchError,
     ConsentRequiredError,
     ContactLockedError,
+    CurrencyMismatchError,
+    InvalidSalePriceError,
     LeadAlreadyPurchasedError,
     LeadCapReachedError,
     LeadNotPurchasableError,
     ValidationError,
 )
-from app.domain.models import LeadSource, LeadStatus
+from app.domain.models import MAX_SALE_PRICE_CENTS, LeadSource, LeadStatus
+from app.domain.value_objects import Money
 from tests.factories import make_lead
 
 
@@ -136,9 +139,9 @@ class TestLeadInvariants:
         with pytest.raises(ConsentRequiredError):
             make_lead(source=LeadSource.ORGANIC, consent=None)
 
-    def test_admin_lead_may_omit_web_consent(self) -> None:
-        lead = make_lead(source=LeadSource.ADMIN, consent=None)
-        assert lead.source is LeadSource.ADMIN
+    def test_admin_lead_requires_external_consent(self) -> None:
+        with pytest.raises(ConsentRequiredError):
+            make_lead(source=LeadSource.ADMIN, consent=None)
 
     def test_short_description_rejected(self) -> None:
         with pytest.raises(ValidationError):
@@ -157,3 +160,55 @@ class TestLeadInvariants:
     def test_title_and_description_are_trimmed(self) -> None:
         lead = make_lead(title="  Pintar salon  ")
         assert lead.title == "Pintar salon"
+
+
+class TestSalePrice:
+    """El precio de un contacto lo decide el admin; la categoria solo sugiere."""
+
+    SUGGESTED = Money(500, "EUR")
+
+    def test_without_override_the_category_price_applies(self) -> None:
+        lead = make_lead()
+        assert lead.has_custom_price is False
+        assert lead.sale_price(suggested=self.SUGGESTED) == self.SUGGESTED
+
+    def test_override_wins_over_the_suggested_price(self) -> None:
+        lead = make_lead()
+        lead.set_price_override(Money(2500, "EUR"), suggested=self.SUGGESTED)
+
+        assert lead.has_custom_price is True
+        assert lead.sale_price(suggested=self.SUGGESTED) == Money(2500, "EUR")
+
+    def test_override_can_be_cleared_back_to_the_suggested_price(self) -> None:
+        lead = make_lead(price_override=Money(2500, "EUR"))
+        lead.set_price_override(None, suggested=self.SUGGESTED)
+
+        assert lead.has_custom_price is False
+        assert lead.sale_price(suggested=self.SUGGESTED) == self.SUGGESTED
+
+    def test_a_cheaper_price_than_the_category_is_allowed(self) -> None:
+        # El admin puede rebajar un contacto flojo, no solo encarecer uno bueno.
+        lead = make_lead()
+        lead.set_price_override(Money(100, "EUR"), suggested=self.SUGGESTED)
+        assert lead.sale_price(suggested=self.SUGGESTED) == Money(100, "EUR")
+
+    def test_zero_price_rejected(self) -> None:
+        lead = make_lead()
+        with pytest.raises(InvalidSalePriceError):
+            lead.set_price_override(Money(0, "EUR"), suggested=self.SUGGESTED)
+
+    def test_price_above_the_safety_cap_rejected(self) -> None:
+        lead = make_lead()
+        with pytest.raises(InvalidSalePriceError):
+            lead.set_price_override(
+                Money(MAX_SALE_PRICE_CENTS + 1, "EUR"), suggested=self.SUGGESTED
+            )
+
+    def test_another_currency_than_the_category_rejected(self) -> None:
+        lead = make_lead()
+        with pytest.raises(CurrencyMismatchError):
+            lead.set_price_override(Money(2500, "USD"), suggested=self.SUGGESTED)
+
+    def test_invalid_override_rejected_at_construction(self) -> None:
+        with pytest.raises(InvalidSalePriceError):
+            make_lead(price_override=Money(0, "EUR"))

@@ -64,11 +64,13 @@ class CategoryRow(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     slug: Mapped[str] = mapped_column(String(60), nullable=False, unique=True)
     name_es: Mapped[str] = mapped_column(String(120), nullable=False)
     name_en: Mapped[str] = mapped_column(String(120), nullable=False)
-    lead_price_cents: Mapped[int] = mapped_column(Integer, nullable=False)
+    suggested_lead_price_cents: Mapped[int] = mapped_column(Integer, nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="EUR")
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
-    __table_args__ = (CheckConstraint("lead_price_cents > 0", name="lead_price_positive"),)
+    __table_args__ = (
+        CheckConstraint("suggested_lead_price_cents > 0", name="suggested_lead_price_positive"),
+    )
 
 
 class ProfessionalCategoryRow(Base):
@@ -143,6 +145,12 @@ class LeadRow(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     purchases_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    # Precio que el admin fijo para este contacto. NULL = se cobra el sugerido de
+    # la categoria. La divisa se guarda al lado del importe para que el mapeo de la
+    # fila no dependa de cargar tambien el oficio.
+    price_override_cents: Mapped[int | None] = mapped_column(Integer)
+    price_override_currency: Mapped[str | None] = mapped_column(String(3))
+
     photos: Mapped[list[LeadPhotoRow]] = relationship(
         back_populates="lead", cascade="all, delete-orphan", lazy="selectin"
     )
@@ -152,6 +160,14 @@ class LeadRow(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     __table_args__ = (
         CheckConstraint("max_purchases >= 1", name="max_purchases_positive"),
+        CheckConstraint(
+            "price_override_cents IS NULL OR price_override_cents > 0",
+            name="price_override_positive",
+        ),
+        CheckConstraint(
+            "(price_override_cents IS NULL) = (price_override_currency IS NULL)",
+            name="price_override_complete",
+        ),
         CheckConstraint(
             "purchases_count >= 0 AND purchases_count <= max_purchases",
             name="purchases_count_within_cap",
@@ -192,6 +208,8 @@ class LeadConsentRow(Base, UUIDPrimaryKeyMixin):
     user_agent: Mapped[str | None] = mapped_column(String(500))
     max_recipients: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
     accepted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    external_channel: Mapped[str | None] = mapped_column(String(120))
+    external_campaign_reference: Mapped[str | None] = mapped_column(String(200))
 
     lead: Mapped[LeadRow] = relationship(back_populates="consents")
 
@@ -237,6 +255,23 @@ class LeadPurchaseRow(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
 
 
+class PurchaseReviewRow(Base, UUIDPrimaryKeyMixin):
+    """Marca inmutable para investigar una compra sin alterar su estado de pago."""
+
+    __tablename__ = "purchase_reviews"
+
+    purchase_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("lead_purchases.id", ondelete="CASCADE"), nullable=False
+    )
+    reviewed_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    note: Mapped[str] = mapped_column(String(500), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (Index("ix_purchase_reviews_purchase", "purchase_id", "created_at"),)
+
+
 class PostalCodeRow(Base):
     """Catalogo de codigos postales con su centroide."""
 
@@ -278,5 +313,6 @@ __all__ = [
     "ProcessedPaymentEventRow",
     "ProfessionalCategoryRow",
     "ProfessionalRow",
+    "PurchaseReviewRow",
     "UserRow",
 ]

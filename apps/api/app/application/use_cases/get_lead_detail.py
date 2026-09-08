@@ -63,7 +63,7 @@ class GetLeadDetail:
         return LeadDetail(
             lead=lead.public_view(),
             category=category,
-            price=category.lead_price,
+            price=lead.sale_price(suggested=category.suggested_lead_price),
             distance_km=round(distance_km, 1),
             contact=lead.contact_view(unlocked=True) if paid is not None else None,
             purchase=current,

@@ -8,7 +8,7 @@ from uuid import UUID
 from sqlalchemy import ColumnElement, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.ports import PurchaseRepositoryPort
+from app.application.ports import PaidPurchaseMetrics, PurchaseRepositoryPort
 from app.domain.exceptions import PurchaseNotFoundError
 from app.domain.models import Purchase, PurchaseStatus
 from app.infrastructure.adapters.db.mappers import apply_purchase, purchase_to_domain
@@ -123,3 +123,34 @@ class SqlAlchemyPurchaseRepository(PurchaseRepositoryPort):
             .exists()
         )
         return bool((await self._session.execute(stmt)).scalar())
+
+    async def list_for_lead(
+        self, lead_id: UUID, *, limit: int = 100, offset: int = 0
+    ) -> list[Purchase]:
+        stmt = (
+            select(LeadPurchaseRow)
+            .where(LeadPurchaseRow.lead_id == lead_id)
+            .order_by(LeadPurchaseRow.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        rows = (await self._session.execute(stmt)).scalars().all()
+        return [purchase_to_domain(row) for row in rows]
+
+    async def paid_metrics(self) -> PaidPurchaseMetrics:
+        base = LeadPurchaseRow.status == PurchaseStatus.PAID
+        count_stmt = select(
+            func.count(LeadPurchaseRow.id), func.count(func.distinct(LeadPurchaseRow.lead_id))
+        ).where(base)
+        count_row = (await self._session.execute(count_stmt)).one()
+        revenue_stmt = (
+            select(LeadPurchaseRow.currency, func.sum(LeadPurchaseRow.amount_cents))
+            .where(base)
+            .group_by(LeadPurchaseRow.currency)
+        )
+        revenue_rows = (await self._session.execute(revenue_stmt)).all()
+        return PaidPurchaseMetrics(
+            count=int(count_row[0] or 0),
+            lead_count=int(count_row[1] or 0),
+            revenue_by_currency={currency: int(amount) for currency, amount in revenue_rows},
+        )

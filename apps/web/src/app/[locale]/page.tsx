@@ -31,7 +31,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
   const cheapest = categories.reduce<Category | null>(
     (min, category) =>
-      min === null || category.lead_price.amount_cents < min.lead_price.amount_cents
+      min === null ||
+      category.suggested_lead_price.amount_cents < min.suggested_lead_price.amount_cents
         ? category
         : min,
     null,
@@ -105,7 +106,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           </ul>
           {cheapest && (
             <p className="text-sm text-slate-500">
-              {t("priceNote", { price: formatMoney(cheapest.lead_price, locale) })}
+              {t("priceNote", { price: formatMoney(cheapest.suggested_lead_price, locale) })}
             </p>
           )}
         </section>

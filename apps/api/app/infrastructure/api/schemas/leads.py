@@ -50,7 +50,8 @@ class CategoryOut(ApiModel):
     id: UUID
     slug: str
     name: str
-    lead_price: MoneyOut
+    suggested_lead_price: MoneyOut
+    """Precio de referencia del oficio. El de un lead concreto va en `price`."""
 
 
 class LeadPublicOut(ApiModel):

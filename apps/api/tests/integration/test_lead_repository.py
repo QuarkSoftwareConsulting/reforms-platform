@@ -24,7 +24,7 @@ from app.infrastructure.adapters.db.repositories import (
     SqlAlchemyLeadRepository,
     SqlAlchemyPurchaseRepository,
 )
-from tests.factories import BARCELONA, MADRID, make_lead, make_lead_location
+from tests.factories import BARCELONA, MADRID, make_consent, make_lead, make_lead_location
 
 pytestmark = pytest.mark.integration
 
@@ -85,14 +85,57 @@ class TestPersistence:
         assert loaded is not None
         assert [p.storage_key for p in loaded.photos] == ["leads/a.jpg", "leads/b.jpg"]
 
-    async def test_admin_lead_without_consent_persists(
+    async def test_admin_lead_with_external_consent_persists(
         self, session: AsyncSession, carpentry: Category
     ) -> None:
-        stored = await store_lead(session, carpentry, source=LeadSource.ADMIN, consent=None)
+        stored = await store_lead(
+            session,
+            carpentry,
+            source=LeadSource.ADMIN,
+            consent=make_consent(channel="Meta Lead Ads", campaign_reference="marzo-madrid"),
+        )
         loaded = await SqlAlchemyLeadRepository(session).get(stored.id)
         assert loaded is not None
         assert loaded.source is LeadSource.ADMIN
-        assert loaded.consent is None
+        assert loaded.consent is not None
+        assert loaded.consent.channel == "Meta Lead Ads"
+
+    async def test_price_override_round_trips_with_its_currency(
+        self, session: AsyncSession, carpentry: Category
+    ) -> None:
+        stored = await store_lead(session, carpentry, price_override=Money(2500, "EUR"))
+        loaded = await SqlAlchemyLeadRepository(session).get(stored.id)
+
+        assert loaded is not None
+        assert loaded.price_override == Money(2500, "EUR")
+        assert loaded.sale_price(suggested=carpentry.suggested_lead_price) == Money(2500, "EUR")
+
+    async def test_clearing_the_price_override_nulls_both_columns(
+        self, session: AsyncSession, carpentry: Category
+    ) -> None:
+        stored = await store_lead(session, carpentry, price_override=Money(2500, "EUR"))
+        repo = SqlAlchemyLeadRepository(session)
+
+        stored.set_price_override(None, suggested=carpentry.suggested_lead_price)
+        await repo.update(stored)
+        await session.commit()
+
+        loaded = await repo.get(stored.id)
+        assert loaded is not None
+        assert loaded.price_override is None
+        assert loaded.sale_price(suggested=carpentry.suggested_lead_price) == Money(500, "EUR")
+
+    async def test_half_a_price_override_is_rejected_by_the_database(
+        self, session: AsyncSession, carpentry: Category
+    ) -> None:
+        """Importe sin divisa dejaria una fila que el mapeador no sabe interpretar."""
+        from sqlalchemy import text
+
+        stored = await store_lead(session, carpentry)
+        update = text("UPDATE leads SET price_override_cents = 2500 WHERE id = :id")
+        with pytest.raises(IntegrityError):
+            await session.execute(update, {"id": stored.id})
+        await session.rollback()
 
     async def test_purchases_count_cannot_exceed_cap_in_the_database(
         self, session: AsyncSession, carpentry: Category

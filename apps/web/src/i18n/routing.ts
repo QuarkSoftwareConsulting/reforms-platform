@@ -24,6 +24,7 @@ export const routes = {
   profile: "/perfil",
   login: "/login",
   register: "/registro",
+  admin: "/admin",
 } as const;
 
 export function path(locale: AppLocale, route: keyof typeof routes, suffix = ""): string {

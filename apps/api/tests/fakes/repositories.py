@@ -13,24 +13,30 @@ from datetime import datetime
 from uuid import UUID
 
 from app.application.ports import (
+    AdminLeadFilters,
     CategoryRepositoryPort,
+    LeadDashboardCounts,
     LeadRepositoryPort,
     LeadSearchFilters,
     LeadSearchRow,
+    PaidPurchaseMetrics,
     PostalCodeInfo,
     PostalCodeRepositoryPort,
     ProcessedEventRepositoryPort,
     ProfessionalRepositoryPort,
     PurchaseRepositoryPort,
+    PurchaseReviewRepositoryPort,
     UnitOfWork,
     UserRepositoryPort,
 )
+from app.domain.exceptions import CategoryNotFoundError
 from app.domain.models import (
     Category,
     Lead,
     LeadStatus,
     Professional,
     Purchase,
+    PurchaseReview,
     PurchaseStatus,
     User,
 )
@@ -174,6 +180,42 @@ class InMemoryLeadRepository(LeadRepositoryPort):
         await _round_trip()
         return sum(1 for lead in self.items.values() if self._matches(lead, filters))
 
+    async def search_admin(self, filters: AdminLeadFilters) -> list[Lead]:
+        await _round_trip()
+        rows = [
+            lead
+            for lead in self.items.values()
+            if (filters.category_id is None or lead.category_id == filters.category_id)
+            and (filters.status is None or lead.status is filters.status)
+            and (filters.source is None or lead.source is filters.source)
+        ]
+        rows.sort(key=lambda lead: lead.created_at, reverse=True)
+        return rows[filters.offset : filters.offset + filters.limit]
+
+    async def count_admin(self, filters: AdminLeadFilters) -> int:
+        await _round_trip()
+        return len(
+            [
+                lead
+                for lead in self.items.values()
+                if (filters.category_id is None or lead.category_id == filters.category_id)
+                and (filters.status is None or lead.status is filters.status)
+                and (filters.source is None or lead.source is filters.source)
+            ]
+        )
+
+    async def dashboard_counts(self) -> LeadDashboardCounts:
+        await _round_trip()
+        values = list(self.items.values())
+        return LeadDashboardCounts(
+            total=len(values),
+            published=sum(lead.status is LeadStatus.PUBLISHED for lead in values),
+            exhausted=sum(lead.status is LeadStatus.EXHAUSTED for lead in values),
+            disabled=sum(lead.status is LeadStatus.DISABLED for lead in values),
+            organic=sum(lead.source.value == "organic" for lead in values),
+            admin=sum(lead.source.value == "admin" for lead in values),
+        )
+
 
 class InMemoryPurchaseRepository(PurchaseRepositoryPort):
     def __init__(self, purchases: list[Purchase] | None = None) -> None:
@@ -244,6 +286,32 @@ class InMemoryPurchaseRepository(PurchaseRepositoryPort):
             for p in self.items.values()
         )
 
+    async def list_for_lead(
+        self, lead_id: UUID, *, limit: int = 100, offset: int = 0
+    ) -> list[Purchase]:
+        await _round_trip()
+        rows = sorted(
+            (purchase for purchase in self.items.values() if purchase.lead_id == lead_id),
+            key=lambda purchase: purchase.created_at,
+            reverse=True,
+        )
+        return rows[offset : offset + limit]
+
+    async def paid_metrics(self) -> PaidPurchaseMetrics:
+        await _round_trip()
+        rows = [
+            purchase for purchase in self.items.values() if purchase.status is PurchaseStatus.PAID
+        ]
+        revenue: dict[str, int] = {}
+        for purchase in rows:
+            currency = purchase.price.currency
+            revenue[currency] = revenue.get(currency, 0) + purchase.price.amount_cents
+        return PaidPurchaseMetrics(
+            count=len(rows),
+            lead_count=len({purchase.lead_id for purchase in rows}),
+            revenue_by_currency=revenue,
+        )
+
 
 class InMemoryUserRepository(UserRepositoryPort):
     def __init__(self, users: list[User] | None = None) -> None:
@@ -286,6 +354,28 @@ class InMemoryProfessionalRepository(ProfessionalRepositoryPort):
         self.items[professional.id] = professional
         return professional
 
+    async def list_admin(self, *, query: str | None, limit: int, offset: int) -> list[Professional]:
+        await _round_trip()
+        query_lower = query.strip().lower() if query else None
+        rows = [
+            professional
+            for professional in self.items.values()
+            if query_lower is None
+            or query_lower in professional.business_name.lower()
+            or query_lower in (professional.city or "").lower()
+            or query_lower in (professional.province or "").lower()
+        ]
+        rows.sort(key=lambda professional: professional.created_at, reverse=True)
+        return rows[offset : offset + limit]
+
+    async def count_admin(self, *, query: str | None) -> int:
+        await _round_trip()
+        return len(await self.list_admin(query=query, limit=1_000_000, offset=0))
+
+    async def count_all(self) -> int:
+        await _round_trip()
+        return len(self.items)
+
 
 class InMemoryCategoryRepository(CategoryRepositoryPort):
     def __init__(self, categories: list[Category] | None = None) -> None:
@@ -306,6 +396,31 @@ class InMemoryCategoryRepository(CategoryRepositoryPort):
     async def get_many(self, category_ids: set[UUID]) -> list[Category]:
         await _round_trip()
         return [self.items[cid] for cid in category_ids if cid in self.items]
+
+    async def update(self, category: Category) -> Category:
+        await _round_trip()
+        if category.id not in self.items:
+            raise CategoryNotFoundError()
+        self.items[category.id] = category
+        return category
+
+
+class InMemoryPurchaseReviewRepository(PurchaseReviewRepositoryPort):
+    def __init__(self) -> None:
+        self.items: dict[UUID, PurchaseReview] = {}
+
+    async def add(self, review: PurchaseReview) -> PurchaseReview:
+        await _round_trip()
+        self.items[review.id] = review
+        return review
+
+    async def list_for_purchase(self, purchase_id: UUID) -> list[PurchaseReview]:
+        await _round_trip()
+        return sorted(
+            (review for review in self.items.values() if review.purchase_id == purchase_id),
+            key=lambda review: review.created_at,
+            reverse=True,
+        )
 
 
 class InMemoryPostalCodeRepository(PostalCodeRepositoryPort):
