@@ -3,8 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "description": "Reforma Hub - marketplace pay-per-lead de oficios y reformas",
+  "packageManager": "pnpm@10.34.5",
   "engines": {
-    "node": ">=20"
+    "node": ">=22.22.2 <23"
   },
   "scripts": {
     "infra:up": "docker compose -f infra/docker-compose.yml up -d",

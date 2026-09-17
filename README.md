@@ -46,7 +46,8 @@ elige la implementación concreta de cada uno.
 
 ## Arrancar en local
 
-Requisitos: Docker, Node ≥ 20 + pnpm, Python ≥ 3.12 + [uv](https://docs.astral.sh/uv/).
+Requisitos: Docker, Node 22.22.2 + pnpm 10.34.5, Python ≥ 3.12 + [uv](https://docs.astral.sh/uv/).
+Se recomienda ejecutar `nvm use` desde la raíz para seleccionar la versión de `.nvmrc`.
 
 ```bash
 # 1. Infraestructura (PostGIS en :5433, BD de test en :5434, MinIO en :9000)
