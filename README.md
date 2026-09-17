@@ -73,6 +73,34 @@ pnpm web:dev                           # http://localhost:3010
 > Los puertos son 8010 (API) y 3010 (web) para no chocar con otros proyectos que
 > suelen ocupar 8000 y 3000.
 
+### Gestionar administradores (CLI interna)
+
+Desde `apps/api`, usa un único identificador (`--email` o `--uid`):
+
+```bash
+uv run python -m scripts.manage_admin grant --email admin@example.com
+uv run python -m scripts.manage_admin revoke --email admin@example.com
+# Alternativa para cualquiera de las dos acciones:
+uv run python -m scripts.manage_admin revoke --uid firebase-uid
+```
+
+Requiere un proyecto Firebase y credenciales Firebase Admin con permisos para gestionar
+usuarios. Reutiliza la configuración del backend: `FIREBASE_PROJECT_ID`, credenciales en
+`FIREBASE_CREDENTIALS_JSON`, fichero externo mediante `GOOGLE_APPLICATION_CREDENTIALS`
+o credenciales predeterminadas del entorno. No guardes service accounts en el repositorio.
+Si está configurado `FIREBASE_AUTH_EMULATOR_HOST`, opera sobre ese emulador.
+
+`grant` establece `admin=true`; `revoke` elimina `admin` y `reforma_admin`, los dos claims
+que el backend reconoce como administrativos. Ambas acciones conservan los demás claims.
+Ejecuta estas operaciones de forma secuencial: Firebase reemplaza el conjunto de claims
+y no protege frente a otra escritura concurrente entre la lectura y la actualización.
+
+Firebase sigue siendo la fuente de verdad: la CLI no escribe en la base de datos local.
+Los cambios se reflejan cuando el usuario obtiene un ID token renovado (por ejemplo,
+cerrando sesión y volviendo a entrar) y la API sincroniza nuevamente su identidad.
+No invalidan de inmediato los ID tokens ya emitidos. Los errores devuelven un código de
+salida distinto de cero, sin imprimir tokens, credenciales ni contenido de los claims.
+
 ### Pagos en local
 
 `STRIPE_SECRET_KEY` y `STRIPE_WEBHOOK_SECRET` son obligatorias para completar una compra.
