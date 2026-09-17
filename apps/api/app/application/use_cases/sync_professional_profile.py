@@ -53,7 +53,7 @@ class SyncUserFromIdentity:
                 existing.display_name = identity.display_name
                 changed = True
             # El claim de admin manda: se gestiona desde la consola de Firebase.
-            desired_role = UserRole.ADMIN if identity.is_admin_claim else existing.role
+            desired_role = UserRole.ADMIN if identity.is_admin_claim else UserRole.PROFESSIONAL
             if desired_role is not existing.role:
                 existing.role = desired_role
                 changed = True
