@@ -47,6 +47,23 @@ class TestIdentityMirror:
         )
         assert user.role is UserRole.ADMIN
 
+    async def test_removing_admin_custom_claim_revokes_the_role(self, world: World) -> None:
+        promoted = await world.sync_user.execute(
+            AuthenticatedIdentity(
+                provider_uid="fb-admin", email="admin@example.com", is_admin_claim=True
+            )
+        )
+        assert promoted.role is UserRole.ADMIN
+
+        demoted = await world.sync_user.execute(
+            AuthenticatedIdentity(
+                provider_uid="fb-admin", email="admin@example.com", is_admin_claim=False
+            )
+        )
+
+        assert demoted.id == promoted.id
+        assert demoted.role is UserRole.PROFESSIONAL
+
     async def test_email_change_in_firebase_is_mirrored(self, world: World) -> None:
         await world.sync_user.execute(
             AuthenticatedIdentity(provider_uid="fb-uid-1", email="old@example.com")

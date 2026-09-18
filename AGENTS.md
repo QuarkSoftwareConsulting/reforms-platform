@@ -25,6 +25,9 @@ TypeScript + pnpm). Estado y alcance de la fase actual: ver `README.md`.
 
 ## 2. Puesta en marcha
 
+Usa Node 22.22.2 y pnpm 10.34.5. Se recomienda ejecutar `nvm use` desde la raíz;
+`.nvmrc` fija Node y `packageManager` en `package.json` fija pnpm.
+
 ```bash
 pnpm infra:up                       # PostGIS :5433, BD de test :5434, MinIO :9000
 cp .env.example apps/api/.env       # sección BACKEND
@@ -242,9 +245,9 @@ Tres reglas aprendidas a golpes:
 tipos `ENUM` en el `downgrade`. Compara con `alembic/versions/*_initial_schema.py` y
 verifica siempre `upgrade` → `downgrade` → `upgrade` y `alembic check`.
 
-**pnpm 11** — los paquetes que necesitan scripts de instalación (`sharp`, `esbuild`…) se
-declaran en `allowBuilds` dentro de `pnpm-workspace.yaml`. `onlyBuiltDependencies` y el
-campo `pnpm` de `package.json` **ya no se leen** en esta versión.
+**pnpm 10.34.5** — usa la versión fijada en `packageManager`. Los paquetes autorizados
+a ejecutar scripts de instalación (`sharp`, `esbuild`…) se declaran en `allowBuilds`
+dentro de `pnpm-workspace.yaml`.
 
 **Next.js** — un componente cliente que use `useSearchParams()` necesita un `<Suspense>`
 alrededor o el `build` falla al prerenderizar. Ver `publicar/page.tsx`.

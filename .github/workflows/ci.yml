@@ -1,0 +1,181 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: "true"
+  UV_LOCKED: "true"
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  lint:
+    name: Lint y tipos
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        with:
+          version: "10.34.5"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          # Misma version de uv que apps/api/Dockerfile.
+          version: "0.11.29"
+          working-directory: apps/api
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          cache-python: true
+      - name: Instalar dependencias Node
+        run: pnpm install --frozen-lockfile
+      - name: Instalar Python y dependencias
+        working-directory: apps/api
+        # uv lee la version de Python de .python-version.
+        run: |
+          uv python install
+          uv sync --locked
+      - run: pnpm lint
+
+  backend-tests:
+    name: Tests backend
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      ENVIRONMENT: test
+      TEST_DATABASE_URL: postgresql+asyncpg://reforma:reforma@localhost:5434/reforma_hub_test
+    services:
+      db-test:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: reforma
+          POSTGRES_PASSWORD: reforma
+          POSTGRES_DB: reforma_hub_test
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U reforma -d reforma_hub_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        with:
+          version: "10.34.5"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .nvmrc
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: "0.11.29"
+          working-directory: apps/api
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          cache-python: true
+      - name: Instalar Python y dependencias
+        working-directory: apps/api
+        run: |
+          uv python install
+          uv sync --locked
+      # Las fixtures crean el esquema y sustituyen Firebase, Stripe y S3 por fakes.
+      - run: pnpm api:test --junitxml=test-results.xml
+      - name: Comprobar que no se omitieron tests
+        working-directory: apps/api
+        # Las fixtures locales hacen skip si falla la BD; en CI debe fallar el job.
+        run: |
+          uv run python - <<'PY'
+          import xml.etree.ElementTree as ET
+
+          report = ET.parse("test-results.xml")
+          if not report.findall(".//testcase") or report.findall(".//skipped"):
+              raise SystemExit("La suite debe ejecutar todos los tests, sin omisiones")
+          PY
+
+  frontend-tests:
+    name: Tests frontend
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        with:
+          version: "10.34.5"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm web:test
+
+  frontend-build:
+    name: Build frontend
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      # Valores publicos ficticios: el build no necesita servicios externos activos.
+      # El prerender usa el catalogo vacio existente si la API no responde.
+      NEXT_PUBLIC_API_URL: http://localhost:8010
+      NEXT_PUBLIC_DEFAULT_LOCALE: es
+      NEXT_PUBLIC_FIREBASE_API_KEY: demo-api-key
+      NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: demo-reforma-hub.firebaseapp.com
+      NEXT_PUBLIC_FIREBASE_PROJECT_ID: demo-reforma-hub
+      NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: demo-reforma-hub.appspot.com
+      NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "000000000000"
+      NEXT_PUBLIC_FIREBASE_APP_ID: "1:000000000000:web:0000000000000000000000"
+      NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST: http://127.0.0.1:9099
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        with:
+          version: "10.34.5"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter web build
+
+  api-image:
+    name: Build imagen API
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: apps/api
+          file: apps/api/Dockerfile
+          tags: reformahub-api:ci
+          push: false
+          load: true
+          cache-from: type=gha,scope=api-ci
+          cache-to: type=gha,mode=max,scope=api-ci
