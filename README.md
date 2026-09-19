@@ -27,7 +27,7 @@ Documentos de producto en [`docs/`](./docs).
 | Base de datos | PostgreSQL 16 + **PostGIS** | Filtrado por radio real en km con índices GIST |
 | Autenticación | **Firebase Auth** | El backend verifica ID tokens con `firebase-admin` detrás de un puerto |
 | Pagos | **Stripe Checkout** | SCA/3D Secure nativo y multidivisa |
-| Almacenamiento | S3 compatible (MinIO en dev, Cloudflare R2 en prod) | Subida directa del navegador con URL prefirmada |
+| Almacenamiento | S3/MinIO en local; GCS nativo privado en Cloud Run | Subida directa del navegador con URL firmada |
 
 ```
 apps/
@@ -72,6 +72,65 @@ pnpm web:dev                           # http://localhost:3010
 
 > Los puertos son 8010 (API) y 3010 (web) para no chocar con otros proyectos que
 > suelen ocupar 8000 y 3000.
+
+### Almacenamiento en Cloud Run
+
+`STORAGE_BACKEND=s3` es el valor predeterminado y conserva MinIO/S3, incluyendo sus
+URLs públicas de lectura. Para GCS privado, configurar:
+
+```ini
+STORAGE_BACKEND=gcs
+GCS_BUCKET=<bucket-existente>
+GCS_SIGNED_URL_EXPIRES_SECONDS=900
+```
+
+La API usa ADC de la cuenta de servicio de Cloud Run; no configurar
+`GOOGLE_APPLICATION_CREDENTIALS` ni proporcionar archivos JSON para GCS. El proyecto
+y el email de la cuenta se resuelven mediante ADC. Con GCS no se exigen secretos S3.
+`google-cloud-storage` es una dependencia directa instalada por el Dockerfile existente.
+
+El navegador conserva el mismo flujo: pide `/api/v1/leads/photos/presign` y envía
+los bytes directamente mediante `PUT`, con el `Content-Type` devuelto por la API.
+Solo se persiste `storage_key`, con formato `leads/YYYY/MM/DD/<uuid>/<nombre>`.
+`photo_urls` sigue siendo una lista de strings: para GCS contiene URLs V4 `GET`
+temporales generadas en cada serialización. Al caducar, hay que volver a consultar
+el recurso; no se modifica el frontend ni se añade renovación automática en este slice.
+La firma remota y el refresco de ADC se ejecutan fuera del event loop.
+
+Pendientes de configuración manual, fuera de este slice:
+
+- Mantener el bucket privado, sin permisos para `allUsers` ni objetos públicos.
+- Conceder a la cuenta de runtime `roles/storage.objectUser` sobre el bucket.
+- Habilitar IAM Service Account Credentials API (`iamcredentials.googleapis.com`)
+  y conceder `iam.serviceAccounts.signBlob` sobre la cuenta firmante. Si firma como
+  ella misma, el permiso debe concederse a esa cuenta sobre sí misma.
+  `roles/iam.serviceAccountTokenCreator` incluye ese permiso. El SDK recibe el email
+  y el access token de ADC para llamar a IAM `signBlob`; no firma con una clave local.
+  Véase [firma V4 con herramientas de Google](https://cloud.google.com/storage/docs/access-control/signing-urls-with-helpers).
+- Permitir `storage.googleapis.com` en `apps/web/next.config.ts` en el siguiente slice;
+  `next/image` todavía no admite ese origen.
+- Configurar CORS del bucket para el origen exacto del frontend. La subida actual
+  necesita `PUT` y la cabecera `Content-Type`; no envía `Authorization`, cookies,
+  `x-goog-resumable` ni headers personalizados adicionales. El navegador hace un
+  preflight `OPTIONS`, que GCS atiende automáticamente: no incluir `OPTIONS` en
+  `method`. Ejemplo mínimo para aplicar manualmente, sustituyendo el origen:
+
+```json
+[
+  {
+    "origin": ["https://FRONTEND_DEV"],
+    "method": ["PUT"],
+    "responseHeader": ["Content-Type"],
+    "maxAgeSeconds": 3600
+  }
+]
+```
+
+El preflight envía `Origin`, `Access-Control-Request-Method: PUT` y
+`Access-Control-Request-Headers: content-type`. Las descargas del optimizador de
+Next.js son servidor a servidor y no necesitan CORS del navegador; si se incorpora
+un `fetch` directo para descargar, añadir `GET` a la política. La firma `GET` no
+autoriza `HEAD`. Véase [CORS de Cloud Storage](https://cloud.google.com/storage/docs/cross-origin).
 
 ### Gestionar administradores (CLI interna)
 

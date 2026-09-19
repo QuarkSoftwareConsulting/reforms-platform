@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -19,8 +20,7 @@ from app.infrastructure.adapters.auth.firebase_token_verifier import (
 from app.infrastructure.adapters.clock import SystemClock, Uuid4Generator
 from app.infrastructure.adapters.db.session import create_engine, create_session_factory
 from app.infrastructure.adapters.payments.stripe_adapter import StripePaymentGateway
-from app.infrastructure.adapters.storage.s3_adapter import S3Storage
-from app.infrastructure.api.dependencies import Infrastructure
+from app.infrastructure.api.dependencies import Infrastructure, create_storage
 from app.infrastructure.api.middlewares.error_handler import register_exception_handlers
 from app.infrastructure.api.middlewares.request_context import RequestContextMiddleware
 from app.infrastructure.api.schemas.common import HealthOut
@@ -44,15 +44,7 @@ def build_infrastructure(settings: Settings) -> Infrastructure:
             secret_key=settings.stripe_secret_key,
             webhook_secret=settings.stripe_webhook_secret,
         ),
-        storage=S3Storage(
-            bucket=settings.s3_bucket,
-            endpoint_url=settings.s3_endpoint_url,
-            access_key_id=settings.s3_access_key_id,
-            secret_access_key=settings.s3_secret_access_key,
-            region=settings.s3_region,
-            public_base_url=settings.s3_public_base_url,
-            presign_expires_seconds=settings.s3_presign_expires_seconds,
-        ),
+        storage=create_storage(settings),
         token_verifier=FirebaseTokenVerifier(init_firebase_app(settings)),
         clock=SystemClock(),
         ids=Uuid4Generator(),
@@ -65,7 +57,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings.assert_production_ready()
     configure_logging(level=settings.log_level, json_output=settings.is_production)
 
-    app.state.infrastructure = build_infrastructure(settings)
+    # ADC puede consultar el metadata server durante la inicializacion.
+    app.state.infrastructure = await asyncio.to_thread(build_infrastructure, settings)
     logger.info(
         "api_iniciada",
         environment=settings.environment,
