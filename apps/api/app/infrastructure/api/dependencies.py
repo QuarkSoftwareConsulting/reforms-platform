@@ -60,6 +60,25 @@ from app.infrastructure.adapters.db.repositories import (
     SqlAlchemyUserRepository,
 )
 from app.infrastructure.adapters.db.session import SqlAlchemyUnitOfWork
+from app.infrastructure.adapters.storage.gcs_adapter import GCSStorage
+from app.infrastructure.adapters.storage.s3_adapter import S3Storage
+
+
+def create_storage(settings: Settings) -> StoragePort:
+    if settings.storage_backend == "gcs":
+        return GCSStorage(
+            bucket=settings.gcs_bucket,
+            signed_url_expires_seconds=settings.gcs_signed_url_expires_seconds,
+        )
+    return S3Storage(
+        bucket=settings.s3_bucket,
+        endpoint_url=settings.s3_endpoint_url,
+        access_key_id=settings.s3_access_key_id,
+        secret_access_key=settings.s3_secret_access_key,
+        region=settings.s3_region,
+        public_base_url=settings.s3_public_base_url,
+        presign_expires_seconds=settings.s3_presign_expires_seconds,
+    )
 
 
 @dataclass(slots=True)

@@ -5,7 +5,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, computed_field, field_validator
+from pydantic import Field, computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     firebase_auth_emulator_host: str = ""
 
     # ------------------------------- Almacenamiento ----------------------
+    storage_backend: Literal["s3", "gcs"] = "s3"
+    gcs_bucket: str = ""
+    gcs_signed_url_expires_seconds: int = Field(default=900, ge=1, le=604800)
     s3_endpoint_url: str = "http://localhost:9000"
     s3_public_base_url: str = "http://localhost:9000/reforma-hub-dev"
     s3_bucket: str = "reforma-hub-dev"
@@ -56,6 +59,14 @@ class Settings(BaseSettings):
     s3_access_key_id: str = ""
     s3_secret_access_key: str = ""
     s3_presign_expires_seconds: int = 900
+
+    @model_validator(mode="after")
+    def _validate_storage(self) -> Settings:
+        if self.storage_backend == "gcs" and not self.gcs_bucket.strip():
+            raise ValueError("GCS_BUCKET es obligatorio con STORAGE_BACKEND=gcs")
+        if self.storage_backend == "gcs" and self.google_application_credentials:
+            raise ValueError("GCS requiere ADC del runtime, sin GOOGLE_APPLICATION_CREDENTIALS")
+        return self
 
     @field_validator("log_level")
     @classmethod
@@ -96,11 +107,18 @@ class Settings(BaseSettings):
                 ("STRIPE_SECRET_KEY", self.stripe_secret_key),
                 ("STRIPE_WEBHOOK_SECRET", self.stripe_webhook_secret),
                 ("FIREBASE_PROJECT_ID", self.firebase_project_id),
-                ("S3_ACCESS_KEY_ID", self.s3_access_key_id),
-                ("S3_SECRET_ACCESS_KEY", self.s3_secret_access_key),
             )
             if not value
         ]
+        if self.storage_backend == "s3":
+            missing.extend(
+                name
+                for name, value in (
+                    ("S3_ACCESS_KEY_ID", self.s3_access_key_id),
+                    ("S3_SECRET_ACCESS_KEY", self.s3_secret_access_key),
+                )
+                if not value
+            )
         if missing:
             raise RuntimeError(
                 f"Faltan variables de entorno obligatorias en produccion: {', '.join(missing)}"

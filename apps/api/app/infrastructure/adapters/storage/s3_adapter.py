@@ -7,34 +7,12 @@ sube con una URL prefirmada, asi que los bytes nunca pasan por el API.
 from __future__ import annotations
 
 import asyncio
-import re
-import uuid
-from datetime import UTC, datetime
 
 import boto3
 from botocore.client import Config
 
 from app.application.ports import PresignedUpload, StoragePort
-
-EXTENSION_BY_CONTENT_TYPE = {
-    "image/jpeg": "jpg",
-    "image/png": "png",
-    "image/webp": "webp",
-    "image/heic": "heic",
-}
-_UNSAFE_CHARS = re.compile(r"[^a-zA-Z0-9._-]")
-
-
-def safe_filename(filename: str, content_type: str) -> str:
-    """Nombre de objeto seguro.
-
-    Nunca se confia en el nombre que envia el navegador: podria contener `../` o
-    caracteres que rompan la clave del bucket. Se conserva solo un slug corto y la
-    extension se deduce del content-type declarado.
-    """
-    stem = _UNSAFE_CHARS.sub("-", filename.rsplit(".", 1)[0])[:40].strip("-") or "foto"
-    extension = EXTENSION_BY_CONTENT_TYPE.get(content_type, "bin")
-    return f"{stem}.{extension}"
+from app.infrastructure.adapters.storage.object_keys import create_object_key
 
 
 class S3Storage(StoragePort):
@@ -64,8 +42,7 @@ class S3Storage(StoragePort):
     async def create_presigned_upload(
         self, *, key_prefix: str, filename: str, content_type: str
     ) -> PresignedUpload:
-        today = datetime.now(UTC).strftime("%Y/%m/%d")
-        key = f"{key_prefix}/{today}/{uuid.uuid4().hex}/{safe_filename(filename, content_type)}"
+        key = create_object_key(key_prefix, filename, content_type)
 
         url = await asyncio.to_thread(
             self._client.generate_presigned_url,

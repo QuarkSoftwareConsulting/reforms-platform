@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Annotated
 from uuid import UUID
 
@@ -100,7 +101,10 @@ async def list_leads(
         limit=limit,
         offset=offset,
     )
-    return serializers.lead_list_out(result, storage=container.infra.storage, locale=locale)
+    # La firma de URLs de lectura puede requerir una llamada de red sincrona.
+    return await asyncio.to_thread(
+        serializers.lead_list_out, result, storage=container.infra.storage, locale=locale
+    )
 
 
 @router.get(
@@ -115,7 +119,9 @@ async def get_lead(
     locale: LocaleDep,
 ) -> LeadDetailOut:
     detail = await container.lead_detail.execute(lead_id=lead_id, professional_id=professional.id)
-    return serializers.lead_detail_out(detail, storage=container.infra.storage, locale=locale)
+    return await asyncio.to_thread(
+        serializers.lead_detail_out, detail, storage=container.infra.storage, locale=locale
+    )
 
 
 @router.post(

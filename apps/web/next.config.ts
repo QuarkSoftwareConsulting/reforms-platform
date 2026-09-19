@@ -7,11 +7,12 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   images: {
-    // Las fotos de las solicitudes viven en MinIO (dev) o Cloudflare R2 (prod).
+    // Las fotos pueden vivir en MinIO, R2 o GCS con URLs firmadas.
     remotePatterns: [
       { protocol: "http", hostname: "localhost", port: "9000" },
       { protocol: "https", hostname: "**.r2.dev" },
       { protocol: "https", hostname: "**.cloudflarestorage.com" },
+      { protocol: "https", hostname: "storage.googleapis.com", pathname: "/**" },
     ],
   },
   typedRoutes: false,

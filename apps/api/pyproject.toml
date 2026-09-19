@@ -17,6 +17,7 @@ dependencies = [
     "email-validator>=2.2.0",
     "stripe>=11.4.0",
     "firebase-admin>=6.6.0",
+    "google-cloud-storage>=3.13.1",
     "boto3>=1.35.0",
     "structlog>=24.4.0",
     "python-multipart>=0.0.20",
@@ -58,6 +59,7 @@ warn_unused_ignores = true
 no_implicit_optional = true
 warn_return_any = true
 disallow_untyped_defs = true
+untyped_calls_exclude = ["google.auth.credentials.Credentials.refresh"]
 
 # El nucleo (dominio + casos de uso) se valida en modo estricto: no depende de nada externo.
 [[tool.mypy.overrides]]
@@ -69,6 +71,8 @@ module = [
     "geoalchemy2.*",
     "firebase_admin.*",
     "google.auth.*",
+    "google.cloud",
+    "google.cloud.storage.*",
     "stripe.*",
     "boto3.*",
     "botocore.*",

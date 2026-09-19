@@ -6,6 +6,7 @@ cuesta un contacto: ni el cliente ni el profesional pueden tocar un precio.
 
 from __future__ import annotations
 
+import asyncio
 from typing import Annotated
 from uuid import UUID
 
@@ -60,7 +61,9 @@ async def list_admin_leads(
             offset=offset,
         )
     )
-    return serializers.admin_lead_list_out(result, storage=container.infra.storage, locale=locale)
+    return await asyncio.to_thread(
+        serializers.admin_lead_list_out, result, storage=container.infra.storage, locale=locale
+    )
 
 
 @router.post(
