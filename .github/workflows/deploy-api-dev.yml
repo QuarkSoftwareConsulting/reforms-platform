@@ -1,0 +1,67 @@
+name: Deploy API DEV
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-api-dev
+  # Evita interrumpir una actualizacion de Cloud Run en curso.
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: quark-reformahub-dev
+  REGION: us-east1
+  REPOSITORY: reformahub-api-dev
+  SERVICE_NAME: reformahub-api-dev
+  IMAGE_NAME: api
+
+jobs:
+  deploy:
+    name: Publicar y desplegar API DEV
+    # workflow_dispatch tambien debe desplegar solo desde develop.
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Definir imagen
+        run: |
+          echo "IMAGE_URI=${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE_NAME}:${GITHUB_SHA}" >> "$GITHUB_ENV"
+
+      # Construir antes de autenticar reduce el uso de credenciales temporales.
+      - name: Construir imagen API
+        run: docker build --tag "$IMAGE_URI" --file apps/api/Dockerfile apps/api
+
+      - name: Autenticar en Google Cloud mediante WIF
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Configurar gcloud
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Autenticar Docker en Artifact Registry
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+      - name: Publicar imagen API
+        run: docker push "$IMAGE_URI"
+
+      - name: Actualizar imagen de Cloud Run
+        run: |
+          gcloud run services update "$SERVICE_NAME" \
+            --project="$PROJECT_ID" \
+            --region="$REGION" \
+            --image="$IMAGE_URI" \
+            --quiet
