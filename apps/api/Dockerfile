@@ -29,7 +29,7 @@ RUN groupadd --gid 10001 app \
 
 # El usuario de ejecucion puede leer, pero no modificar codigo ni dependencias.
 COPY --from=builder /opt/venv /opt/venv
-COPY app/ ./app/
+COPY --chown=10001:10001 app/ ./app/
 USER 10001:10001
 
 EXPOSE 8080
