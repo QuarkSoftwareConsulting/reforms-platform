@@ -1,11 +1,11 @@
 {
   "common": {
-    "appName": "Reforma Hub",
+    "appName": "Voy a Reformar",
     "loading": "Cargando...",
     "retry": "Reintentar",
     "cancel": "Cancelar",
-    "back": "Atras",
-    "next": "Siguiente",
+    "back": "Atrás",
+    "next": "Continuar",
     "save": "Guardar",
     "close": "Cerrar",
     "optional": "opcional",
@@ -13,67 +13,151 @@
   },
   "nav": {
     "publish": "Publicar solicitud",
-    "projects": "Solicitudes",
+    "projects": "Contactos",
     "myContacts": "Mis contactos",
     "profile": "Mi perfil",
-    "login": "Iniciar sesion",
+    "login": "Acceder",
     "register": "Soy profesional",
     "logout": "Salir",
-    "admin": "Administración"
+    "admin": "Administración",
+    "howWeValidate": "Cómo validamos",
+    "pricing": "Precios",
+    "menu": "Abrir menú"
+  },
+  "footer": {
+    "tagline": "Tus ideas. Los mejores profesionales."
   },
   "home": {
-    "title": "Encuentra al profesional que necesitas",
-    "subtitle": "Publica lo que necesitas y recibe la llamada de profesionales de tu zona. Gratis para ti.",
-    "clientCta": "Publicar mi solicitud",
-    "proCta": "Soy profesional",
-    "howItWorks": "Como funciona",
-    "clientTitle": "Si necesitas una reforma",
-    "clientSteps": {
-      "one": "Cuentanos que necesitas y sube fotos.",
-      "two": "Deja tu telefono y publica la solicitud.",
-      "three": "Recibe la llamada de hasta {maxProfessionals} profesionales de tu zona."
+    "title": "Contactos de reforma verificados por teléfono en toda España",
+    "subtitle": "Llamamos a cada cliente antes de publicar su solicitud. Ves el trabajo, la zona y el precio del contacto antes de pagar. Sin cuota ni permanencia.",
+    "heroEyebrow": "Contactos verificados · España",
+    "heroTitle": "El trabajo ya está <mark>comprobado</mark>. Solo falta tu llamada.",
+    "heroSubtitle": "Llamamos a cada persona antes de publicar su solicitud. Tú ves el trabajo, la zona y el precio del contacto, y decides si lo compras.",
+    "heroProCta": "Ver contactos de mi gremio",
+    "heroClientCta": "Necesito una reforma",
+    "heroMoreTrades": "Ver todos los oficios",
+    "board": {
+      "title": "Oficios y precio del contacto",
+      "live": "catálogo en vivo",
+      "price": "Contacto",
+      "all": "Ver los {count} oficios"
     },
-    "proTitle": "Si eres profesional",
-    "proSteps": {
-      "one": "Registrate e indica tus oficios y tu zona de trabajo.",
-      "two": "Consulta las solicitudes cercanas sin coste.",
-      "three": "Paga solo por los contactos que te interesen."
+    "validation": {
+      "title": "Un contacto no se publica hasta que pasa estos tres pasos",
+      "subtitle": "El mismo proceso para todos los gremios, sin excepciones.",
+      "one": {
+        "title": "Comprobamos la solicitud",
+        "body": "Confirmamos que el trabajo es real y que la persona quiere recibir presupuestos ahora."
+      },
+      "two": {
+        "title": "Anotamos alcance y zona",
+        "body": "Qué hay que hacer y dónde. El código postal define el municipio y la provincia que ves en la ficha."
+      },
+      "three": {
+        "title": "Publicamos con precio cerrado",
+        "body": "El contacto sale al listado con su precio visible. Sabes cuánto cuesta antes de pagarlo."
+      }
     },
-    "trades": "Oficios disponibles",
-    "priceNote": "Los profesionales pagan por contacto desde {price}."
+    "trades": {
+      "title": "Oficios y precio del contacto",
+      "subtitle": "El precio que ves es el de referencia del oficio. Cada contacto muestra su precio exacto en su ficha.",
+      "note": "Publicar una solicitud es gratis y no necesitas crear cuenta."
+    },
+    "why": {
+      "title": "Por qué comprar aquí es distinto",
+      "subtitle": "Cuatro reglas del producto que no dependen de la buena voluntad de nadie: están en el código.",
+      "cap": {
+        "title": "Como máximo {maxProfessionals} profesionales por solicitud",
+        "body": "Cada solicitud se vende a {maxProfessionals} profesionales y ni uno más. No compites contra una lista interminable."
+      },
+      "price": {
+        "title": "El precio del contacto se ve antes de pagar",
+        "body": "Cada ficha lleva su importe a la vista. No hay paquetes, ni bonos, ni precios que cambien al llegar al pago."
+      },
+      "noFee": {
+        "title": "Sin cuota mensual ni permanencia",
+        "body": "Pagas solo los contactos que decides comprar. Registrarse y consultar el listado no cuesta nada."
+      },
+      "privacy": {
+        "title": "El teléfono del cliente solo lo ve quien compra",
+        "body": "En el listado público únicamente aparecen el trabajo y la zona. El nombre y el teléfono se entregan tras el pago."
+      }
+    },
+    "pricing": {
+      "eyebrow": "Precio transparente",
+      "headline": "Desde {price} el contacto",
+      "headlineFallback": "Pagas por contacto. Nada más.",
+      "body": "Sin cuota, sin permanencia y con el precio visible en cada ficha. Cada compra queda registrada con el importe que pagaste, aunque el precio del oficio cambie después.",
+      "cta": "Crear cuenta gratis"
+    },
+    "clientBanner": {
+      "title": "¿Vas a reformar tu casa?",
+      "body": "Cuéntanos qué necesitas y te ponemos en contacto con profesionales de tu zona. Gratis y sin crear cuenta.",
+      "cta": "Pedir presupuesto"
+    }
   },
   "publish": {
     "title": "Publica tu solicitud",
+    "lockNotice": "Sin crear cuenta. Tu teléfono solo lo ve el profesional que compra el contacto.",
     "stepOf": "Paso {current} de {total}",
     "steps": {
-      "category": "Que necesitas",
-      "details": "Detalles del trabajo",
-      "contact": "Tus datos"
+      "category": "Qué trabajo necesitas",
+      "details": "Cuéntanos el proyecto",
+      "contact": "Tus datos de contacto"
     },
     "categoryLabel": "Elige el oficio",
     "titleLabel": "Resume el trabajo",
     "titlePlaceholder": "Ej. Reparar la puerta de un armario",
     "descriptionLabel": "Describe el trabajo",
-    "descriptionPlaceholder": "Cuenta que hay que hacer, en que estado esta y cualquier detalle util para el profesional.",
-    "descriptionHint": "Minimo {min} caracteres. Cuantos mas detalles, mejores presupuestos.",
-    "postalCodeLabel": "Codigo postal",
+    "descriptionPlaceholder": "Cuenta qué hay que hacer, en qué estado está y cualquier detalle útil para el profesional.",
+    "descriptionHint": "Mínimo {min} caracteres. Cuantos más detalles, mejores presupuestos.",
+    "postalCodeLabel": "Código postal",
     "postalCodePlaceholder": "28001",
+    "postalCodeHint": "En el listado público solo aparecen el municipio y la provincia, nunca la dirección exacta.",
     "photosLabel": "Fotos del trabajo",
-    "photosHint": "Hasta {max} fotos (JPG, PNG o WEBP, maximo 10 MB cada una).",
-    "photosAdd": "Anadir fotos",
+    "photosHint": "Hasta {max} fotos (JPG, PNG o WEBP, máximo 10 MB cada una).",
+    "photosAdd": "Añadir fotos",
     "photoRemove": "Quitar foto",
     "uploading": "Subiendo...",
     "nameLabel": "Tu nombre",
-    "phoneLabel": "Telefono",
-    "phoneHint": "Solo lo veran los profesionales que compren tu contacto.",
+    "phoneLabel": "Teléfono",
+    "phoneHint": "Es el dato principal. Solo lo verán los profesionales que compren tu contacto.",
     "emailLabel": "Email",
-    "consentLabel": "Acepto que Reforma Hub ceda mis datos de contacto a un maximo de {maxProfessionals} profesionales para que me contacten sobre este trabajo.",
-    "consentLink": "Ver politica de privacidad",
+    "emailHint": "Te enviamos una copia de tu solicitud.",
+    "consentLabel": "He leído y acepto la política de tratamiento de datos. Autorizo a Voy a Reformar a tratar mis datos para validar la solicitud y a cederlos a un máximo de {maxProfessionals} profesionales que compren el contacto, conforme al RGPD (UE) 2016/679 y la LOPDGDD 3/2018.",
+    "policyShow": "Ver resumen de la política de datos",
+    "policyHide": "Ocultar el resumen",
+    "policy": {
+      "controller": {
+        "term": "Responsable",
+        "body": "Voy a Reformar. Los datos identificativos completos (razón social, domicilio y email de privacidad) se publicarán en la política completa."
+      },
+      "purpose": {
+        "term": "Finalidad",
+        "body": "Validar tu solicitud de reforma y ponerte en contacto con profesionales del oficio que has elegido."
+      },
+      "legitimation": {
+        "term": "Legitimación",
+        "body": "Tu consentimiento expreso, que puedes retirar en cualquier momento."
+      },
+      "recipients": {
+        "term": "Destinatarios",
+        "body": "Un máximo de {maxProfessionals} profesionales que compren tu contacto. Nadie más recibe tu nombre ni tu teléfono."
+      },
+      "retention": {
+        "term": "Conservación",
+        "body": "Mientras la solicitud siga activa y durante los plazos legales de facturación."
+      },
+      "rights": {
+        "term": "Derechos",
+        "body": "Acceso, rectificación, supresión, oposición, limitación y portabilidad, además de reclamar ante la AEPD."
+      }
+    },
     "submit": "Publicar solicitud",
     "submitting": "Publicando...",
-    "successTitle": "Solicitud publicada",
-    "successBody": "Ya esta visible para los profesionales de {city}. Te llamaran directamente al telefono que nos has dado.",
-    "publishAnother": "Publicar otra solicitud"
+    "successTitle": "Solicitud recibida",
+    "successBody": "Ya está visible para los profesionales de {city}. Te llamarán directamente al teléfono que nos has dado.",
+    "publishAnother": "Enviar otra solicitud"
   },
   "projects": {
     "title": "Solicitudes en tu zona",
@@ -82,31 +166,33 @@
     "emptyNoProfile": "Completa tu perfil para ver las solicitudes de tu zona.",
     "filterCategory": "Oficio",
     "filterAll": "Todos mis oficios",
-    "filterRadius": "Radio de busqueda",
+    "filterRadius": "Radio de búsqueda",
     "slotsLeft": "{count, plural, =0 {Sin plazas} one {Queda 1 plaza} other {Quedan # plazas}}",
-    "purchased": "Contacto comprado",
-    "viewDetail": "Ver detalle",
+    "purchased": "Ya comprado",
+    "viewDetail": "Ver el contacto",
+    "contactPrice": "Contacto",
     "distanceFrom": "a {distance} de ti"
   },
   "lead": {
     "publishedAgo": "Publicada {when}",
     "contactLocked": "Contacto bloqueado",
-    "contactLockedBody": "Desbloquea el nombre y el telefono del cliente por {price}. Esta solicitud admite {slots} profesionales mas.",
-    "unlock": "Desbloquear contacto por {price}",
+    "contactLockedBody": "Desbloquea el nombre y el teléfono del cliente por {price}. Esta solicitud admite {slots} profesionales más.",
+    "contactPrice": "Precio del contacto",
+    "unlock": "Comprar contacto por {price}",
     "unlocking": "Redirigiendo al pago...",
     "contactUnlocked": "Contacto desbloqueado",
     "clientName": "Nombre",
-    "clientPhone": "Telefono",
+    "clientPhone": "Teléfono",
     "clientEmail": "Email",
-    "callClient": "Llamar",
-    "reservationPending": "Tienes una reserva en curso. Completa el pago en los proximos {minutes} minutos o la plaza se liberara.",
+    "callClient": "Llamar ahora",
+    "reservationPending": "Tienes una reserva en curso. Completa el pago en los próximos {minutes} minutos o la plaza se liberará.",
     "resumePayment": "Completar el pago",
     "backToProjects": "Volver a las solicitudes"
   },
   "purchases": {
     "title": "Mis contactos",
     "subtitle": "Contactos que has adquirido",
-    "empty": "Todavia no has comprado ningun contacto.",
+    "empty": "Todavía no has comprado ningún contacto.",
     "browseProjects": "Ver solicitudes",
     "purchasedOn": "Comprado el {date}",
     "status": {
@@ -117,53 +203,123 @@
       "refunded": "Reembolsado"
     },
     "paymentSuccess": "Pago confirmado. Ya puedes contactar al cliente.",
-    "paymentPending": "Estamos confirmando tu pago. Se desbloqueara en unos segundos."
+    "paymentPending": "Estamos confirmando tu pago. Se desbloqueará en unos segundos."
   },
   "profile": {
     "title": "Mi perfil profesional",
     "subtitle": "Define tus oficios y tu zona de trabajo para recibir solicitudes relevantes.",
     "businessNameLabel": "Nombre comercial",
-    "phoneLabel": "Telefono de contacto",
-    "postalCodeLabel": "Codigo postal de tu base",
+    "phoneLabel": "Teléfono de contacto",
+    "postalCodeLabel": "Código postal de tu base",
     "radiusLabel": "Radio de trabajo",
-    "radiusHint": "Solo veras solicitudes dentro de este radio.",
+    "radiusHint": "Solo verás solicitudes dentro de este radio.",
     "categoriesLabel": "Tus oficios",
-    "categoriesHint": "Selecciona al menos uno. Solo podras comprar contactos de estos oficios.",
+    "categoriesHint": "Selecciona al menos uno. Solo podrás comprar contactos de estos oficios.",
     "saved": "Perfil guardado",
     "onboardingTitle": "Completa tu perfil",
-    "onboardingSubtitle": "Un ultimo paso antes de ver las solicitudes de tu zona."
+    "onboardingSubtitle": "Un último paso antes de ver las solicitudes de tu zona."
   },
   "auth": {
-    "loginTitle": "Inicia sesion",
+    "loginTitle": "Inicia sesión",
     "loginSubtitle": "Accede para ver las solicitudes de tu zona.",
     "registerTitle": "Crea tu cuenta de profesional",
-    "registerSubtitle": "Registrate gratis. Solo pagas por los contactos que compres.",
+    "registerSubtitle": "Regístrate gratis. Solo pagas por los contactos que compres.",
     "emailLabel": "Email",
-    "passwordLabel": "Contrasena",
-    "passwordHint": "Minimo 6 caracteres.",
+    "passwordLabel": "Contraseña",
+    "passwordHint": "Mínimo 6 caracteres.",
     "submitLogin": "Entrar",
     "submitRegister": "Crear cuenta",
     "googleLogin": "Continuar con Google",
     "or": "o",
-    "noAccount": "No tienes cuenta?",
-    "hasAccount": "Ya tienes cuenta?",
-    "goRegister": "Registrate",
-    "goLogin": "Inicia sesion",
-    "notConfigured": "La autenticacion no esta configurada en este entorno."
+    "noAccount": "¿No tienes cuenta?",
+    "hasAccount": "¿Ya tienes cuenta?",
+    "goRegister": "Regístrate",
+    "goLogin": "Inicia sesión",
+    "notConfigured": "La autenticación no está configurada en este entorno."
   },
   "admin": {
     "title": "Administración",
     "subtitle": "Gestiona la oferta de leads, los precios y el soporte desde un solo lugar.",
     "saved": "Cambios guardados.",
-    "metrics": {"leads": "Leads totales", "professionals": "Profesionales", "coverage": "Cobertura de leads", "liquidity": "Liquidez de leads", "paidPurchases": "Compras pagadas", "revenue": "Ingresos confirmados", "none": "Aún no hay ingresos", "organic": "Leads orgánicos", "manual": "Leads manuales"},
-    "manual": {"title": "Ingresar lead captado manualmente", "category": "Oficio", "categoryPlaceholder": "Selecciona un oficio", "titleLabel": "Título del trabajo", "description": "Descripción del trabajo", "postalCode": "Código postal", "name": "Nombre del cliente", "phone": "Teléfono del cliente", "email": "Email del cliente", "channel": "Canal de captura del consentimiento", "policy": "Versión de política", "acceptedAt": "Fecha y hora de aceptación", "campaign": "Referencia de campaña", "submit": "Publicar lead manual"},
-    "categoryPricing": {"title": "Precio sugerido por categoría", "category": "Oficio", "placeholder": "Selecciona un oficio", "amount": "Importe en céntimos", "submit": "Guardar precio sugerido"},
-    "leads": {"title": "Inventario de leads", "subtitle": "Modera la disponibilidad y fija el precio exacto de cada contacto.", "status": "Estado", "source": "Origen", "category": "Oficio", "all": "Todos", "slots": "{sold} de {max} plazas vendidas", "location": "{category} · {city}", "price": "Precio en céntimos", "savePrice": "Guardar precio", "purchases": "Ver compras", "disable": "Deshabilitar", "republish": "Republicar"},
-    "status": {"published": "Publicado", "exhausted": "Agotado", "disabled": "Deshabilitado"},
-    "source": {"organic": "Orgánico", "admin": "Manual"},
-    "purchases": {"title": "Compras de {lead}", "empty": "Este lead aún no tiene compras.", "unknownProfessional": "Profesional desconocido", "reviews": "Notas de revisión: {count}", "reviewNote": "Nota de soporte", "markReview": "Marcar para revisión"},
-    "purchaseStatus": {"reserved": "Pago pendiente", "paid": "Pagado", "expired": "Caducado", "failed": "Fallido", "refunded": "Reembolsado"},
-    "professionals": {"title": "Directorio de profesionales", "subtitle": "Consulta los perfiles profesionales registrados.", "search": "Buscar por negocio o zona", "location": "{city} · {distance} km"}
+    "metrics": {
+      "leads": "Leads totales",
+      "professionals": "Profesionales",
+      "coverage": "Cobertura de leads",
+      "liquidity": "Liquidez de leads",
+      "paidPurchases": "Compras pagadas",
+      "revenue": "Ingresos confirmados",
+      "none": "Aún no hay ingresos",
+      "organic": "Leads orgánicos",
+      "manual": "Leads manuales"
+    },
+    "manual": {
+      "title": "Ingresar lead captado manualmente",
+      "category": "Oficio",
+      "categoryPlaceholder": "Selecciona un oficio",
+      "titleLabel": "Título del trabajo",
+      "description": "Descripción del trabajo",
+      "postalCode": "Código postal",
+      "name": "Nombre del cliente",
+      "phone": "Teléfono del cliente",
+      "email": "Email del cliente",
+      "channel": "Canal de captura del consentimiento",
+      "policy": "Versión de política",
+      "acceptedAt": "Fecha y hora de aceptación",
+      "campaign": "Referencia de campaña",
+      "submit": "Publicar lead manual"
+    },
+    "categoryPricing": {
+      "title": "Precio sugerido por categoría",
+      "category": "Oficio",
+      "placeholder": "Selecciona un oficio",
+      "amount": "Importe en céntimos",
+      "submit": "Guardar precio sugerido"
+    },
+    "leads": {
+      "title": "Inventario de leads",
+      "subtitle": "Modera la disponibilidad y fija el precio exacto de cada contacto.",
+      "status": "Estado",
+      "source": "Origen",
+      "category": "Oficio",
+      "all": "Todos",
+      "slots": "{sold} de {max} plazas vendidas",
+      "location": "{category} · {city}",
+      "price": "Precio en céntimos",
+      "savePrice": "Guardar precio",
+      "purchases": "Ver compras",
+      "disable": "Deshabilitar",
+      "republish": "Republicar"
+    },
+    "status": {
+      "published": "Publicado",
+      "exhausted": "Agotado",
+      "disabled": "Deshabilitado"
+    },
+    "source": {
+      "organic": "Orgánico",
+      "admin": "Manual"
+    },
+    "purchases": {
+      "title": "Compras de {lead}",
+      "empty": "Este lead aún no tiene compras.",
+      "unknownProfessional": "Profesional desconocido",
+      "reviews": "Notas de revisión: {count}",
+      "reviewNote": "Nota de soporte",
+      "markReview": "Marcar para revisión"
+    },
+    "purchaseStatus": {
+      "reserved": "Pago pendiente",
+      "paid": "Pagado",
+      "expired": "Caducado",
+      "failed": "Fallido",
+      "refunded": "Reembolsado"
+    },
+    "professionals": {
+      "title": "Directorio de profesionales",
+      "subtitle": "Consulta los perfiles profesionales registrados.",
+      "search": "Buscar por negocio o zona",
+      "location": "{city} · {distance} km"
+    }
   },
   "errors": {
     "generic": "Algo no ha ido bien. Vuelve a intentarlo.",
@@ -185,34 +341,34 @@
     "UNAUTHENTICATED": "Tu sesión ha caducado. Vuelve a iniciar sesión.",
     "PERMISSION_DENIED": "No tienes permiso para esta acción.",
     "INTERNAL_ERROR": "Error del servidor. Estamos en ello.",
-    "PAYMENT_GATEWAY_ERROR": "No hemos podido iniciar el pago. Intentalo de nuevo en unos minutos.",
-    "auth/invalid-credential": "Email o contrasena incorrectos.",
+    "PAYMENT_GATEWAY_ERROR": "No hemos podido iniciar el pago. Inténtalo de nuevo en unos minutos.",
+    "auth/invalid-credential": "Email o contraseña incorrectos.",
     "auth/email-already-in-use": "Ya existe una cuenta con ese email.",
-    "auth/weak-password": "La contrasena debe tener al menos 6 caracteres.",
-    "auth/invalid-email": "Ese email no es valido.",
+    "auth/weak-password": "La contraseña debe tener al menos 6 caracteres.",
+    "auth/invalid-email": "Ese email no es válido.",
     "auth/too-many-requests": "Demasiados intentos. Prueba en unos minutos."
   },
   "validation": {
     "categoryRequired": "Elige un oficio.",
-    "titleTooShort": "El titulo es demasiado corto.",
-    "titleTooLong": "El titulo es demasiado largo.",
-    "descriptionTooShort": "Anade mas detalle para que los profesionales puedan valorarlo.",
-    "descriptionTooLong": "La descripcion es demasiado larga.",
-    "postalCodeFormat": "El codigo postal debe tener 5 digitos.",
-    "postalCodeUnknown": "Ese codigo postal no existe en Espana.",
-    "phoneFormat": "Introduce un telefono espanol valido.",
-    "emailFormat": "Ese email no es valido.",
+    "titleTooShort": "El título es demasiado corto.",
+    "titleTooLong": "El título es demasiado largo.",
+    "descriptionTooShort": "Añade más detalle para que los profesionales puedan valorarlo.",
+    "descriptionTooLong": "La descripción es demasiado larga.",
+    "postalCodeFormat": "El código postal debe tener 5 dígitos.",
+    "postalCodeUnknown": "Ese código postal no existe en España.",
+    "phoneFormat": "Introduce un teléfono español válido.",
+    "emailFormat": "Ese email no es válido.",
     "nameTooShort": "Escribe tu nombre.",
     "nameTooLong": "El nombre es demasiado largo.",
-    "consentRequired": "Debes aceptar la cesion de tus datos para publicar.",
+    "consentRequired": "Debes aceptar la cesión de tus datos para publicar.",
     "businessNameTooShort": "Escribe el nombre de tu negocio.",
     "businessNameTooLong": "El nombre es demasiado largo.",
-    "radiusTooSmall": "El radio minimo es 1 km.",
-    "radiusTooLarge": "El radio maximo es 300 km.",
+    "radiusTooSmall": "El radio mínimo es 1 km.",
+    "radiusTooLarge": "El radio máximo es 300 km.",
     "categoriesRequired": "Selecciona al menos un oficio.",
     "tooManyCategories": "Has seleccionado demasiados oficios.",
     "photoType": "{filename}: formato no admitido.",
     "photoSize": "{filename}: supera los 10 MB.",
-    "photoCount": "{filename}: has alcanzado el maximo de fotos."
+    "photoCount": "{filename}: has alcanzado el máximo de fotos."
   }
 }

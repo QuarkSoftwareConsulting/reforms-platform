@@ -29,6 +29,9 @@ vi.mock("next/navigation", () => ({
 const { LeadWizard } = await import("@/components/features/LeadWizard");
 const { renderWithIntl, messages } = await import("./render");
 
+/** La etiqueta del campo lleva el asterisco de obligatorio pegado detras. */
+const label = (text: string): RegExp => new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+
 const CATEGORIES: Category[] = [
   {
     id: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
@@ -51,9 +54,9 @@ async function fillUpToContactStep(user: ReturnType<typeof userEvent.setup>): Pr
   await user.click(screen.getByRole("radio", { name: /Carpinteria/i }));
   await user.click(screen.getByRole("button", { name: messages.common.next }));
 
-  await user.type(screen.getByLabelText(/Resume el trabajo/i), "Reparar armario");
-  await user.type(screen.getByLabelText(/Describe el trabajo/i), DESCRIPTION);
-  await user.type(screen.getByLabelText(/Codigo postal/i), "28001");
+  await user.type(screen.getByLabelText(label(messages.publish.titleLabel)), "Reparar armario");
+  await user.type(screen.getByLabelText(label(messages.publish.descriptionLabel)), DESCRIPTION);
+  await user.type(screen.getByLabelText(label(messages.publish.postalCodeLabel)), "28001");
   await user.click(screen.getByRole("button", { name: messages.common.next }));
 }
 
@@ -93,9 +96,9 @@ describe("LeadWizard", () => {
 
     await user.click(screen.getByRole("radio", { name: /Carpinteria/i }));
     await user.click(screen.getByRole("button", { name: messages.common.next }));
-    await user.type(screen.getByLabelText(/Resume el trabajo/i), "Algo");
-    await user.type(screen.getByLabelText(/Describe el trabajo/i), "corto");
-    await user.type(screen.getByLabelText(/Codigo postal/i), "28001");
+    await user.type(screen.getByLabelText(label(messages.publish.titleLabel)), "Algo");
+    await user.type(screen.getByLabelText(label(messages.publish.descriptionLabel)), "corto");
+    await user.type(screen.getByLabelText(label(messages.publish.postalCodeLabel)), "28001");
     await user.click(screen.getByRole("button", { name: messages.common.next }));
 
     expect(await screen.findByText(messages.validation.descriptionTooShort)).toBeDefined();
@@ -107,9 +110,9 @@ describe("LeadWizard", () => {
 
     await user.click(screen.getByRole("radio", { name: /Carpinteria/i }));
     await user.click(screen.getByRole("button", { name: messages.common.next }));
-    await user.type(screen.getByLabelText(/Resume el trabajo/i), "Reparar armario");
-    await user.type(screen.getByLabelText(/Describe el trabajo/i), DESCRIPTION);
-    await user.type(screen.getByLabelText(/Codigo postal/i), "99001");
+    await user.type(screen.getByLabelText(label(messages.publish.titleLabel)), "Reparar armario");
+    await user.type(screen.getByLabelText(label(messages.publish.descriptionLabel)), DESCRIPTION);
+    await user.type(screen.getByLabelText(label(messages.publish.postalCodeLabel)), "99001");
     await user.click(screen.getByRole("button", { name: messages.common.next }));
 
     expect(await screen.findByText(messages.validation.postalCodeUnknown)).toBeDefined();
@@ -120,8 +123,8 @@ describe("LeadWizard", () => {
     renderWithIntl(<LeadWizard categories={CATEGORIES} />);
     await fillUpToContactStep(user);
 
-    await user.type(screen.getByLabelText(/Tu nombre/i), "Ana Lopez");
-    await user.type(screen.getByLabelText(/Telefono/i), "611223344");
+    await user.type(screen.getByLabelText(label(messages.publish.nameLabel)), "Ana Lopez");
+    await user.type(screen.getByLabelText(label(messages.publish.phoneLabel)), "611223344");
     await user.click(screen.getByRole("button", { name: messages.publish.submit }));
 
     expect(await screen.findByText(messages.validation.consentRequired)).toBeDefined();
@@ -133,8 +136,8 @@ describe("LeadWizard", () => {
     renderWithIntl(<LeadWizard categories={CATEGORIES} />);
     await fillUpToContactStep(user);
 
-    await user.type(screen.getByLabelText(/Tu nombre/i), "Ana Lopez");
-    await user.type(screen.getByLabelText(/Telefono/i), "611223344");
+    await user.type(screen.getByLabelText(label(messages.publish.nameLabel)), "Ana Lopez");
+    await user.type(screen.getByLabelText(label(messages.publish.phoneLabel)), "611223344");
     await user.click(screen.getByRole("checkbox"));
     await user.click(screen.getByRole("button", { name: messages.publish.submit }));
 
@@ -155,8 +158,8 @@ describe("LeadWizard", () => {
     renderWithIntl(<LeadWizard categories={CATEGORIES} />);
     await fillUpToContactStep(user);
 
-    await user.type(screen.getByLabelText(/Tu nombre/i), "Ana Lopez");
-    await user.type(screen.getByLabelText(/Telefono/i), "611223344");
+    await user.type(screen.getByLabelText(label(messages.publish.nameLabel)), "Ana Lopez");
+    await user.type(screen.getByLabelText(label(messages.publish.phoneLabel)), "611223344");
     await user.click(screen.getByRole("checkbox"));
     await user.click(screen.getByRole("button", { name: messages.publish.submit }));
 
@@ -174,8 +177,8 @@ describe("LeadWizard", () => {
     renderWithIntl(<LeadWizard categories={CATEGORIES} />);
     await fillUpToContactStep(user);
 
-    await user.type(screen.getByLabelText(/Tu nombre/i), "Ana Lopez");
-    await user.type(screen.getByLabelText(/Telefono/i), "611223344");
+    await user.type(screen.getByLabelText(label(messages.publish.nameLabel)), "Ana Lopez");
+    await user.type(screen.getByLabelText(label(messages.publish.phoneLabel)), "611223344");
     await user.click(screen.getByRole("checkbox"));
     await user.click(screen.getByRole("button", { name: messages.publish.submit }));
 
@@ -191,7 +194,7 @@ describe("LeadWizard", () => {
 
     await user.click(screen.getByRole("button", { name: messages.common.back }));
 
-    expect(screen.getByLabelText(/Resume el trabajo/i)).toHaveProperty(
+    expect(screen.getByLabelText(label(messages.publish.titleLabel))).toHaveProperty(
       "value",
       "Reparar armario",
     );

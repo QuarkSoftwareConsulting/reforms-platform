@@ -2,21 +2,36 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 import { cn } from "@/helpers/cn";
 
-type Variant = "primary" | "secondary" | "ghost" | "danger";
+type Variant = "primary" | "accent" | "secondary" | "text" | "danger";
 type Size = "sm" | "md" | "lg";
 
+/**
+ * Cada variante trae su propio estado deshabilitado en vez de una opacidad
+ * generica: sobre el acento amarillo, bajar la opacidad da un tono que no
+ * cumple contraste con el texto gris tinta.
+ */
 const VARIANTS: Record<Variant, string> = {
-  primary: "bg-brand-600 text-white hover:bg-brand-700 focus-visible:ring-brand-500",
+  primary: "bg-brand text-surface hover:bg-brand-hover disabled:bg-line disabled:text-disabled",
+  accent:
+    "bg-accent text-ink hover:bg-accent-hover disabled:bg-accent-disabled disabled:text-accent-on-disabled",
   secondary:
-    "bg-white text-brand-700 border border-brand-200 hover:bg-brand-50 focus-visible:ring-brand-500",
-  ghost: "bg-transparent text-slate-700 hover:bg-slate-100 focus-visible:ring-slate-400",
-  danger: "bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500",
+    "border-[1.5px] border-line-strong bg-surface text-ink hover:border-brand hover:text-brand " +
+    "disabled:border-line disabled:text-disabled-soft",
+  text: "text-brand underline underline-offset-4 hover:text-brand-hover disabled:text-disabled-soft",
+  danger: "bg-danger text-surface hover:brightness-90 disabled:bg-line disabled:text-disabled",
 };
 
 const SIZES: Record<Size, string> = {
-  sm: "h-9 px-3 text-sm",
-  md: "h-11 px-5 text-sm",
-  lg: "h-13 px-7 text-base",
+  sm: "min-h-[40px] px-[18px] py-[9px] text-[14px] leading-[22px] rounded-lg",
+  md: "min-h-[48px] px-[26px] py-3 text-[16px] leading-6 rounded-control",
+  lg: "min-h-[56px] px-8 py-[15px] text-[17px] leading-[26px] rounded-control",
+};
+
+/** El secundario descuenta su borde de 1.5px para no crecer sobre la altura. */
+const SECONDARY_SIZES: Record<Size, string> = {
+  sm: "py-[7.5px]",
+  md: "py-[10.5px]",
+  lg: "py-[13.5px]",
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -45,11 +60,14 @@ export function Button({
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-colors",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
-        "disabled:cursor-not-allowed disabled:opacity-60",
+        "inline-flex items-center justify-center gap-2 whitespace-nowrap font-semibold",
+        "transition-colors focus-visible:outline-none focus-visible:ring-2",
+        "focus-visible:ring-brand focus-visible:ring-offset-2",
+        "disabled:cursor-not-allowed",
+        variant === "text" && "min-h-0 rounded-none px-0 py-0",
+        variant !== "text" && SIZES[size],
+        variant === "secondary" && SECONDARY_SIZES[size],
         VARIANTS[variant],
-        SIZES[size],
         fullWidth && "w-full",
         className,
       )}

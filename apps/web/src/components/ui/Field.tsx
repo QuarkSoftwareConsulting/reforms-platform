@@ -1,12 +1,19 @@
-import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
+import type {
+  InputHTMLAttributes,
+  ReactNode,
+  SelectHTMLAttributes,
+  TextareaHTMLAttributes,
+} from "react";
 import { useId } from "react";
 
 import { cn } from "@/helpers/cn";
 
 const CONTROL_CLASSES =
-  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 " +
-  "placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 " +
-  "focus:ring-brand-100 disabled:bg-slate-50 aria-[invalid=true]:border-red-500";
+  "w-full rounded-control border-[1.5px] border-line bg-surface px-3.5 py-[13px] text-[15px] " +
+  "text-ink placeholder:text-disabled-soft transition-colors " +
+  "focus:border-brand focus:outline-none focus:shadow-focus " +
+  "disabled:bg-page disabled:text-disabled " +
+  "aria-[invalid=true]:border-danger aria-[invalid=true]:bg-danger-bg";
 
 interface FieldShellProps {
   label: string;
@@ -20,18 +27,19 @@ interface FieldShellProps {
 function FieldShell({ label, htmlFor, error, hint, required, children }: FieldShellProps) {
   return (
     <div className="space-y-1.5">
-      <label htmlFor={htmlFor} className="block text-sm font-medium text-slate-800">
+      <label htmlFor={htmlFor} className="block text-[15px] font-semibold text-ink">
         {label}
-        {required && <span className="ml-0.5 text-red-600">*</span>}
+        {required && <span className="ml-0.5 text-danger">*</span>}
       </label>
       {children}
-      {/* El hint se oculta cuando hay error para no competir por la atencion. */}
+      {/* La ayuda va bajo el campo, nunca dentro del placeholder, y se oculta
+          cuando hay error para no competir por la atencion. */}
       {error ? (
-        <p id={`${htmlFor}-error`} role="alert" className="text-sm text-red-600">
+        <p id={`${htmlFor}-error`} role="alert" className="text-help font-medium text-danger">
           {error}
         </p>
       ) : (
-        hint && <p className="text-sm text-slate-500">{hint}</p>
+        hint && <p className="text-help text-muted">{hint}</p>
       )}
     </div>
   );
@@ -121,7 +129,8 @@ export function SelectField({
   );
 }
 
-export interface CheckboxFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "id" | "type"> {
+export interface CheckboxFieldProps
+  extends Omit<InputHTMLAttributes<HTMLInputElement>, "id" | "type"> {
   label: ReactNode;
   error?: string;
 }
@@ -137,19 +146,21 @@ export function CheckboxField({ label, error, className, ...rest }: CheckboxFiel
           id={id}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${id}-error` : undefined}
+          // `accent-color` deja que el navegador pinte la marca con el azul de
+          // marca conservando su propio control nativo, que es el accesible.
           className={cn(
-            "mt-0.5 size-5 shrink-0 rounded border-slate-300 text-brand-600",
-            "focus:ring-2 focus:ring-brand-200",
-            error && "border-red-500",
+            "mt-0.5 size-5 shrink-0 cursor-pointer rounded accent-brand",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
+            "focus-visible:ring-offset-2",
             className,
           )}
         />
-        <label htmlFor={id} className="text-sm leading-relaxed text-slate-700">
+        <label htmlFor={id} className="cursor-pointer text-[14.5px] leading-relaxed text-ink">
           {label}
         </label>
       </div>
       {error && (
-        <p id={`${id}-error`} role="alert" className="text-sm text-red-600">
+        <p id={`${id}-error`} role="alert" className="text-help font-medium text-danger">
           {error}
         </p>
       )}

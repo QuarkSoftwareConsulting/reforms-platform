@@ -3,6 +3,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { AuthGate } from "@/components/features/AuthGate";
 import { ProfileForm } from "@/components/features/ProfileForm";
 import { Alert } from "@/components/ui/Alert";
+import { Container } from "@/components/ui/Container";
 import { isAppLocale, type AppLocale } from "@/i18n/routing";
 import { leadsService } from "@/services/leads.service";
 import type { Category } from "@/types/api";
@@ -29,13 +30,15 @@ export default async function ProfilePage({ params }: { params: Promise<{ locale
   }
 
   return (
-    // `requireProfile: false` — esta es justamente la pagina donde se crea.
-    <AuthGate requireProfile={false}>
-      {loadError ? (
-        <Alert tone="error">{tErrors("network")}</Alert>
-      ) : (
-        <ProfileForm categories={categories} />
-      )}
-    </AuthGate>
+    <Container size="form" className="py-10">
+      {/* `requireProfile: false` — esta es justamente la pagina donde se crea. */}
+      <AuthGate requireProfile={false}>
+        {loadError ? (
+          <Alert tone="error">{tErrors("network")}</Alert>
+        ) : (
+          <ProfileForm categories={categories} />
+        )}
+      </AuthGate>
+    </Container>
   );
 }

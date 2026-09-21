@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 
-import { cn } from "@/helpers/cn";
+import { OptionCard } from "@/components/ui/OptionCard";
 import type { Category } from "@/types/api";
 
 /** Selector de oficios: uno solo (radio) o varios (checkbox). */
@@ -34,47 +34,33 @@ export function CategoryPicker({
   };
 
   return (
-    <fieldset className="space-y-2">
-      <legend className="text-sm font-medium text-slate-800">
+    <fieldset className="space-y-3">
+      <legend className="text-[15px] font-semibold text-ink">
         {label}
-        <span className="ml-0.5 text-red-600">*</span>
+        <span className="ml-0.5 text-danger">*</span>
       </legend>
-      {hint && !error && <p className="text-sm text-slate-500">{hint}</p>}
+      {hint && !error && <p className="text-help text-muted">{hint}</p>}
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {categories.map((category) => {
-          const isSelected = selected.includes(category.id);
-          return (
-            <label
-              key={category.id}
-              className={cn(
-                "flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 text-sm",
-                "transition-colors hover:border-brand-400",
-                isSelected
-                  ? "border-brand-600 bg-brand-50 font-medium text-brand-900"
-                  : "border-slate-300 bg-white text-slate-700",
-              )}
-            >
-              <input
-                type={multiple ? "checkbox" : "radio"}
-                name="category"
-                value={category.id}
-                checked={isSelected}
-                onChange={() => toggle(category.id)}
-                className="size-4 text-brand-600 focus:ring-brand-200"
-              />
-              <span className="truncate">{category.name}</span>
-            </label>
-          );
-        })}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {categories.map((category) => (
+          <OptionCard
+            key={category.id}
+            name="category"
+            value={category.id}
+            title={category.name}
+            checked={selected.includes(category.id)}
+            onChange={toggle}
+            type={multiple ? "checkbox" : "radio"}
+          />
+        ))}
       </div>
 
       {error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-help font-medium text-danger">
           {error}
         </p>
       )}
-      {categories.length === 0 && <p className="text-sm text-slate-500">{t("loading")}</p>}
+      {categories.length === 0 && <p className="text-help text-muted">{t("loading")}</p>}
     </fieldset>
   );
 }

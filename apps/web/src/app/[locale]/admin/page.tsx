@@ -2,6 +2,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { AdminGate } from "@/components/features/AdminGate";
 import { AdminPanel } from "@/components/features/AdminPanel";
+import { Container } from "@/components/ui/Container";
 import { isAppLocale, type AppLocale } from "@/i18n/routing";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
@@ -15,8 +16,10 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
   const locale = (isAppLocale(raw) ? raw : "es") as AppLocale;
   setRequestLocale(locale);
   return (
-    <AdminGate>
-      <AdminPanel />
-    </AdminGate>
+    <Container className="py-10">
+      <AdminGate>
+        <AdminPanel />
+      </AdminGate>
+    </Container>
   );
 }

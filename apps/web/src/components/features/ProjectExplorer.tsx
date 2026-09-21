@@ -26,8 +26,8 @@ export function ProjectExplorer() {
   return (
     <div className="space-y-6">
       <header className="space-y-1">
-        <h1 className="text-3xl font-bold text-slate-900">{t("title")}</h1>
-        <p className="text-slate-600">
+        <h1 className="text-h1 font-bold text-ink">{t("title")}</h1>
+        <p className="text-secondary">
           {t("subtitle", {
             total: filter.data?.total ?? 0,
             radius: effectiveRadius,
@@ -108,7 +108,7 @@ export function ProjectExplorer() {
               >
                 {tCommon("back")}
               </Button>
-              <span className="text-sm text-slate-600">
+              <span className="text-sm text-secondary">
                 {filter.page + 1} / {filter.totalPages}
               </span>
               <Button
