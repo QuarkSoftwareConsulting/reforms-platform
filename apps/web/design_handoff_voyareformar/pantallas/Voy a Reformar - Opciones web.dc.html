@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><meta name="design_doc_mode" content="canvas"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800&display=swap" rel="stylesheet"><style>body{margin:0;background:#eceef2;font-family:Poppins,system-ui,sans-serif}a{color:#034AAC}a:hover{color:#1F2937}.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1F2937;color:#fff;border-radius:4px;text-decoration:none}.dv-tname{font:600 13px/1.2 Poppins,system-ui,sans-serif;color:#1F2937}.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1F2937;border-radius:5px;text-decoration:none}.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 Poppins,system-ui,sans-serif;color:rgba(31,41,55,.6)}.dv-card{max-width:100%;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}.dv-opt:target .dv-oid{background:#034AAC;color:#fff}.dv-next{margin:22px 0 0;font:12px/1.5 Poppins,system-ui,sans-serif;color:rgba(31,41,55,.55)}</style></helmet>
+
+<section class="dv-turn" id="t2">
+<div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">Formulario del cliente · sin registro</span></div>
+<div class="dv-opts">
+<div class="dv-opt" id="2a">
+<div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a>Tres pasos: qué necesitas · el proyecto · tus datos</div>
+<div class="dv-card" style="width:980px;background:#F4F6FA">
+
+<header style="display:flex;align-items:center;justify-content:space-between;padding:12px 40px;background:#fff;border-bottom:1px solid #E6E9EE">
+<img src="assets/logo-voyareformar.png" alt="Voy a Reformar" style="height:46px;width:auto;display:block">
+<div style="display:flex;align-items:center;gap:8px;font-size:13.5px;color:#4B5563"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#034AAC" stroke-width="2"><rect x="4" y="10" width="16" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 018 0v3"></path></svg>Sin crear cuenta. Tu teléfono solo lo ve el profesional que compra el contacto.</div>
+</header>
+
+<div style="padding:32px 40px 44px">
+
+<sc-if value="{{ isS1 }}" hint-placeholder-val="{{ true }}">
+<div>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px">
+<div style="font-size:12.5px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#034AAC">{{ pasoTxt }}</div>
+<div style="font-size:13.5px;color:#6B7280">Gratis y sin compromiso · 2 minutos</div>
+</div>
+<div style="height:6px;background:#E6E9EE;border-radius:999px;margin-bottom:26px"><div style="{{ barStyle }}"></div></div>
+<h1 style="font-size:36px;font-weight:700;color:#1F2937;letter-spacing:-1px;margin:0 0 8px">¿Qué trabajo necesitas?</h1>
+<p style="font-size:16px;color:#4B5563;margin:0 0 22px">Elige la categoría más cercana. Después podrás concretar.</p>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px">
+<sc-for list="{{ cats }}" as="c" hint-placeholder-count="9">
+<button type="button" onClick="{{ c.pick }}" style="{{ c.style }}">
+<span style="font-size:15.5px;font-weight:600;color:#1F2937;line-height:1.3">{{ c.name }}</span>
+<span style="font-size:12.5px;color:#6B7280;line-height:1.45">{{ c.sub }}</span>
+</button>
+</sc-for>
+</div>
+<sc-if value="{{ hasCat }}">
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:14px;padding:22px 24px;margin-bottom:24px">
+<div style="font-size:15.5px;font-weight:600;color:#1F2937;margin-bottom:4px">¿Qué incluye el trabajo?</div>
+<div style="font-size:13.5px;color:#6B7280;margin-bottom:14px">Marca todo lo que necesites. Es opcional, pero ajusta mucho el presupuesto.</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<sc-for list="{{ subOpts }}" as="o" hint-placeholder-count="5">
+<button type="button" onClick="{{ o.pick }}" style="{{ o.style }}">{{ o.t }}</button>
+</sc-for>
+</div>
+</div>
+</sc-if>
+<div style="display:flex;justify-content:flex-end">
+<button type="button" onClick="{{ next1 }}" style="{{ next1Style }}">Continuar</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isS2 }}">
+<div>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px">
+<div style="font-size:12.5px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#034AAC">{{ pasoTxt }}</div>
+<div style="font-size:13.5px;color:#6B7280">{{ catName }}</div>
+</div>
+<div style="height:6px;background:#E6E9EE;border-radius:999px;margin-bottom:26px"><div style="{{ barStyle }}"></div></div>
+<h1 style="font-size:36px;font-weight:700;color:#1F2937;letter-spacing:-1px;margin:0 0 8px">Cuéntanos el proyecto</h1>
+<p style="font-size:16px;color:#4B5563;margin:0 0 22px">Cuanto más claro esté, mejores presupuestos recibirás.</p>
+
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:14px;padding:24px;margin-bottom:14px">
+<div style="font-size:15.5px;font-weight:600;color:#1F2937;margin-bottom:6px">Describe el trabajo que necesitas</div>
+<div style="font-size:13.5px;color:#6B7280;margin-bottom:12px">Qué hay que hacer, en qué estancias, y cualquier detalle que el profesional deba saber antes de dar precio.</div>
+<textarea value="{{ desc }}" onChange="{{ onDesc }}" rows="4" placeholder="Ej.: cambiar la bañera por plato de ducha y alicatar el baño entero. Son 5 m², edificio de 1975, la bajante se cambió el año pasado." style="width:100%;box-sizing:border-box;padding:13px 14px;border:1.5px solid #E6E9EE;border-radius:10px;font-family:Poppins,sans-serif;font-size:15px;color:#1F2937;line-height:1.55;resize:vertical"></textarea>
+</div>
+
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:14px;padding:24px;margin-bottom:14px">
+<div style="font-size:15.5px;font-weight:600;color:#1F2937;margin-bottom:12px">¿Qué tipo de inmueble es?</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px">
+<sc-for list="{{ inmuebleOpts }}" as="o" hint-placeholder-count="7">
+<button type="button" onClick="{{ o.pick }}" style="{{ o.style }}">{{ o.t }}</button>
+</sc-for>
+</div>
+<div style="font-size:15.5px;font-weight:600;color:#1F2937;margin-bottom:12px">¿En qué estado está ahora?</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px">
+<sc-for list="{{ estadoOpts }}" as="o" hint-placeholder-count="6">
+<button type="button" onClick="{{ o.pick }}" style="{{ o.style }}">{{ o.t }}</button>
+</sc-for>
+</div>
+<div style="font-size:15.5px;font-weight:600;color:#1F2937;margin-bottom:12px">¿Cuál es tu relación con el inmueble?</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<sc-for list="{{ propiedadOpts }}" as="o" hint-placeholder-count="3">
+<button type="button" onClick="{{ o.pick }}" style="{{ o.style }}">{{ o.t }}</button>
+</sc-for>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:14px;padding:24px">
+<div style="font-size:15.5px;font-weight:600;color:#1F2937;margin-bottom:10px">Código postal</div>
+<input value="{{ cp }}" onChange="{{ onCp }}" placeholder="28010" style="width:100%;box-sizing:border-box;padding:13px 14px;border:1.5px solid #E6E9EE;border-radius:10px;font-family:Poppins,sans-serif;font-size:15px;color:#1F2937">
+<div style="font-size:13px;color:#6B7280;margin-top:8px">Buscamos profesionales que trabajen en tu zona.</div>
+</div>
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:14px;padding:24px">
+<div style="font-size:15.5px;font-weight:600;color:#1F2937;margin-bottom:10px">Superficie aproximada <span style="font-weight:400;color:#6B7280">(opcional)</span></div>
+<input value="{{ m2 }}" onChange="{{ onM2 }}" placeholder="78 m²" style="width:100%;box-sizing:border-box;padding:13px 14px;border:1.5px solid #E6E9EE;border-radius:10px;font-family:Poppins,sans-serif;font-size:15px;color:#1F2937">
+<div style="font-size:13px;color:#6B7280;margin-top:8px">Si no la sabes, déjalo en blanco.</div>
+</div>
+</div>
+
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:14px;padding:24px;margin-bottom:26px">
+<div style="font-size:15.5px;font-weight:600;color:#1F2937;margin-bottom:4px">Presupuesto que manejas <span style="font-weight:400;color:#6B7280">(opcional)</span></div>
+<div style="font-size:13.5px;color:#6B7280;margin-bottom:12px">No es un compromiso. Sirve para que te llamen profesionales de tu rango.</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px">
+<sc-for list="{{ presOpts }}" as="o" hint-placeholder-count="6">
+<button type="button" onClick="{{ o.pick }}" style="{{ o.style }}">{{ o.t }}</button>
+</sc-for>
+</div>
+<div style="font-size:15.5px;font-weight:600;color:#1F2937;margin-bottom:12px">¿Cuándo quieres empezar?</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<sc-for list="{{ plazoOpts }}" as="o" hint-placeholder-count="4">
+<button type="button" onClick="{{ o.pick }}" style="{{ o.style }}">{{ o.t }}</button>
+</sc-for>
+</div>
+</div>
+
+<div style="display:flex;justify-content:space-between;align-items:center">
+<button type="button" onClick="{{ back }}" style="padding:15px 24px;border:1.5px solid #D1D5DB;background:#fff;border-radius:10px;font-size:16px;font-weight:600;color:#1F2937;font-family:Poppins,sans-serif;cursor:pointer">Atrás</button>
+<button type="button" onClick="{{ next2 }}" style="{{ next2Style }}">Continuar</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isS3 }}">
+<div>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px">
+<div style="font-size:12.5px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#034AAC">{{ pasoTxt }}</div>
+<div style="font-size:13.5px;color:#6B7280">{{ resumen }}</div>
+</div>
+<div style="height:6px;background:#E6E9EE;border-radius:999px;margin-bottom:26px"><div style="{{ barStyle }}"></div></div>
+<h1 style="font-size:36px;font-weight:700;color:#1F2937;letter-spacing:-1px;margin:0 0 8px">Tus datos de contacto</h1>
+<p style="font-size:16px;color:#4B5563;margin:0 0 22px">Te llamamos para confirmar el proyecto antes de publicarlo. No creas ninguna cuenta.</p>
+
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:14px;padding:24px;margin-bottom:14px;display:grid;grid-template-columns:1fr 1fr;gap:18px">
+<div style="grid-column:span 2">
+<div style="font-size:15px;font-weight:600;color:#1F2937;margin-bottom:8px">Nombre completo</div>
+<input value="{{ nombre }}" onChange="{{ onNombre }}" placeholder="Laura Fernández Gil" style="width:100%;box-sizing:border-box;padding:13px 14px;border:1.5px solid #E6E9EE;border-radius:10px;font-family:Poppins,sans-serif;font-size:15px;color:#1F2937">
+</div>
+<div>
+<div style="font-size:15px;font-weight:600;color:#1F2937;margin-bottom:8px">Teléfono</div>
+<input value="{{ tel }}" onChange="{{ onTel }}" placeholder="600 00 00 00" style="width:100%;box-sizing:border-box;padding:13px 14px;border:1.5px solid #E6E9EE;border-radius:10px;font-family:Poppins,sans-serif;font-size:15px;color:#1F2937">
+<div style="font-size:13px;color:#6B7280;margin-top:8px">Es el dato principal. Llamamos desde un número español.</div>
+</div>
+<div>
+<div style="font-size:15px;font-weight:600;color:#1F2937;margin-bottom:8px">Email</div>
+<input value="{{ email }}" onChange="{{ onEmail }}" placeholder="laura@correo.com" style="width:100%;box-sizing:border-box;padding:13px 14px;border:1.5px solid #E6E9EE;border-radius:10px;font-family:Poppins,sans-serif;font-size:15px;color:#1F2937">
+<div style="font-size:13px;color:#6B7280;margin-top:8px">Te enviamos una copia de tu solicitud.</div>
+</div>
+<div style="grid-column:span 2">
+<div style="font-size:15px;font-weight:600;color:#1F2937;margin-bottom:8px">Ubicación</div>
+<input value="{{ ubicacion }}" onChange="{{ onUbicacion }}" placeholder="Calle, barrio y localidad — ej.: Calle Alcalá 120, Salamanca, Madrid" style="width:100%;box-sizing:border-box;padding:13px 14px;border:1.5px solid #E6E9EE;border-radius:10px;font-family:Poppins,sans-serif;font-size:15px;color:#1F2937">
+<div style="font-size:13px;color:#6B7280;margin-top:8px">La dirección exacta solo se muestra al profesional que compra tu contacto. En el listado público únicamente aparece el barrio.</div>
+</div>
+<div style="grid-column:span 2">
+<div style="font-size:15px;font-weight:600;color:#1F2937;margin-bottom:8px">¿Cuándo prefieres que te llamemos? <span style="font-weight:400;color:#6B7280">(opcional)</span></div>
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<sc-for list="{{ horarioOpts }}" as="o" hint-placeholder-count="3">
+<button type="button" onClick="{{ o.pick }}" style="{{ o.style }}">{{ o.t }}</button>
+</sc-for>
+</div>
+</div>
+</div>
+
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:14px;padding:24px;margin-bottom:26px">
+<label style="display:flex;gap:12px;align-items:flex-start;cursor:pointer">
+<input type="checkbox" checked="{{ acepta }}" onChange="{{ onAcepta }}" style="width:20px;height:20px;margin:2px 0 0;accent-color:#034AAC;flex:none;cursor:pointer">
+<span style="font-size:14.5px;line-height:1.6;color:#1F2937">He leído y acepto la <a href="#2a" style="color:#034AAC;font-weight:600">política de tratamiento de datos</a>. Autorizo a Voy a Reformar a tratar mis datos para validar la solicitud y a cederlos al profesional que compre el contacto, conforme al RGPD (UE) 2016/679 y la LOPDGDD 3/2018.</span>
+</label>
+<button type="button" onClick="{{ togglePol }}" style="margin-top:14px;padding:0;border:none;background:none;color:#034AAC;font-size:14px;font-weight:600;font-family:Poppins,sans-serif;cursor:pointer;text-decoration:underline">{{ polLabel }}</button>
+<sc-if value="{{ verPol }}">
+<div style="margin-top:14px;max-height:190px;overflow:auto;background:#F4F6FA;border:1px solid #E6E9EE;border-radius:10px;padding:18px 20px;font-size:13.5px;line-height:1.7;color:#4B5563">
+<div style="font-weight:600;color:#1F2937;margin-bottom:8px">Política de tratamiento de datos (resumen)</div>
+<div style="margin-bottom:10px"><strong style="color:#1F2937">Responsable.</strong> Voy a Reformar, con domicilio en España. Contacto: privacidad@voyareformar.es</div>
+<div style="margin-bottom:10px"><strong style="color:#1F2937">Finalidad.</strong> Validar por teléfono la solicitud de reforma, publicarla de forma anonimizada en el listado de contactos y cederla a los profesionales que la compren para que te envíen presupuesto.</div>
+<div style="margin-bottom:10px"><strong style="color:#1F2937">Legitimación.</strong> Tu consentimiento expreso, prestado al marcar la casilla anterior.</div>
+<div style="margin-bottom:10px"><strong style="color:#1F2937">Destinatarios.</strong> Únicamente los profesionales dados de alta y verificados que adquieran tu contacto. No cedemos tus datos a terceros con fines publicitarios.</div>
+<div style="margin-bottom:10px"><strong style="color:#1F2937">Conservación.</strong> Doce meses desde el último contacto, salvo obligación legal de conservarlos más tiempo.</div>
+<div><strong style="color:#1F2937">Derechos.</strong> Puedes acceder, rectificar, suprimir, limitar u oponerte al tratamiento y solicitar la portabilidad escribiendo a privacidad@voyareformar.es, así como reclamar ante la Agencia Española de Protección de Datos.</div>
+</div>
+</sc-if>
+</div>
+
+<div style="display:flex;justify-content:space-between;align-items:center">
+<button type="button" onClick="{{ back }}" style="padding:15px 24px;border:1.5px solid #D1D5DB;background:#fff;border-radius:10px;font-size:16px;font-weight:600;color:#1F2937;font-family:Poppins,sans-serif;cursor:pointer">Atrás</button>
+<button type="button" onClick="{{ send }}" style="{{ sendStyle }}">Enviar solicitud</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ sent }}">
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:18px;padding:56px 48px;text-align:center">
+<div style="width:62px;height:62px;border-radius:50%;background:#F5C336;margin:0 auto 22px;display:flex;align-items:center;justify-content:center"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"></path></svg></div>
+<div style="font-size:30px;font-weight:700;color:#1F2937;letter-spacing:-.6px;margin-bottom:12px">Solicitud recibida</div>
+<div style="font-size:16.5px;line-height:1.65;color:#4B5563;max-width:540px;margin:0 auto 26px">Te llamamos hoy mismo para confirmar los detalles. Después publicamos tu solicitud y los profesionales de tu zona te contactan con su presupuesto. No tienes que hacer nada más, y para ti es gratis.</div>
+<button type="button" onClick="{{ reset }}" style="padding:13px 26px;border:1.5px solid #D1D5DB;background:#fff;border-radius:10px;font-size:15.5px;font-weight:600;color:#1F2937;font-family:Poppins,sans-serif;cursor:pointer">Enviar otra solicitud</button>
+</div>
+</sc-if>
+
+</div>
+</div>
+</div>
+</div>
+<p class="dv-next">Es interactivo: elige categoría, avanza y prueba el envío.</p>
+</section>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Home · dos direcciones</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1a">
+<div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Oficio — azul institucional, promesa primero</div>
+<div class="dv-card" style="width:1280px">
+
+<header style="display:flex;align-items:center;justify-content:space-between;padding:14px 48px;border-bottom:1px solid #E6E9EE;background:#fff">
+<img src="assets/logo-voyareformar.png" alt="Voy a Reformar" style="height:54px;width:auto;display:block">
+<nav style="display:flex;align-items:center;gap:32px;font-size:15px;font-weight:500;color:#1F2937">
+<span>Contactos</span><span>Cómo funciona</span><span>Precios</span>
+<span style="padding:10px 18px;border:1.5px solid #034AAC;border-radius:8px;color:#034AAC;font-weight:600">Acceder</span>
+<span style="padding:11px 20px;background:#034AAC;border-radius:8px;color:#fff;font-weight:600">Crear cuenta</span>
+</nav>
+</header>
+
+<div style="background:#034AAC;padding:72px 48px 64px;color:#fff">
+<div style="max-width:720px">
+<div style="display:inline-flex;align-items:center;gap:9px;background:rgba(255,255,255,.14);padding:7px 14px;border-radius:999px;font-size:13px;font-weight:500;margin-bottom:24px">
+<span style="width:7px;height:7px;border-radius:50%;background:#F5C336;display:block"></span>Contactos verificados por teléfono en toda España
+</div>
+<h1 style="font-size:58px;line-height:1.06;font-weight:700;margin:0 0 20px;letter-spacing:-1.4px;text-wrap:pretty">Compra solo el contacto que te interesa.</h1>
+<p style="font-size:20px;line-height:1.55;font-weight:300;margin:0 0 34px;color:#DCE6F7;max-width:560px">Cada solicitud de reforma se llama, se comprueba y se publica con su precio a la vista. Tú eliges cuál compras. Sin cuotas, sin permanencia.</p>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:900px">
+<div style="background:#fff;border-radius:14px;padding:26px 28px;display:flex;flex-direction:column;gap:10px">
+<div style="font-size:13px;font-weight:600;color:#034AAC;letter-spacing:.9px;text-transform:uppercase">Soy profesional</div>
+<div style="font-size:22px;font-weight:600;color:#1F2937;line-height:1.3">Quiero clientes en mi zona</div>
+<div style="font-size:15px;color:#4B5563;line-height:1.5">Pintura, fontanería, electricidad, albañilería, reforma integral y más.</div>
+<div style="margin-top:8px;padding:13px 22px;background:#F5C336;border-radius:9px;color:#1F2937;font-weight:600;font-size:16px;text-align:center">Ver contactos disponibles</div>
+</div>
+<div style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.28);border-radius:14px;padding:26px 28px;display:flex;flex-direction:column;gap:10px">
+<div style="font-size:13px;font-weight:600;color:#F5C336;letter-spacing:.9px;text-transform:uppercase">Necesito una reforma</div>
+<div style="font-size:22px;font-weight:600;line-height:1.3">Quiero presupuestos</div>
+<div style="font-size:15px;color:#DCE6F7;line-height:1.5">Cuéntanos tu proyecto en dos minutos. Es gratis y sin compromiso.</div>
+<div style="margin-top:8px;padding:12px 22px;border:1.5px solid #fff;border-radius:9px;font-weight:600;font-size:16px;text-align:center">Pedir presupuesto</div>
+</div>
+</div>
+</div>
+
+<div style="display:flex;justify-content:space-between;align-items:center;padding:22px 48px;background:#1F2937;color:#fff">
+<div style="display:flex;gap:56px">
+<div><div style="font-size:26px;font-weight:700">4.812</div><div style="font-size:13px;color:#9CA3AF">contactos validados en 2026</div></div>
+<div><div style="font-size:26px;font-weight:700">1.930</div><div style="font-size:13px;color:#9CA3AF">profesionales activos</div></div>
+<div><div style="font-size:26px;font-weight:700">92%</div><div style="font-size:13px;color:#9CA3AF">contactos que responden al teléfono</div></div>
+</div>
+<div style="font-size:14px;color:#9CA3AF">Madrid · Barcelona · Valencia · Sevilla · Málaga · Bilbao</div>
+</div>
+
+<div style="padding:64px 48px;background:#fff">
+<div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:8px">
+<h2 style="font-size:34px;font-weight:700;color:#1F2937;margin:0;letter-spacing:-.6px">Así validamos cada contacto</h2>
+<span style="font-size:15px;font-weight:600;color:#034AAC">Ver política de reembolso</span>
+</div>
+<p style="font-size:16px;color:#6B7280;margin:0 0 36px;max-width:620px">Ningún contacto se publica sin pasar los tres pasos. Si alguno falla, no llega al listado.</p>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px">
+<div style="border:1px solid #E6E9EE;border-radius:14px;padding:28px">
+<div style="width:38px;height:38px;border-radius:10px;background:#034AAC;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:17px;margin-bottom:16px">1</div>
+<div style="font-size:19px;font-weight:600;color:#1F2937;margin-bottom:8px">Llamada de comprobación</div>
+<div style="font-size:15px;line-height:1.6;color:#4B5563">Hablamos con la persona, confirmamos que la reforma es real y anotamos qué necesita exactamente.</div>
+</div>
+<div style="border:1px solid #E6E9EE;border-radius:14px;padding:28px">
+<div style="width:38px;height:38px;border-radius:10px;background:#034AAC;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:17px;margin-bottom:16px">2</div>
+<div style="font-size:19px;font-weight:600;color:#1F2937;margin-bottom:8px">Presupuesto y plazo</div>
+<div style="font-size:15px;line-height:1.6;color:#4B5563">Registramos la horquilla de presupuesto y cuándo quiere empezar, para que sepas si encaja contigo.</div>
+</div>
+<div style="border:1px solid #E6E9EE;border-radius:14px;padding:28px">
+<div style="width:38px;height:38px;border-radius:10px;background:#F5C336;color:#1F2937;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:17px;margin-bottom:16px">3</div>
+<div style="font-size:19px;font-weight:600;color:#1F2937;margin-bottom:8px">Publicación con precio fijo</div>
+<div style="font-size:15px;line-height:1.6;color:#4B5563">El contacto sale al listado con su precio visible. Si los datos no son correctos, te devolvemos el importe.</div>
+</div>
+</div>
+</div>
+
+<div style="padding:60px 48px;background:#F4F6FA">
+<div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:28px">
+<h2 style="font-size:34px;font-weight:700;color:#1F2937;margin:0;letter-spacing:-.6px">Contactos disponibles ahora</h2>
+<span style="font-size:15px;font-weight:600;color:#034AAC">Ver los 214 contactos</span>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px">
+
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<span style="font-size:12px;font-weight:600;letter-spacing:.7px;text-transform:uppercase;color:#034AAC;background:#E8EEFA;padding:6px 11px;border-radius:6px">Reforma integral</span>
+<span style="display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;color:#1F2937"><svg width="15" height="15" viewBox="0 0 24 24" fill="#F5C336"><path d="M12 2l2.4 1.8 3-.2 1 2.8 2.5 1.6-1 2.8 1 2.8-2.5 1.6-1 2.8-3-.2L12 22l-2.4-1.8-3 .2-1-2.8L3.1 16l1-2.8-1-2.8 2.5-1.6 1-2.8 3 .2z"></path><path d="M10.6 15.4l-2.8-2.8 1.2-1.2 1.6 1.6 4-4 1.2 1.2z" fill="#fff"></path></svg>Verificado</span>
+</div>
+<div style="font-size:17px;font-weight:600;color:#1F2937;line-height:1.4">Reforma de piso de 78 m² en Chamberí, Madrid</div>
+<div style="font-size:14.5px;line-height:1.6;color:#4B5563">Cocina y dos baños completos, cambio de suelo e instalación eléctrica nueva. Piso vacío, disponible desde ya.</div>
+<div style="display:flex;justify-content:space-between;align-items:center;padding-top:14px;border-top:1px solid #EEF1F5">
+<div><div style="font-size:12px;color:#6B7280">Presupuesto estimado</div><div style="font-size:17px;font-weight:700;color:#1F2937">28.000 – 35.000 €</div></div>
+<div style="text-align:right"><div style="font-size:12px;color:#6B7280">Contacto</div><div style="font-size:17px;font-weight:700;color:#034AAC">24 €</div></div>
+</div>
+<div style="padding:12px;background:#F5C336;border-radius:9px;color:#1F2937;font-weight:600;font-size:15px;text-align:center">Comprar contacto</div>
+</div>
+
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<span style="font-size:12px;font-weight:600;letter-spacing:.7px;text-transform:uppercase;color:#034AAC;background:#E8EEFA;padding:6px 11px;border-radius:6px">Fontanería</span>
+<span style="display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;color:#1F2937"><svg width="15" height="15" viewBox="0 0 24 24" fill="#F5C336"><path d="M12 2l2.4 1.8 3-.2 1 2.8 2.5 1.6-1 2.8 1 2.8-2.5 1.6-1 2.8-3-.2L12 22l-2.4-1.8-3 .2-1-2.8L3.1 16l1-2.8-1-2.8 2.5-1.6 1-2.8 3 .2z"></path><path d="M10.6 15.4l-2.8-2.8 1.2-1.2 1.6 1.6 4-4 1.2 1.2z" fill="#fff"></path></svg>Verificado</span>
+</div>
+<div style="font-size:17px;font-weight:600;color:#1F2937;line-height:1.4">Cambio de bajante y grifería en Gràcia, Barcelona</div>
+<div style="font-size:14.5px;line-height:1.6;color:#4B5563">Fuga en el baño principal detectada por la comunidad. Necesita presupuesto esta semana.</div>
+<div style="display:flex;justify-content:space-between;align-items:center;padding-top:14px;border-top:1px solid #EEF1F5">
+<div><div style="font-size:12px;color:#6B7280">Presupuesto estimado</div><div style="font-size:17px;font-weight:700;color:#1F2937">900 – 1.500 €</div></div>
+<div style="text-align:right"><div style="font-size:12px;color:#6B7280">Contacto</div><div style="font-size:17px;font-weight:700;color:#034AAC">9 €</div></div>
+</div>
+<div style="padding:12px;background:#F5C336;border-radius:9px;color:#1F2937;font-weight:600;font-size:15px;text-align:center">Comprar contacto</div>
+</div>
+
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<span style="font-size:12px;font-weight:600;letter-spacing:.7px;text-transform:uppercase;color:#034AAC;background:#E8EEFA;padding:6px 11px;border-radius:6px">Pintura</span>
+<span style="display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;color:#1F2937"><svg width="15" height="15" viewBox="0 0 24 24" fill="#F5C336"><path d="M12 2l2.4 1.8 3-.2 1 2.8 2.5 1.6-1 2.8 1 2.8-2.5 1.6-1 2.8-3-.2L12 22l-2.4-1.8-3 .2-1-2.8L3.1 16l1-2.8-1-2.8 2.5-1.6 1-2.8 3 .2z"></path><path d="M10.6 15.4l-2.8-2.8 1.2-1.2 1.6 1.6 4-4 1.2 1.2z" fill="#fff"></path></svg>Verificado</span>
+</div>
+<div style="font-size:17px;font-weight:600;color:#1F2937;line-height:1.4">Pintar vivienda de 3 habitaciones en Valencia</div>
+<div style="font-size:14.5px;line-height:1.6;color:#4B5563">Paredes y techos en blanco roto, pequeños desconchones que alisar. Entrega antes de fin de mes.</div>
+<div style="display:flex;justify-content:space-between;align-items:center;padding-top:14px;border-top:1px solid #EEF1F5">
+<div><div style="font-size:12px;color:#6B7280">Presupuesto estimado</div><div style="font-size:17px;font-weight:700;color:#1F2937">1.800 – 2.600 €</div></div>
+<div style="text-align:right"><div style="font-size:12px;color:#6B7280">Contacto</div><div style="font-size:17px;font-weight:700;color:#034AAC">12 €</div></div>
+</div>
+<div style="padding:12px;background:#F5C336;border-radius:9px;color:#1F2937;font-weight:600;font-size:15px;text-align:center">Comprar contacto</div>
+</div>
+
+</div>
+</div>
+
+<div style="padding:60px 48px;background:#fff;display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:start">
+<div>
+<h2 style="font-size:32px;font-weight:700;color:#1F2937;margin:0 0 24px;letter-spacing:-.6px">Lo que dicen los profesionales</h2>
+<div style="display:flex;flex-direction:column;gap:16px">
+<div style="border-left:3px solid #F5C336;padding:4px 0 4px 20px">
+<div style="font-size:16.5px;line-height:1.6;color:#1F2937">«Compro tres o cuatro contactos al mes y cierro la mitad. Antes pagaba una cuota fija y no sabía ni a quién llamaba.»</div>
+<div style="font-size:14px;color:#6B7280;margin-top:8px">Rubén M. · Electricista · Getafe</div>
+</div>
+<div style="border-left:3px solid #F5C336;padding:4px 0 4px 20px">
+<div style="font-size:16.5px;line-height:1.6;color:#1F2937">«Se ve el presupuesto antes de pagar. Eso me ahorra desplazamientos a obras que no me compensan.»</div>
+<div style="font-size:14px;color:#6B7280;margin-top:8px">Ana L. · Reforma integral · Sevilla</div>
+</div>
+</div>
+</div>
+<div style="background:#F4F6FA;border-radius:16px;padding:32px">
+<div style="font-size:13px;font-weight:600;letter-spacing:.9px;text-transform:uppercase;color:#034AAC;margin-bottom:14px">Precio transparente</div>
+<div style="font-size:26px;font-weight:700;color:#1F2937;line-height:1.3;margin-bottom:18px">Pagas por contacto. Nada más.</div>
+<div style="display:flex;flex-direction:column;gap:12px;font-size:15.5px;color:#1F2937">
+<div style="display:flex;gap:10px"><span style="color:#034AAC;font-weight:700">✓</span>Sin cuota mensual ni permanencia</div>
+<div style="display:flex;gap:10px"><span style="color:#034AAC;font-weight:700">✓</span>El precio de cada contacto se ve antes de comprar</div>
+<div style="display:flex;gap:10px"><span style="color:#034AAC;font-weight:700">✓</span>Factura con IVA para tu contabilidad</div>
+<div style="display:flex;gap:10px"><span style="color:#034AAC;font-weight:700">✓</span>Devolución si el teléfono no existe o el trabajo no es real</div>
+</div>
+<div style="margin-top:24px;padding:14px;background:#034AAC;border-radius:9px;color:#fff;font-weight:600;font-size:16px;text-align:center">Empezar gratis</div>
+</div>
+</div>
+
+<div style="background:#1F2937;padding:40px 48px;display:flex;justify-content:space-between;align-items:center;color:#9CA3AF;font-size:14px">
+<div style="display:flex;flex-direction:column;gap:8px"><div style="color:#fff;font-size:18px;font-weight:600">Voy a Reformar</div><div>Tus ideas. Los mejores profesionales.</div></div>
+<div style="display:flex;gap:40px"><span>Contactos</span><span>Precios</span><span>Ayuda</span><span>Aviso legal</span><span>Privacidad</span></div>
+</div>
+
+</div>
+</div>
+
+<div class="dv-opt" id="1b">
+<div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Tablero — producto a la vista, acento amarillo</div>
+<div class="dv-card" style="width:1280px">
+
+<header style="display:flex;align-items:center;justify-content:space-between;padding:12px 44px;background:#1F2937">
+<div style="display:flex;align-items:center;gap:30px">
+<div style="display:flex;align-items:center;gap:11px">
+<div style="color:#fff;font-size:20px;font-weight:700;letter-spacing:-.4px">Voy a <span style="color:#F5C336">Reformar</span></div>
+</div>
+<nav style="display:flex;gap:24px;font-size:14.5px;color:#D1D5DB;font-weight:400"><span style="color:#F5C336;font-weight:600">Contactos</span><span>Cómo validamos</span><span>Precios</span><span>Ayuda</span></nav>
+</div>
+<div style="display:flex;align-items:center;gap:14px;font-size:14.5px">
+<span style="color:#fff;font-weight:500">Acceder</span>
+<span style="padding:10px 18px;background:#F5C336;border-radius:8px;color:#1F2937;font-weight:600">Soy profesional</span>
+</div>
+</header>
+
+<div style="padding:56px 44px 48px;background:#fff;display:grid;grid-template-columns:1.05fr 1fr;gap:56px;align-items:center">
+<div>
+<div style="font-size:13px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:#034AAC;margin-bottom:18px">Contactos verificados · España</div>
+<h1 style="font-size:62px;line-height:1.02;font-weight:800;color:#1F2937;margin:0 0 22px;letter-spacing:-2px;text-wrap:pretty">El trabajo ya está <span style="background-image:linear-gradient(#F5C336,#F5C336);background-size:100% .2em;background-position:0 .86em;background-repeat:no-repeat;box-decoration-break:clone;-webkit-box-decoration-break:clone">comprobado</span>. Solo falta tu llamada.</h1>
+<p style="font-size:19px;line-height:1.6;color:#4B5563;margin:0 0 30px;max-width:480px">Llamamos a cada persona antes de publicar su solicitud. Tú ves el trabajo, el presupuesto y el precio del contacto, y decides si lo compras.</p>
+<div style="display:flex;gap:12px;margin-bottom:26px">
+<div style="padding:15px 26px;background:#034AAC;border-radius:10px;color:#fff;font-weight:600;font-size:16.5px">Ver contactos de mi gremio</div>
+<div style="padding:15px 26px;border:1.5px solid #D1D5DB;border-radius:10px;color:#1F2937;font-weight:600;font-size:16.5px">Necesito una reforma</div>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<span style="padding:8px 14px;border:1px solid #E6E9EE;border-radius:999px;font-size:14px;color:#1F2937">Pintura</span>
+<span style="padding:8px 14px;border:1px solid #E6E9EE;border-radius:999px;font-size:14px;color:#1F2937">Reforma integral</span>
+<span style="padding:8px 14px;border:1px solid #E6E9EE;border-radius:999px;font-size:14px;color:#1F2937">Fontanería</span>
+<span style="padding:8px 14px;border:1px solid #E6E9EE;border-radius:999px;font-size:14px;color:#1F2937">Albañilería</span>
+<span style="padding:8px 14px;border:1px solid #E6E9EE;border-radius:999px;font-size:14px;color:#1F2937">Electricidad</span>
+<span style="padding:8px 14px;border:1px solid #E6E9EE;border-radius:999px;font-size:14px;color:#1F2937">Otros</span>
+</div>
+</div>
+
+<div style="background:#F4F6FA;border:1px solid #E6E9EE;border-radius:18px;padding:20px">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding:0 4px">
+<div style="font-size:14px;font-weight:600;color:#1F2937">Últimos contactos publicados</div>
+<div style="display:flex;align-items:center;gap:7px;font-size:13px;color:#6B7280"><span style="width:7px;height:7px;border-radius:50%;background:#034AAC;display:block"></span>en directo</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px">
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:12px;padding:16px 18px">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+<span style="font-size:11.5px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:#1F2937;background:#F5C336;padding:4px 9px;border-radius:5px">Albañilería</span>
+<span style="font-size:19px;font-weight:700;color:#034AAC">14 €</span>
+</div>
+<div style="font-size:16px;font-weight:600;color:#1F2937;margin-bottom:6px">Tabiquería y alicatado en local de Malasaña</div>
+<div style="font-size:14px;color:#4B5563;line-height:1.5;margin-bottom:10px">Dividir un local de 60 m² en dos espacios y alicatar el aseo. Obra pequeña con licencia en trámite.</div>
+<div style="display:flex;justify-content:space-between;align-items:center;font-size:13.5px"><span style="color:#6B7280">Presupuesto <strong style="color:#1F2937">6.000 – 9.000 €</strong></span><span style="color:#1F2937;font-weight:600">Verificado ✓</span></div>
+</div>
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:12px;padding:16px 18px">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+<span style="font-size:11.5px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:#1F2937;background:#F5C336;padding:4px 9px;border-radius:5px">Electricidad</span>
+<span style="font-size:19px;font-weight:700;color:#034AAC">11 €</span>
+</div>
+<div style="font-size:16px;font-weight:600;color:#1F2937;margin-bottom:6px">Boletín e instalación nueva en chalet de Boadilla</div>
+<div style="font-size:14px;color:#4B5563;line-height:1.5;margin-bottom:10px">Cuadro antiguo, quiere ampliar potencia y dejar la instalación legalizada.</div>
+<div style="display:flex;justify-content:space-between;align-items:center;font-size:13.5px"><span style="color:#6B7280">Presupuesto <strong style="color:#1F2937">3.500 – 5.000 €</strong></span><span style="color:#1F2937;font-weight:600">Verificado ✓</span></div>
+</div>
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:12px;padding:16px 18px;opacity:.6">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+<span style="font-size:11.5px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:#1F2937;background:#E6E9EE;padding:4px 9px;border-radius:5px">Pintura</span>
+<span style="font-size:19px;font-weight:700;color:#034AAC">8 €</span>
+</div>
+<div style="font-size:16px;font-weight:600;color:#1F2937">Piso de 60 m² en Nervión, Sevilla</div>
+</div>
+</div>
+</div>
+</div>
+
+<div style="background:#034AAC;padding:52px 44px;color:#fff">
+<h2 style="font-size:32px;font-weight:700;margin:0 0 6px;letter-spacing:-.6px">Un contacto no se publica hasta que pasa estos tres pasos</h2>
+<p style="font-size:16px;color:#DCE6F7;margin:0 0 34px;font-weight:300">El mismo proceso para los seis gremios, sin excepciones.</p>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-top:1px solid rgba(255,255,255,.25)">
+<div style="padding:26px 28px 0 0;border-right:1px solid rgba(255,255,255,.25)">
+<div style="font-size:15px;font-weight:700;color:#F5C336;margin-bottom:12px">01</div>
+<div style="font-size:20px;font-weight:600;margin-bottom:10px">Llamamos por teléfono</div>
+<div style="font-size:15px;line-height:1.6;color:#DCE6F7">Confirmamos que la persona existe, que el trabajo es real y que quiere recibir presupuestos ahora.</div>
+</div>
+<div style="padding:26px 28px 0;border-right:1px solid rgba(255,255,255,.25)">
+<div style="font-size:15px;font-weight:700;color:#F5C336;margin-bottom:12px">02</div>
+<div style="font-size:20px;font-weight:600;margin-bottom:10px">Anotamos alcance y presupuesto</div>
+<div style="font-size:15px;line-height:1.6;color:#DCE6F7">Qué hay que hacer, en qué metros y con qué horquilla de gasto. Todo queda escrito en la ficha.</div>
+</div>
+<div style="padding:26px 0 0 28px">
+<div style="font-size:15px;font-weight:700;color:#F5C336;margin-bottom:12px">03</div>
+<div style="font-size:20px;font-weight:600;margin-bottom:10px">Publicamos con precio cerrado</div>
+<div style="font-size:15px;line-height:1.6;color:#DCE6F7">Sabes cuánto cuesta el contacto antes de pagarlo. Si los datos fallan, te lo devolvemos.</div>
+</div>
+</div>
+</div>
+
+<div style="padding:56px 44px;background:#fff;display:grid;grid-template-columns:1fr 1fr 1fr;gap:22px">
+<div style="grid-column:span 2">
+<h2 style="font-size:30px;font-weight:700;color:#1F2937;margin:0 0 22px;letter-spacing:-.5px">Profesionales que ya trabajan así</h2>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+<div style="background:#F4F6FA;border-radius:14px;padding:24px">
+<div style="font-size:16px;line-height:1.6;color:#1F2937">«El primer mes compré seis contactos y salieron dos obras. Lo que más valoro es que ya saben lo que cuesta una reforma.»</div>
+<div style="font-size:13.5px;color:#6B7280;margin-top:14px">Javier T. · Reformas integrales · Alcorcón</div>
+</div>
+<div style="background:#F4F6FA;border-radius:14px;padding:24px">
+<div style="font-size:16px;line-height:1.6;color:#1F2937">«Trabajo solo y no puedo perder mañanas. Aquí llamo sabiendo que al otro lado hay alguien esperando.»</div>
+<div style="font-size:13.5px;color:#6B7280;margin-top:14px">Nuria P. · Pintura · Valencia</div>
+</div>
+</div>
+</div>
+<div style="background:#1F2937;border-radius:14px;padding:26px;color:#fff;display:flex;flex-direction:column">
+<div style="font-size:13px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#F5C336;margin-bottom:12px">Precio</div>
+<div style="font-size:24px;font-weight:700;line-height:1.3;margin-bottom:14px">Desde 8 € el contacto</div>
+<div style="font-size:15px;line-height:1.7;color:#D1D5DB;flex:1">Sin cuota, sin permanencia y con el precio visible en cada ficha. Pagas solo los contactos que compras.</div>
+<div style="margin-top:20px;padding:13px;background:#F5C336;border-radius:9px;color:#1F2937;font-weight:600;font-size:15.5px;text-align:center">Crear cuenta gratis</div>
+</div>
+</div>
+
+<div style="background:#F5C336;padding:44px;display:flex;justify-content:space-between;align-items:center">
+<div>
+<div style="font-size:28px;font-weight:700;color:#1F2937;letter-spacing:-.5px;margin-bottom:6px">¿Vas a reformar tu casa?</div>
+<div style="font-size:16.5px;color:#1F2937">Cuéntanos qué necesitas y te ponemos en contacto con profesionales de tu zona. Gratis.</div>
+</div>
+<div style="padding:15px 30px;background:#034AAC;border-radius:10px;color:#fff;font-weight:600;font-size:16.5px">Pedir presupuesto</div>
+</div>
+
+<div style="background:#1F2937;padding:36px 44px;display:flex;justify-content:space-between;align-items:center;color:#9CA3AF;font-size:14px">
+<div style="color:#fff;font-size:17px;font-weight:600">Voy a Reformar</div>
+<div style="display:flex;gap:36px"><span>Contactos</span><span>Precios</span><span>Ayuda</span><span>Aviso legal</span><span>Privacidad</span></div>
+</div>
+
+</div>
+</div>
+
+</div>
+<p class="dv-next">Prueba a decir: «sigo con <a class="dv-oid" href="#1b">1b</a>, diseña el listado y la ficha» · «mezcla el hero de <a class="dv-oid" href="#1a">1a</a> con el tablero de <a class="dv-oid" href="#1b">1b</a>» · «más sobrio, menos amarillo»</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const CATS = [
+  ["Reformas","Reforma integral, reforma parcial, pisos, casas, locales, oficinas, comunidades"],
+  ["Pintura y decoración","Pintura interior/exterior, fachadas, papel pintado, quitar gotelé, pintura decorativa"],
+  ["Albañilería","Tabiques, rozas, alicatado, enfoscado, pequeñas obras, demolición"],
+  ["Electricidad","Instalaciones, cuadros eléctricos, enchufes, iluminación, averías, boletines"],
+  ["Fontanería","Tuberías, fugas, grifería, desatascos, sanitarios, termos"],
+  ["Carpintería","Puertas, armarios, muebles a medida, lacado, restauración, carpintería de madera"],
+  ["Cocinas","Reforma completa, muebles, encimeras, montaje, electrodomésticos"],
+  ["Baños","Reforma completa, cambio bañera por ducha, mamparas, sanitarios, alicatado"],
+  ["Climatización y calefacción","Aire acondicionado, calefacción, aerotermia, calderas, radiadores"],
+  ["Ventanas y cerramientos","PVC, aluminio, ventanas, persianas, cristalería, cerramientos de terrazas"],
+  ["Suelos y revestimientos","Parquet, tarima, laminado, vinilo, cerámica, microcemento"],
+  ["Pladur y aislamiento","Falsos techos, tabiques, aislamiento térmico/acústico"],
+  ["Humedades e impermeabilización","Filtraciones, terrazas, cubiertas, fachadas, impermeabilización"],
+  ["Cerrajería","Cerraduras, puertas, urgencias, puertas de seguridad"],
+  ["Manitas y reparaciones","Montaje de muebles, colgar TV/cuadros, persianas, pequeñas reparaciones, ajustes"],
+  ["Jardines, terrazas y piscinas","Jardinería, terrazas, pérgolas, piscinas, mantenimiento"],
+  ["Eficiencia energética","Placas solares, aislamiento, aerotermia, mejora energética"],
+  ["Interiorismo, arquitectura y proyectos","Interioristas, arquitectos, arquitectos técnicos, planos, proyectos y licencias"]
+];
+const PLAZOS = ["Lo antes posible","En 2-4 semanas","En 1-3 meses","Solo estoy pidiendo precios"];
+const INMUEBLES = ["Piso","Casa o chalet","Local comercial","Oficina","Comunidad de vecinos","Nave o industrial","Terreno o exterior"];
+const ESTADOS = ["A estrenar / obra nueva","En buen estado","Necesita actualización","Muy deteriorado","Vivienda vacía","Habitada durante la obra"];
+const PROPIEDAD = ["Soy el propietario","Soy inquilino","Administro el inmueble"];
+const PRES = ["Menos de 1.000 €","1.000 – 5.000 €","5.000 – 15.000 €","15.000 – 40.000 €","Más de 40.000 €","No lo sé todavía"];
+
+class Component extends DCLogic {
+  state = { step: 1, cat: null, subs: [], desc: "", cp: "", m2: "", inmueble: null, estado: null, propiedad: null, pres: null, plazo: null, nombre: "", tel: "", email: "", ubicacion: "", horario: null, acepta: false, verPol: false, sent: false };
+  set(k, v) { this.setState({ [k]: v }); }
+  renderVals() {
+    const s = this.state;
+    const chip = (on) => on
+      ? "display:flex;flex-direction:column;gap:4px;text-align:left;padding:14px 16px;border-radius:12px;border:1.5px solid #034AAC;background:#E8EEFA;cursor:pointer;font-family:Poppins,sans-serif"
+      : "display:flex;flex-direction:column;gap:4px;text-align:left;padding:14px 16px;border-radius:12px;border:1.5px solid #E6E9EE;background:#fff;cursor:pointer;font-family:Poppins,sans-serif";
+    const pill = (on) => on
+      ? "padding:10px 16px;border-radius:999px;border:1.5px solid #034AAC;background:#034AAC;color:#fff;font-size:14.5px;font-weight:500;cursor:pointer;font-family:Poppins,sans-serif"
+      : "padding:10px 16px;border-radius:999px;border:1.5px solid #E6E9EE;background:#fff;color:#1F2937;font-size:14.5px;font-weight:400;cursor:pointer;font-family:Poppins,sans-serif";
+    const catObj = CATS.find(c => c[0] === s.cat);
+    const step1ok = !!s.cat;
+    const step2ok = s.desc.trim().length > 9 && s.cp.trim().length >= 5 && !!s.inmueble && !!s.estado;
+    const step3ok = !!(s.nombre.trim() && s.tel.trim().length >= 9 && s.ubicacion.trim() && s.acepta);
+    const cta = (ok) => "padding:15px 30px;border:none;border-radius:10px;font-size:16.5px;font-weight:600;font-family:Poppins,sans-serif;" + (ok ? "background:#034AAC;color:#fff;cursor:pointer" : "background:#E6E9EE;color:#9CA3AF;cursor:not-allowed");
+    return {
+      step: s.step, isS1: s.step === 1 && !s.sent, isS2: s.step === 2 && !s.sent, isS3: s.step === 3 && !s.sent, sent: s.sent,
+      hasCat: !!s.cat, verPol: s.verPol,
+      togglePol: () => this.setState(st => ({ verPol: !st.verPol })),
+      polLabel: s.verPol ? "Ocultar la política de tratamiento de datos" : "Leer la política de tratamiento de datos aquí mismo",
+      ubicacion: s.ubicacion, onUbicacion: e => this.set("ubicacion", e.target.value),
+      catName: s.cat || "", catSubs: catObj ? catObj[1] : "",
+      pasoTxt: "Paso " + s.step + " de 3",
+      barStyle: "height:100%;background:#F5C336;border-radius:999px;width:" + (s.step * 33.34) + "%",
+      cats: CATS.map(([name, sub]) => ({ name, sub, style: chip(s.cat === name), pick: () => this.setState({ cat: name, subs: [] }) })),
+      subOpts: catObj ? catObj[1].split(", ").map(t => ({ t, style: pill(s.subs.includes(t)), pick: () => this.setState(st => ({ subs: st.subs.includes(t) ? st.subs.filter(x => x !== t) : st.subs.concat(t) })) })) : [],
+      presOpts: PRES.map(t => ({ t, style: pill(s.pres === t), pick: () => this.set("pres", t) })),
+      plazoOpts: PLAZOS.map(t => ({ t, style: pill(s.plazo === t), pick: () => this.set("plazo", t) })),
+      desc: s.desc, onDesc: e => this.set("desc", e.target.value),
+      cp: s.cp, onCp: e => this.set("cp", e.target.value),
+      m2: s.m2, onM2: e => this.set("m2", e.target.value),
+      inmuebleOpts: INMUEBLES.map(t => ({ t, style: pill(s.inmueble === t), pick: () => this.set("inmueble", t) })),
+      estadoOpts: ESTADOS.map(t => ({ t, style: pill(s.estado === t), pick: () => this.set("estado", t) })),
+      propiedadOpts: PROPIEDAD.map(t => ({ t, style: pill(s.propiedad === t), pick: () => this.set("propiedad", t) })),
+      horarioOpts: ["Mañanas","Tardes","Cualquier hora"].map(t => ({ t, style: pill(s.horario === t), pick: () => this.set("horario", t) })),
+      resumen: [s.cat, s.inmueble, s.m2 ? s.m2 + " m²" : null, s.cp ? "CP " + s.cp : null].filter(Boolean).join(" · "),
+      nombre: s.nombre, onNombre: e => this.set("nombre", e.target.value),
+      tel: s.tel, onTel: e => this.set("tel", e.target.value),
+      email: s.email, onEmail: e => this.set("email", e.target.value),
+      acepta: s.acepta, onAcepta: e => this.set("acepta", e.target.checked),
+      next1Style: cta(step1ok), next2Style: cta(step2ok), sendStyle: cta(step3ok),
+      next1: () => step1ok && this.set("step", 2),
+      next2: () => step2ok && this.set("step", 3),
+      send: () => step3ok && this.setState({ sent: true }),
+      back: () => this.set("step", Math.max(1, s.step - 1)),
+      reset: () => this.setState({ step: 1, cat: null, subs: [], desc: "", cp: "", m2: "", inmueble: null, estado: null, propiedad: null, pres: null, plazo: null, nombre: "", tel: "", email: "", ubicacion: "", horario: null, acepta: false, verPol: false, sent: false })
+    };
+  }
+}
+</script>
+</body>
+</html>

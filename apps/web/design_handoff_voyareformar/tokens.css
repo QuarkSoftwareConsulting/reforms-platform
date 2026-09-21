@@ -1,0 +1,82 @@
+/* Voy a Reformar — tokens de diseño
+   Fuente: Poppins 300–800
+   https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap */
+
+:root {
+  /* Marca */
+  --vr-blue: #034AAC;
+  --vr-blue-hover: #023576;
+  --vr-blue-soft: #E8EEFA;
+  --vr-yellow: #F5C336;
+  --vr-yellow-hover: #E0AE1F;
+  --vr-yellow-disabled: #F6EBC6;
+  --vr-ink: #1F2937;
+  --vr-white: #FFFFFF;
+
+  /* Neutros */
+  --vr-bg: #F4F6FA;
+  --vr-border: #E6E9EE;
+  --vr-border-strong: #D1D5DB;
+  --vr-divider: #EEF1F5;
+  --vr-text-secondary: #4B5563;
+  --vr-text-help: #6B7280;
+  --vr-text-disabled: #9CA3AF;
+  --vr-text-disabled-soft: #C4C9D2;
+  --vr-text-on-yellow-disabled: #A99A6B;
+
+  /* Estado */
+  --vr-error: #C0392B;
+  --vr-error-bg: #FDF3F2;
+
+  /* Tipografía */
+  --vr-font: 'Poppins', system-ui, sans-serif;
+
+  --vr-display-size: 58px;
+  --vr-display-weight: 700;
+  --vr-display-tracking: -1.4px;
+  --vr-display-lh: 1.05;
+
+  --vr-h1-size: 36px;
+  --vr-h1-tracking: -1px;
+
+  --vr-h2-size: 30px;
+  --vr-h2-tracking: -0.6px;
+
+  --vr-card-title-size: 17px;
+
+  --vr-body-size: 15.5px;
+  --vr-body-lh: 1.6;
+
+  --vr-help-size: 13px;
+
+  --vr-label-size: 12.5px;
+  --vr-label-tracking: 1.2px;
+
+  /* Espaciado (base 4) */
+  --vr-space-1: 4px;
+  --vr-space-2: 8px;
+  --vr-space-3: 12px;
+  --vr-space-4: 14px;
+  --vr-space-6: 24px;
+  --vr-space-10: 40px;
+  --vr-space-16: 64px;
+
+  /* Radios */
+  --vr-radius-tag: 6px;
+  --vr-radius-control: 10px;
+  --vr-radius-option: 12px;
+  --vr-radius-card: 14px;
+  --vr-radius-panel: 18px;
+  --vr-radius-pill: 999px;
+
+  /* Bordes y elevación */
+  --vr-border-width: 1px;
+  --vr-control-border-width: 1.5px;
+  --vr-shadow-floating: 0 6px 20px rgba(31, 41, 55, 0.10);
+  --vr-focus-ring: 0 0 0 3px rgba(3, 74, 172, 0.14);
+
+  /* Alturas de botón */
+  --vr-btn-h-sm: 40px;
+  --vr-btn-h-md: 48px;
+  --vr-btn-h-lg: 56px;
+}

@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"><style>body{margin:0;background:#F4F6FA;font-family:Poppins,system-ui,sans-serif;-webkit-font-smoothing:antialiased}a{color:#034AAC}a:hover{color:#023576}</style></helmet>
+
+<div style="max-width:1120px;margin:0 auto;padding:0 40px 80px;color:#1F2937">
+
+<header style="display:flex;align-items:flex-end;justify-content:space-between;gap:40px;padding:56px 0 28px;border-bottom:2px solid #1F2937;margin-bottom:56px">
+<div>
+<div style="font-size:12.5px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:#034AAC;margin-bottom:14px">Sistema de diseño · v1.0</div>
+<h1 style="font-size:52px;font-weight:800;letter-spacing:-1.8px;line-height:1.05;margin:0 0 14px">Voy a Reformar</h1>
+<p style="font-size:17px;line-height:1.6;color:#4B5563;margin:0;max-width:600px">Referencia para desarrollo. Tokens, tipografía y componentes usados en la web pública. Todo lo que aparece aquí está construido con HTML y CSS estándar, sin dependencias.</p>
+</div>
+<img src="assets/logo-voyareformar.png" alt="Voy a Reformar" style="height:92px;width:auto;display:block;flex:none">
+</header>
+
+<section style="margin-bottom:64px">
+<div style="font-size:12.5px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:#6B7280;margin-bottom:6px">01</div>
+<h2 style="font-size:30px;font-weight:700;letter-spacing:-.7px;margin:0 0 6px">Color</h2>
+<p style="font-size:15.5px;color:#4B5563;margin:0 0 24px;max-width:620px">Azul para acciones y elementos de marca. Amarillo solo como acento: llamadas a la acción secundarias, sellos y destacados. Nunca amarillo como fondo de texto pequeño.</p>
+
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:16px">
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:14px;overflow:hidden">
+<div style="height:104px;background:#034AAC"></div>
+<div style="padding:16px">
+<div style="font-size:15.5px;font-weight:600;margin-bottom:2px">Azul marca</div>
+<div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#034AAC;margin-bottom:8px">#034AAC</div>
+<div style="font-size:13px;line-height:1.5;color:#6B7280">Botón primario, enlaces, precios, iconografía activa.</div>
+</div>
+</div>
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:14px;overflow:hidden">
+<div style="height:104px;background:#F5C336"></div>
+<div style="padding:16px">
+<div style="font-size:15.5px;font-weight:600;margin-bottom:2px">Amarillo acento</div>
+<div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#034AAC;margin-bottom:8px">#F5C336</div>
+<div style="font-size:13px;line-height:1.5;color:#6B7280">CTA sobre azul, sellos de verificación, subrayados. Texto siempre en gris oscuro encima.</div>
+</div>
+</div>
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:14px;overflow:hidden">
+<div style="height:104px;background:#1F2937"></div>
+<div style="padding:16px">
+<div style="font-size:15.5px;font-weight:600;margin-bottom:2px">Gris tinta</div>
+<div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#034AAC;margin-bottom:8px">#1F2937</div>
+<div style="font-size:13px;line-height:1.5;color:#6B7280">Titulares, texto principal, cabecera oscura y pie.</div>
+</div>
+</div>
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:14px;overflow:hidden">
+<div style="height:104px;background:#fff;border-bottom:1px solid #E6E9EE"></div>
+<div style="padding:16px">
+<div style="font-size:15.5px;font-weight:600;margin-bottom:2px">Blanco</div>
+<div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#034AAC;margin-bottom:8px">#FFFFFF</div>
+<div style="font-size:13px;line-height:1.5;color:#6B7280">Fondo de tarjetas y superficies de formulario.</div>
+</div>
+</div>
+</div>
+
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:14px;padding:24px">
+<div style="font-size:15.5px;font-weight:600;margin-bottom:14px">Neutros derivados</div>
+<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:14px">
+<div><div style="height:52px;border-radius:9px;background:#F4F6FA;border:1px solid #E6E9EE;margin-bottom:8px"></div><div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#1F2937">#F4F6FA</div><div style="font-size:12px;color:#6B7280">Fondo de página</div></div>
+<div><div style="height:52px;border-radius:9px;background:#E8EEFA;margin-bottom:8px"></div><div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#1F2937">#E8EEFA</div><div style="font-size:12px;color:#6B7280">Azul suave, estado activo</div></div>
+<div><div style="height:52px;border-radius:9px;background:#E6E9EE;margin-bottom:8px"></div><div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#1F2937">#E6E9EE</div><div style="font-size:12px;color:#6B7280">Bordes y separadores</div></div>
+<div><div style="height:52px;border-radius:9px;background:#D1D5DB;margin-bottom:8px"></div><div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#1F2937">#D1D5DB</div><div style="font-size:12px;color:#6B7280">Borde de botón secundario</div></div>
+<div><div style="height:52px;border-radius:9px;background:#6B7280;margin-bottom:8px"></div><div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#1F2937">#6B7280</div><div style="font-size:12px;color:#6B7280">Texto de ayuda</div></div>
+<div><div style="height:52px;border-radius:9px;background:#4B5563;margin-bottom:8px"></div><div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#1F2937">#4B5563</div><div style="font-size:12px;color:#6B7280">Texto secundario</div></div>
+</div>
+</div>
+</section>
+
+<section style="margin-bottom:64px">
+<div style="font-size:12.5px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:#6B7280;margin-bottom:6px">02</div>
+<h2 style="font-size:30px;font-weight:700;letter-spacing:-.7px;margin:0 0 6px">Tipografía</h2>
+<p style="font-size:15.5px;color:#4B5563;margin:0 0 24px;max-width:620px">Poppins en todo el producto. Pesos 300 a 800. Los titulares llevan tracking negativo; el cuerpo de texto no.</p>
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:14px;padding:32px 34px">
+<div style="display:grid;grid-template-columns:150px 1fr;gap:20px 28px;align-items:baseline">
+<div style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#6B7280;line-height:1.5">Display<br>58 / 700 / -1.4px</div>
+<div style="font-size:58px;font-weight:700;letter-spacing:-1.4px;line-height:1.05">Contactos verificados</div>
+<div style="grid-column:span 2;height:1px;background:#EEF1F5"></div>
+<div style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#6B7280;line-height:1.5">H1 página<br>36 / 700 / -1px</div>
+<div style="font-size:36px;font-weight:700;letter-spacing:-1px">Cuéntanos el proyecto</div>
+<div style="grid-column:span 2;height:1px;background:#EEF1F5"></div>
+<div style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#6B7280;line-height:1.5">H2 sección<br>30 / 700 / -.6px</div>
+<div style="font-size:30px;font-weight:700;letter-spacing:-.6px">Así validamos cada contacto</div>
+<div style="grid-column:span 2;height:1px;background:#EEF1F5"></div>
+<div style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#6B7280;line-height:1.5">Título tarjeta<br>17 / 600</div>
+<div style="font-size:17px;font-weight:600;line-height:1.4">Reforma de piso de 78 m² en Chamberí, Madrid</div>
+<div style="grid-column:span 2;height:1px;background:#EEF1F5"></div>
+<div style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#6B7280;line-height:1.5">Cuerpo<br>15–16 / 400 / 1.6</div>
+<div style="font-size:15.5px;line-height:1.6;color:#4B5563;max-width:520px">Llamamos a cada persona antes de publicar su solicitud. Ves el trabajo, el presupuesto y el precio del contacto, y decides si lo compras.</div>
+<div style="grid-column:span 2;height:1px;background:#EEF1F5"></div>
+<div style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#6B7280;line-height:1.5">Ayuda<br>13 / 400</div>
+<div style="font-size:13px;color:#6B7280">Si no la sabes, déjalo en blanco.</div>
+<div style="grid-column:span 2;height:1px;background:#EEF1F5"></div>
+<div style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#6B7280;line-height:1.5">Etiqueta<br>12.5 / 600 / 1.2px / MAYÚS</div>
+<div style="font-size:12.5px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:#034AAC">Paso 2 de 3</div>
+</div>
+</div>
+</section>
+
+<section style="margin-bottom:64px">
+<div style="font-size:12.5px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:#6B7280;margin-bottom:6px">03</div>
+<h2 style="font-size:30px;font-weight:700;letter-spacing:-.7px;margin:0 0 6px">Espaciado, radios y elevación</h2>
+<p style="font-size:15.5px;color:#4B5563;margin:0 0 24px;max-width:620px">Escala base de 4 px. Los radios crecen con el tamaño del contenedor: control 10, tarjeta 14, panel 18.</p>
+<div style="display:grid;grid-template-columns:1.3fr 1fr;gap:16px">
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:14px;padding:26px">
+<div style="font-size:15.5px;font-weight:600;margin-bottom:16px">Escala de espaciado</div>
+<div style="display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:center;gap:14px"><div style="width:52px;font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#6B7280">4</div><div style="height:12px;width:4px;background:#034AAC;border-radius:2px"></div><div style="font-size:13px;color:#6B7280">separaciones mínimas dentro de un control</div></div>
+<div style="display:flex;align-items:center;gap:14px"><div style="width:52px;font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#6B7280">8</div><div style="height:12px;width:8px;background:#034AAC;border-radius:2px"></div><div style="font-size:13px;color:#6B7280">gap entre chips</div></div>
+<div style="display:flex;align-items:center;gap:14px"><div style="width:52px;font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#6B7280">12</div><div style="height:12px;width:12px;background:#034AAC;border-radius:2px"></div><div style="font-size:13px;color:#6B7280">gap en rejillas de opciones</div></div>
+<div style="display:flex;align-items:center;gap:14px"><div style="width:52px;font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#6B7280">14</div><div style="height:12px;width:14px;background:#034AAC;border-radius:2px"></div><div style="font-size:13px;color:#6B7280">separación entre bloques del formulario</div></div>
+<div style="display:flex;align-items:center;gap:14px"><div style="width:52px;font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#6B7280">24</div><div style="height:12px;width:24px;background:#034AAC;border-radius:2px"></div><div style="font-size:13px;color:#6B7280">padding interior de tarjeta</div></div>
+<div style="display:flex;align-items:center;gap:14px"><div style="width:52px;font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#6B7280">40</div><div style="height:12px;width:40px;background:#034AAC;border-radius:2px"></div><div style="font-size:13px;color:#6B7280">margen lateral de página</div></div>
+<div style="display:flex;align-items:center;gap:14px"><div style="width:52px;font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#6B7280">64</div><div style="height:12px;width:64px;background:#034AAC;border-radius:2px"></div><div style="font-size:13px;color:#6B7280">separación entre secciones de la home</div></div>
+</div>
+</div>
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:14px;padding:26px">
+<div style="font-size:15.5px;font-weight:600;margin-bottom:16px">Radios</div>
+<div style="display:flex;gap:14px;align-items:flex-end;margin-bottom:24px">
+<div style="text-align:center"><div style="width:62px;height:52px;border:1.5px solid #E6E9EE;border-radius:6px;background:#F4F6FA;margin-bottom:8px"></div><div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#6B7280">6 etiqueta</div></div>
+<div style="text-align:center"><div style="width:62px;height:52px;border:1.5px solid #E6E9EE;border-radius:10px;background:#F4F6FA;margin-bottom:8px"></div><div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#6B7280">10 control</div></div>
+<div style="text-align:center"><div style="width:62px;height:52px;border:1.5px solid #E6E9EE;border-radius:14px;background:#F4F6FA;margin-bottom:8px"></div><div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#6B7280">14 tarjeta</div></div>
+<div style="text-align:center"><div style="width:62px;height:52px;border:1.5px solid #E6E9EE;border-radius:999px;background:#F4F6FA;margin-bottom:8px"></div><div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#6B7280">999 chip</div></div>
+</div>
+<div style="font-size:15.5px;font-weight:600;margin-bottom:14px">Elevación</div>
+<div style="display:flex;gap:16px">
+<div style="flex:1;text-align:center"><div style="height:52px;border:1px solid #E6E9EE;border-radius:12px;background:#fff;margin-bottom:8px"></div><div style="font-size:12.5px;color:#6B7280">Plana: solo borde. Uso por defecto.</div></div>
+<div style="flex:1;text-align:center"><div style="height:52px;border:1px solid #E6E9EE;border-radius:12px;background:#fff;box-shadow:0 6px 20px rgba(31,41,55,.10);margin-bottom:8px"></div><div style="font-size:12.5px;color:#6B7280">Flotante: menús y modales.</div></div>
+</div>
+</div>
+</div>
+</section>
+
+<section style="margin-bottom:64px">
+<div style="font-size:12.5px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:#6B7280;margin-bottom:6px">04</div>
+<h2 style="font-size:30px;font-weight:700;letter-spacing:-.7px;margin:0 0 6px">Botones</h2>
+<p style="font-size:15.5px;color:#4B5563;margin:0 0 24px;max-width:620px">Altura de 48 px en tamaño normal, 40 px en compacto. Radio 10. Peso 600 siempre. Un único botón primario por vista.</p>
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:14px;overflow:hidden">
+<div style="display:grid;grid-template-columns:130px 1fr 1fr 1fr;background:#F4F6FA;border-bottom:1px solid #E6E9EE;font-size:12.5px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:#6B7280">
+<div style="padding:13px 20px">Variante</div><div style="padding:13px 20px">Normal</div><div style="padding:13px 20px">Hover</div><div style="padding:13px 20px">Desactivado</div>
+</div>
+<div style="display:grid;grid-template-columns:130px 1fr 1fr 1fr;align-items:center;border-bottom:1px solid #EEF1F5">
+<div style="padding:20px"><div style="font-size:14.5px;font-weight:600">Primario</div><div style="font-size:12.5px;color:#6B7280;margin-top:3px">Acción principal</div></div>
+<div style="padding:20px"><button type="button" style="padding:12px 26px;background:#034AAC;color:#fff;border:none;border-radius:10px;font:600 16px/24px Poppins,sans-serif;cursor:pointer;white-space:nowrap" style-hover="background:#023576">Crear cuenta</button></div>
+<div style="padding:20px"><button type="button" style="padding:12px 26px;background:#023576;color:#fff;border:none;border-radius:10px;font:600 16px/24px Poppins,sans-serif;cursor:pointer;white-space:nowrap">Crear cuenta</button></div>
+<div style="padding:20px"><button type="button" disabled="true" style="padding:12px 26px;background:#E6E9EE;color:#9CA3AF;border:none;border-radius:10px;font:600 16px/24px Poppins,sans-serif;cursor:not-allowed;white-space:nowrap">Crear cuenta</button></div>
+</div>
+<div style="display:grid;grid-template-columns:130px 1fr 1fr 1fr;align-items:center;border-bottom:1px solid #EEF1F5">
+<div style="padding:20px"><div style="font-size:14.5px;font-weight:600">Acento</div><div style="font-size:12.5px;color:#6B7280;margin-top:3px">Compra y conversión</div></div>
+<div style="padding:20px"><button type="button" style="padding:12px 22px;background:#F5C336;color:#1F2937;border:none;border-radius:10px;font:600 16px/24px Poppins,sans-serif;cursor:pointer;white-space:nowrap" style-hover="background:#E0AE1F">Comprar contacto</button></div>
+<div style="padding:20px"><button type="button" style="padding:12px 22px;background:#E0AE1F;color:#1F2937;border:none;border-radius:10px;font:600 16px/24px Poppins,sans-serif;cursor:pointer;white-space:nowrap">Comprar contacto</button></div>
+<div style="padding:20px"><button type="button" disabled="true" style="padding:12px 22px;background:#F6EBC6;color:#A99A6B;border:none;border-radius:10px;font:600 16px/24px Poppins,sans-serif;cursor:not-allowed;white-space:nowrap">Comprar contacto</button></div>
+</div>
+<div style="display:grid;grid-template-columns:130px 1fr 1fr 1fr;align-items:center;border-bottom:1px solid #EEF1F5">
+<div style="padding:20px"><div style="font-size:14.5px;font-weight:600">Secundario</div><div style="font-size:12.5px;color:#6B7280;margin-top:3px">Atrás, cancelar</div></div>
+<div style="padding:20px"><button type="button" style="padding:10.5px 26px;background:#fff;color:#1F2937;border:1.5px solid #D1D5DB;border-radius:10px;font:600 16px/24px Poppins,sans-serif;cursor:pointer;white-space:nowrap" style-hover="border-color:#034AAC;color:#034AAC">Atrás</button></div>
+<div style="padding:20px"><button type="button" style="padding:10.5px 26px;background:#fff;color:#034AAC;border:1.5px solid #034AAC;border-radius:10px;font:600 16px/24px Poppins,sans-serif;cursor:pointer;white-space:nowrap">Atrás</button></div>
+<div style="padding:20px"><button type="button" disabled="true" style="padding:10.5px 26px;background:#fff;color:#C4C9D2;border:1.5px solid #E6E9EE;border-radius:10px;font:600 16px/24px Poppins,sans-serif;cursor:not-allowed;white-space:nowrap">Atrás</button></div>
+</div>
+<div style="display:grid;grid-template-columns:130px 1fr 1fr 1fr;align-items:center">
+<div style="padding:20px"><div style="font-size:14.5px;font-weight:600">Texto</div><div style="font-size:12.5px;color:#6B7280;margin-top:3px">Acciones terciarias</div></div>
+<div style="padding:20px"><button type="button" style="padding:0;background:none;border:none;color:#034AAC;font:600 15px Poppins,sans-serif;text-decoration:underline;cursor:pointer">Ver política de datos</button></div>
+<div style="padding:20px"><button type="button" style="padding:0;background:none;border:none;color:#023576;font:600 15px Poppins,sans-serif;text-decoration:underline;cursor:pointer">Ver política de datos</button></div>
+<div style="padding:20px"><button type="button" disabled="true" style="padding:0;background:none;border:none;color:#C4C9D2;font:600 15px Poppins,sans-serif;text-decoration:underline;cursor:not-allowed">Ver política de datos</button></div>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-top:16px;background:#fff;border:1px solid #E6E9EE;border-radius:14px;padding:22px 24px">
+<div style="font-size:14.5px;font-weight:600;width:100px;flex:none">Tamaños</div>
+<button type="button" style="padding:9px 18px;background:#034AAC;color:#fff;border:none;border-radius:8px;font:600 14px/22px Poppins,sans-serif;cursor:pointer;white-space:nowrap;flex:none">Compacto · 40</button>
+<button type="button" style="padding:12px 26px;background:#034AAC;color:#fff;border:none;border-radius:10px;font:600 16px/24px Poppins,sans-serif;cursor:pointer;white-space:nowrap;flex:none">Normal · 48</button>
+<button type="button" style="padding:15px 32px;background:#034AAC;color:#fff;border:none;border-radius:10px;font:600 17px/26px Poppins,sans-serif;cursor:pointer;white-space:nowrap;flex:none">Grande · 56</button>
+<div style="font-size:13px;color:#6B7280;line-height:1.5;flex:1;min-width:150px">En móvil ningún botón baja de 48 px de alto.</div>
+</div>
+</section>
+
+<section style="margin-bottom:64px">
+<div style="font-size:12.5px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:#6B7280;margin-bottom:6px">05</div>
+<h2 style="font-size:30px;font-weight:700;letter-spacing:-.7px;margin:0 0 6px">Campos de formulario</h2>
+<p style="font-size:15.5px;color:#4B5563;margin:0 0 24px;max-width:620px">Etiqueta en 15/600, texto de ayuda en 13 bajo el campo, error en rojo con el borde teñido. Borde de 1,5 px para que el foco se note sin desplazar el contenido.</p>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:14px;padding:26px;display:flex;flex-direction:column;gap:20px">
+<div>
+<div style="font-size:15px;font-weight:600;margin-bottom:8px">Reposo</div>
+<input placeholder="600 00 00 00" style="width:100%;box-sizing:border-box;padding:13px 14px;border:1.5px solid #E6E9EE;border-radius:10px;font:15px Poppins,sans-serif;color:#1F2937">
+<div style="font-size:13px;color:#6B7280;margin-top:8px">Llamamos desde un número español.</div>
+</div>
+<div>
+<div style="font-size:15px;font-weight:600;margin-bottom:8px">Foco</div>
+<input value="600 45 12 90" style="width:100%;box-sizing:border-box;padding:13px 14px;border:1.5px solid #034AAC;border-radius:10px;font:15px Poppins,sans-serif;color:#1F2937;box-shadow:0 0 0 3px rgba(3,74,172,.14)">
+</div>
+<div>
+<div style="font-size:15px;font-weight:600;margin-bottom:8px">Error</div>
+<input value="6004" style="width:100%;box-sizing:border-box;padding:13px 14px;border:1.5px solid #C0392B;border-radius:10px;font:15px Poppins,sans-serif;color:#1F2937;background:#FDF3F2">
+<div style="font-size:13px;color:#C0392B;margin-top:8px;font-weight:500">Introduce un teléfono de 9 dígitos.</div>
+</div>
+<div>
+<div style="font-size:15px;font-weight:600;margin-bottom:8px">Área de texto</div>
+<textarea rows="3" placeholder="Describe el trabajo que necesitas…" style="width:100%;box-sizing:border-box;padding:13px 14px;border:1.5px solid #E6E9EE;border-radius:10px;font:15px/1.55 Poppins,sans-serif;color:#1F2937;resize:vertical"></textarea>
+</div>
+</div>
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:14px;padding:26px;display:flex;flex-direction:column;gap:22px">
+<div>
+<div style="font-size:15px;font-weight:600;margin-bottom:10px">Chip de selección</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<span style="padding:10px 16px;border-radius:999px;border:1.5px solid #034AAC;background:#034AAC;color:#fff;font-size:14.5px;font-weight:500">Seleccionado</span>
+<span style="padding:10px 16px;border-radius:999px;border:1.5px solid #E6E9EE;background:#fff;color:#1F2937;font-size:14.5px">Sin seleccionar</span>
+<span style="padding:10px 16px;border-radius:999px;border:1.5px solid #E6E9EE;background:#F4F6FA;color:#C4C9D2;font-size:14.5px">No disponible</span>
+</div>
+<div style="font-size:13px;color:#6B7280;margin-top:10px">Se usa para presupuesto, plazo, tipo de inmueble y subservicios.</div>
+</div>
+<div>
+<div style="font-size:15px;font-weight:600;margin-bottom:10px">Tarjeta de opción</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+<div style="display:flex;flex-direction:column;gap:4px;padding:14px 16px;border-radius:12px;border:1.5px solid #034AAC;background:#E8EEFA">
+<span style="font-size:15px;font-weight:600">Fontanería</span>
+<span style="font-size:12.5px;color:#6B7280;line-height:1.45">Tuberías, fugas, grifería, desatascos</span>
+</div>
+<div style="display:flex;flex-direction:column;gap:4px;padding:14px 16px;border-radius:12px;border:1.5px solid #E6E9EE;background:#fff">
+<span style="font-size:15px;font-weight:600">Pintura</span>
+<span style="font-size:12.5px;color:#6B7280;line-height:1.45">Interior, exterior, fachadas, gotelé</span>
+</div>
+</div>
+</div>
+<div>
+<div style="font-size:15px;font-weight:600;margin-bottom:10px">Casilla de consentimiento</div>
+<label style="display:flex;gap:12px;align-items:flex-start">
+<input type="checkbox" checked="true" style="width:20px;height:20px;margin:2px 0 0;accent-color:#034AAC;flex:none">
+<span style="font-size:14.5px;line-height:1.6">He leído y acepto la <a href="#">política de tratamiento de datos</a> conforme al RGPD.</span>
+</label>
+</div>
+<div>
+<div style="font-size:15px;font-weight:600;margin-bottom:10px">Barra de progreso</div>
+<div style="height:6px;background:#E6E9EE;border-radius:999px"><div style="height:100%;width:66%;background:#F5C336;border-radius:999px"></div></div>
+</div>
+</div>
+</div>
+</section>
+
+<section style="margin-bottom:64px">
+<div style="font-size:12.5px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:#6B7280;margin-bottom:6px">06</div>
+<h2 style="font-size:30px;font-weight:700;letter-spacing:-.7px;margin:0 0 6px">Etiquetas y sellos</h2>
+<p style="font-size:15.5px;color:#4B5563;margin:0 0 24px;max-width:620px">La etiqueta de gremio es azul sobre azul suave en fondo claro, y amarilla sobre fondo oscuro. El sello de verificación siempre acompaña a un contacto validado.</p>
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:14px;padding:26px;display:flex;flex-wrap:wrap;gap:36px;align-items:center">
+<div style="display:flex;flex-direction:column;gap:10px"><div style="font-size:13px;color:#6B7280">Gremio, fondo claro</div><span style="font-size:12px;font-weight:600;letter-spacing:.7px;text-transform:uppercase;color:#034AAC;background:#E8EEFA;padding:6px 11px;border-radius:6px;align-self:flex-start">Reforma integral</span></div>
+<div style="display:flex;flex-direction:column;gap:10px"><div style="font-size:13px;color:#6B7280">Gremio, fondo oscuro</div><span style="font-size:11.5px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:#1F2937;background:#F5C336;padding:5px 10px;border-radius:5px;align-self:flex-start">Electricidad</span></div>
+<div style="display:flex;flex-direction:column;gap:10px"><div style="font-size:13px;color:#6B7280">Verificado</div><span style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;color:#1F2937"><svg width="15" height="15" viewBox="0 0 24 24" fill="#F5C336"><path d="M12 2l2.4 1.8 3-.2 1 2.8 2.5 1.6-1 2.8 1 2.8-2.5 1.6-1 2.8-3-.2L12 22l-2.4-1.8-3 .2-1-2.8L3.1 16l1-2.8-1-2.8 2.5-1.6 1-2.8 3 .2z"></path><path d="M10.6 15.4l-2.8-2.8 1.2-1.2 1.6 1.6 4-4 1.2 1.2z" fill="#fff"></path></svg>Verificado</span></div>
+<div style="display:flex;flex-direction:column;gap:10px"><div style="font-size:13px;color:#6B7280">En directo</div><span style="display:inline-flex;align-items:center;gap:7px;font-size:13px;color:#6B7280"><span style="width:7px;height:7px;border-radius:50%;background:#034AAC"></span>en directo</span></div>
+<div style="display:flex;flex-direction:column;gap:10px"><div style="font-size:13px;color:#6B7280">Precio del contacto</div><span style="font-size:19px;font-weight:700;color:#034AAC">14 €</span></div>
+</div>
+</section>
+
+<section style="margin-bottom:64px">
+<div style="font-size:12.5px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:#6B7280;margin-bottom:6px">07</div>
+<h2 style="font-size:30px;font-weight:700;letter-spacing:-.7px;margin:0 0 6px">Tarjeta de contacto</h2>
+<p style="font-size:15.5px;color:#4B5563;margin:0 0 24px;max-width:620px">El componente central del producto. Orden fijo: gremio y sello, titular, descripción, línea de precios, acción. El precio del contacto siempre visible antes de comprar.</p>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px">
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<span style="font-size:12px;font-weight:600;letter-spacing:.7px;text-transform:uppercase;color:#034AAC;background:#E8EEFA;padding:6px 11px;border-radius:6px">Baños</span>
+<span style="display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600"><svg width="15" height="15" viewBox="0 0 24 24" fill="#F5C336"><path d="M12 2l2.4 1.8 3-.2 1 2.8 2.5 1.6-1 2.8 1 2.8-2.5 1.6-1 2.8-3-.2L12 22l-2.4-1.8-3 .2-1-2.8L3.1 16l1-2.8-1-2.8 2.5-1.6 1-2.8 3 .2z"></path><path d="M10.6 15.4l-2.8-2.8 1.2-1.2 1.6 1.6 4-4 1.2 1.2z" fill="#fff"></path></svg>Verificado</span>
+</div>
+<div style="font-size:17px;font-weight:600;line-height:1.4">Cambio de bañera por ducha en Tetuán, Madrid</div>
+<div style="font-size:14.5px;line-height:1.6;color:#4B5563">Baño de 5 m², alicatado completo y mampara nueva. Edificio de 1975, bajante ya renovada.</div>
+<div style="display:flex;justify-content:space-between;align-items:center;padding-top:14px;border-top:1px solid #EEF1F5">
+<div><div style="font-size:12px;color:#6B7280">Presupuesto estimado</div><div style="font-size:17px;font-weight:700">5.000 – 8.000 €</div></div>
+<div style="text-align:right"><div style="font-size:12px;color:#6B7280">Contacto</div><div style="font-size:17px;font-weight:700;color:#034AAC">13 €</div></div>
+</div>
+<button type="button" style="padding:12px;background:#F5C336;border:none;border-radius:9px;color:#1F2937;font:600 15px Poppins,sans-serif;cursor:pointer;white-space:nowrap">Comprar contacto</button>
+</div>
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<span style="font-size:12px;font-weight:600;letter-spacing:.7px;text-transform:uppercase;color:#034AAC;background:#E8EEFA;padding:6px 11px;border-radius:6px">Ya comprado</span>
+<span style="font-size:12.5px;font-weight:600;color:#6B7280">Tuyo desde el 14 sep</span>
+</div>
+<div style="font-size:17px;font-weight:600;line-height:1.4">Instalación de aire acondicionado en Nervión, Sevilla</div>
+<div style="font-size:14.5px;line-height:1.6;color:#4B5563">Tres splits y unidad exterior en patio interior. Comunidad ya informada.</div>
+<div style="display:flex;flex-direction:column;gap:6px;padding-top:14px;border-top:1px solid #EEF1F5">
+<div style="font-size:12px;color:#6B7280">Datos del cliente</div>
+<div style="font-size:15.5px;font-weight:600">Marta Ruiz · 622 10 44 08</div>
+<div style="font-size:14px;color:#4B5563">Calle Luis Montoto 88, Sevilla</div>
+</div>
+<button type="button" style="padding:12px;background:#034AAC;border:none;border-radius:9px;color:#fff;font:600 15px Poppins,sans-serif;cursor:pointer">Llamar ahora</button>
+</div>
+<div style="background:#fff;border:1px solid #E6E9EE;border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:14px;opacity:.55">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<span style="font-size:12px;font-weight:600;letter-spacing:.7px;text-transform:uppercase;color:#6B7280;background:#E6E9EE;padding:6px 11px;border-radius:6px">Cerrado</span>
+<span style="font-size:12.5px;font-weight:600;color:#6B7280">Ya no disponible</span>
+</div>
+<div style="font-size:17px;font-weight:600;line-height:1.4">Pintar piso de 60 m² en Gràcia, Barcelona</div>
+<div style="font-size:14.5px;line-height:1.6;color:#4B5563">El cliente ya ha contratado a un profesional.</div>
+</div>
+</div>
+</section>
+
+<section>
+<div style="font-size:12.5px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:#6B7280;margin-bottom:6px">08</div>
+<h2 style="font-size:30px;font-weight:700;letter-spacing:-.7px;margin:0 0 6px">Reglas de uso</h2>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+<div style="background:#fff;border:1px solid #E6E9EE;border-left:4px solid #034AAC;border-radius:14px;padding:24px 26px">
+<div style="font-size:16px;font-weight:600;margin-bottom:14px">Sí</div>
+<div style="display:flex;flex-direction:column;gap:11px;font-size:14.5px;line-height:1.55;color:#4B5563">
+<div>Un solo botón primario por pantalla.</div>
+<div>El precio del contacto siempre visible antes de pagar.</div>
+<div>Amarillo sobre azul o sobre blanco, con texto gris tinta encima.</div>
+<div>Texto de ayuda bajo el campo, no dentro del placeholder.</div>
+<div>Superficies blancas sobre fondo #F4F6FA.</div>
+</div>
+</div>
+<div style="background:#fff;border:1px solid #E6E9EE;border-left:4px solid #C0392B;border-radius:14px;padding:24px 26px">
+<div style="font-size:16px;font-weight:600;margin-bottom:14px">No</div>
+<div style="display:flex;flex-direction:column;gap:11px;font-size:14.5px;line-height:1.55;color:#4B5563">
+<div>Texto blanco sobre amarillo: no cumple contraste.</div>
+<div>Degradados en fondos o botones.</div>
+<div>Sombras en tarjetas de listado; solo borde.</div>
+<div>Más de dos pesos tipográficos en un mismo bloque.</div>
+<div>Iconos decorativos que no aporten información.</div>
+</div>
+</div>
+</div>
+</section>
+
+</div>
+</x-dc>
+</body>
+</html>

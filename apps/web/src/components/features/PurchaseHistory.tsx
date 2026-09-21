@@ -8,7 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ContactPanel } from "@/components/features/ContactPanel";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
-import { Badge, Card, Skeleton } from "@/components/ui/Card";
+import { Card, Skeleton, Tag } from "@/components/ui/Card";
 import { formatMoney } from "@/helpers/currency";
 import { formatDate } from "@/helpers/date";
 import { useApiError } from "@/hooks/useApiError";
@@ -16,9 +16,10 @@ import { path, type AppLocale } from "@/i18n/routing";
 import { paymentService } from "@/services/payment.service";
 import type { PurchasedLead, PurchaseStatus } from "@/types/api";
 
-const STATUS_TONES: Record<PurchaseStatus, "success" | "warning" | "neutral"> = {
-  paid: "success",
-  reserved: "warning",
+/** El pagado se destaca en azul de marca; el resto de estados son informativos. */
+const STATUS_TONES: Record<PurchaseStatus, "trade" | "accent" | "neutral"> = {
+  paid: "trade",
+  reserved: "accent",
   expired: "neutral",
   failed: "neutral",
   refunded: "neutral",
@@ -78,8 +79,8 @@ export function PurchaseHistory() {
   return (
     <div className="space-y-6">
       <header className="space-y-1">
-        <h1 className="text-3xl font-bold text-slate-900">{t("title")}</h1>
-        <p className="text-slate-600">{t("subtitle")}</p>
+        <h1 className="text-h1 font-bold text-ink">{t("title")}</h1>
+        <p className="text-secondary">{t("subtitle")}</p>
       </header>
 
       {returnedFromCheckout && justPurchased?.is_unlocked && (
@@ -97,7 +98,7 @@ export function PurchaseHistory() {
 
       {entries?.length === 0 && (
         <Card className="space-y-4 text-center">
-          <p className="text-slate-600">{t("empty")}</p>
+          <p className="text-secondary">{t("empty")}</p>
           <Link href={path(locale, "projects")}>
             <Button>{t("browseProjects")}</Button>
           </Link>
@@ -112,22 +113,22 @@ export function PurchaseHistory() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge tone="brand">{entry.category.name}</Badge>
-                      <Badge tone={STATUS_TONES[entry.purchase.status]}>
+                      <Tag>{entry.category.name}</Tag>
+                      <Tag tone={STATUS_TONES[entry.purchase.status]}>
                         {t(`status.${entry.purchase.status}`)}
-                      </Badge>
+                      </Tag>
                     </div>
-                    <h2 className="font-semibold text-slate-900">{entry.title}</h2>
-                    <p className="text-sm text-slate-500">
+                    <h2 className="text-card-title font-semibold text-ink">{entry.title}</h2>
+                    <p className="text-help text-muted">
                       {entry.city}, {entry.province}
                     </p>
                   </div>
                   <div className="text-right text-sm">
-                    <p className="font-semibold text-slate-900">
+                    <p className="font-semibold text-ink">
                       {formatMoney(entry.purchase.amount, locale)}
                     </p>
                     {entry.purchase.paid_at && (
-                      <p className="text-slate-500">
+                      <p className="text-muted">
                         {t("purchasedOn", { date: formatDate(entry.purchase.paid_at, locale) })}
                       </p>
                     )}
@@ -139,7 +140,7 @@ export function PurchaseHistory() {
                 {!entry.contact && entry.purchase.status === "reserved" && (
                   <Link
                     href={`${path(locale, "projects")}/${entry.lead_id}`}
-                    className="inline-block text-sm font-semibold text-brand-700 hover:underline"
+                    className="inline-block text-sm font-semibold text-brand hover:underline"
                   >
                     {t("status.reserved")} →
                   </Link>

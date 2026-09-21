@@ -78,7 +78,7 @@ solo `lib/firebase.ts` y ese hook.
 **Cero cadenas de UI incrustadas en componentes.** Todo texto visible sale de
 `messages/es.json` / `messages/en.json`.
 
-- Los dos archivos deben tener **exactamente las mismas claves** (hoy: 169 cada uno).
+- Los dos archivos deben tener **exactamente las mismas claves** (hoy: 284 cada uno).
   Comprobación rápida:
 
   ```bash
@@ -100,9 +100,9 @@ solo `lib/firebase.ts` y ese hook.
 - Añadir un idioma: `i18n/routing.ts` (`locales`), un `messages/<lang>.json` completo y los
   tags de `Intl` en `helpers/currency.ts` y `helpers/date.ts`.
 
-> **Deuda conocida:** las 169 cadenas de `es.json` están sin acentos ("Atras", "Codigo
-> postal", "Como funciona"). El ASCII solo aplica al código fuente; el texto de cara al
-> usuario debe llevar acentos correctos. Corrige lo que pases por delante.
+> Las cadenas de `es.json` llevan acentos correctos desde la implantación del sistema de
+> diseño. El ASCII solo aplica al código fuente; el texto de cara al usuario, no. Si añades
+> una clave, acentúala.
 
 ---
 
@@ -121,7 +121,7 @@ subida al bucket en un archivo inválido.
 ## Tests
 
 ```bash
-pnpm test              # vitest, 60 tests
+pnpm test              # vitest, 61 tests
 pnpm test:watch
 pnpm lint              # eslint + tsc --noEmit
 ```
@@ -132,8 +132,11 @@ pnpm lint              # eslint + tsc --noEmit
 - Mockea en la frontera de `services/`, no `fetch`. El test comprueba el comportamiento del
   hook o del componente, no el transporte.
 - Consulta por rol y etiqueta accesible (`getByRole`, `getByLabelText`), no por clase CSS.
-- Si un texto está partido entre nodos (p. ej. "Paso 1 de 3 · Que necesitas"), usa un
-  matcher de regex; no reestructures el JSX para acomodar el test.
+- Si un texto está partido entre nodos (p. ej. "Paso 1 de 3 · Qué trabajo necesitas"), usa
+  un matcher de regex; no reestructures el JSX para acomodar el test.
+- Las etiquetas de campo llevan el asterisco de obligatorio pegado detrás, así que
+  `getByLabelText` necesita un regex. `tests/LeadWizard.test.tsx` lo construye con el helper
+  `label(messages.publish.<clave>)`: afirma contra el mensaje, no contra el literal.
 - Prioridad en lo que hay que probar: que **no se pueda enviar el formulario sin
   consentimiento**, que la tarjeta del explorador **no renderice PII**, y que un doble click
   en "desbloquear" **no cree dos reservas** (`useLeadPurchase` mantiene `pending` tras una
@@ -143,9 +146,30 @@ pnpm lint              # eslint + tsc --noEmit
 
 ## Estilos
 
-Tailwind. Paleta del producto en `tailwind.config.ts` (`brand`, `accent`): usa esos tokens,
-no hex sueltos. Clases condicionales con `cn()` (`helpers/cn.ts`), que resuelve conflictos
-de Tailwind.
+Tailwind con el sistema de diseño **«Voy a Reformar»**
+(`design_handoff_voyareformar/README.md` es la especificación).
+
+- Los hex viven **solo** en el bloque `:root` de `src/app/globals.css`, copia de
+  `design_handoff_voyareformar/tokens.css`. `tailwind.config.ts` les pone nombre semántico:
+  `brand{,-hover,-soft}`, `accent{,-hover,-disabled}`, `ink`, `page`, `surface`, `line`,
+  `line-strong`, `divider`, `secondary`, `muted`, `disabled{,-soft}`, `danger{,-bg}`.
+  **No hay escala numérica** (`brand-600` ya no existe) y no se escriben hex en componentes.
+- Escalas propias: tamaños `display · h1 · h2 · card-title · body · help · label`, radios
+  `tag 6 · control 10 · option 12 · card 14 · panel 18`, anchos `max-w-shell` (1280) y
+  `max-w-form` (980) vía `<Container>`.
+- Reglas del sistema que no son gusto personal: **un solo botón primario por vista**, el
+  precio del contacto siempre visible antes de pagar, texto gris tinta sobre el amarillo
+  (nunca blanco: no cumple AA), sin degradados y **sin sombra en tarjetas de listado** — la
+  elevación se reserva a menús y modales.
+- Primitivos en `components/ui/`: `Button`, `Field`, `Card`/`Panel`/`Tag`/`Seal`/`LiveDot`,
+  `OptionCard`, `ProgressBar`, `Alert`, `Container`. `OptionCard` envuelve un `input` nativo
+  en `sr-only` para conservar rol y etiqueta accesible: no lo sustituyas por un `div` con
+  `onClick`. El *chip de selección* del handoff (§4) todavía no existe como componente
+  porque ningún campo actual lo necesita; su especificación está en el README del handoff
+  para cuando lleguen presupuesto, plazo y tipo de inmueble.
+- Clases condicionales con `cn()` (`helpers/cn.ts`), que resuelve conflictos de Tailwind.
+- La tipografía es Poppins autohospedada con `next/font/google` en el layout de idioma. No
+  la sirvas desde `fonts.googleapis.com`: bloquearía el primer render.
 
 Accesibilidad como requisito, no como extra: `aria-invalid` + `aria-describedby` en campos
 con error (ya lo hace `components/ui/Field.tsx`, úsalo en vez de montar `<input>` a mano),

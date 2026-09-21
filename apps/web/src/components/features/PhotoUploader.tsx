@@ -20,15 +20,15 @@ export function PhotoUploader({ upload }: { upload: PhotoUploadState }) {
   return (
     <div className="space-y-3">
       <div>
-        <p className="text-sm font-medium text-slate-800">{t("photosLabel")}</p>
-        <p className="text-sm text-slate-500">{t("photosHint", { max: MAX_PHOTOS })}</p>
+        <p className="text-[15px] font-semibold text-ink">{t("photosLabel")}</p>
+        <p className="text-help text-muted">{t("photosHint", { max: MAX_PHOTOS })}</p>
       </div>
 
       {upload.photos.length > 0 && (
         <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
           {upload.photos.map((photo) => (
             <li key={photo.storageKey} className="relative">
-              <div className="relative h-24 overflow-hidden rounded-lg bg-slate-100">
+              <div className="relative h-24 overflow-hidden rounded-lg bg-page">
                 <Image
                   src={photo.previewUrl}
                   alt={photo.filename}
@@ -41,7 +41,7 @@ export function PhotoUploader({ upload }: { upload: PhotoUploadState }) {
                 type="button"
                 onClick={() => upload.remove(photo.storageKey)}
                 aria-label={`${t("photoRemove")}: ${photo.filename}`}
-                className="absolute -right-1.5 -top-1.5 flex size-6 items-center justify-center rounded-full bg-slate-900 text-xs text-white hover:bg-red-600"
+                className="absolute -right-1.5 -top-1.5 flex size-6 items-center justify-center rounded-full bg-ink text-xs text-surface hover:bg-danger"
               >
                 ×
               </button>

@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { LeadWizard } from "@/components/features/LeadWizard";
 import { Alert } from "@/components/ui/Alert";
 import { Skeleton } from "@/components/ui/Card";
+import { Container } from "@/components/ui/Container";
 import { isAppLocale, type AppLocale } from "@/i18n/routing";
 import { leadsService } from "@/services/leads.service";
 import type { Category } from "@/types/api";
@@ -37,8 +38,8 @@ export default async function PublishPage({ params }: { params: Promise<{ locale
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <h1 className="text-3xl font-bold text-slate-900">{t("title")}</h1>
+    <Container size="form" className="space-y-7 py-12">
+      <h1 className="text-h1 font-bold text-ink">{t("title")}</h1>
       {loadError ? (
         <Alert tone="error">{tErrors("network")}</Alert>
       ) : (
@@ -47,6 +48,6 @@ export default async function PublishPage({ params }: { params: Promise<{ locale
           <LeadWizard categories={categories} />
         </Suspense>
       )}
-    </div>
+    </Container>
   );
 }

@@ -2,18 +2,63 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Tokens del sistema de diseno "Voy a Reformar".
+   Fuente: design_handoff_voyareformar/tokens.css. Tailwind los consume desde
+   `tailwind.config.ts`, asi que este bloque es el unico sitio donde vive un hex. */
 :root {
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Marca */
+  --vr-blue: #034aac;
+  --vr-blue-hover: #023576;
+  --vr-blue-soft: #e8eefa;
+  --vr-yellow: #f5c336;
+  --vr-yellow-hover: #e0ae1f;
+  --vr-yellow-disabled: #f6ebc6;
+  --vr-ink: #1f2937;
+  --vr-white: #ffffff;
+
+  /* Neutros */
+  --vr-bg: #f4f6fa;
+  --vr-border: #e6e9ee;
+  --vr-border-strong: #d1d5db;
+  --vr-divider: #eef1f5;
+  --vr-text-secondary: #4b5563;
+  --vr-text-help: #6b7280;
+  --vr-text-disabled: #9ca3af;
+  --vr-text-disabled-soft: #c4c9d2;
+  --vr-text-on-yellow-disabled: #a99a6b;
+
+  /* Estado */
+  --vr-error: #c0392b;
+  --vr-error-bg: #fdf3f2;
+
+  /* Elevacion. La sombra es solo para menus y modales: las tarjetas son planas. */
+  --vr-shadow-floating: 0 6px 20px rgba(31, 41, 55, 0.1);
+  --vr-focus-ring: 0 0 0 3px rgba(3, 74, 172, 0.14);
+
+  /* `--font-sans` la inyecta next/font en el layout de idioma. */
 }
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 antialiased;
+    @apply bg-page font-sans text-body text-ink antialiased;
   }
 
   /* Foco visible siempre: los formularios de este producto se rellenan mucho
      desde movil y teclado. */
   :focus-visible {
-    @apply outline-none ring-2 ring-brand-500 ring-offset-2;
+    @apply outline-none ring-2 ring-brand ring-offset-2;
+  }
+}
+
+@layer components {
+  /* Resalte amarillo del titular del hero. Es un subrayado grueso detras del
+     texto, no un degradado: el token se repite plano en los dos topes. */
+  .vr-highlight {
+    background-image: linear-gradient(var(--vr-yellow), var(--vr-yellow));
+    background-size: 100% 0.16em;
+    background-position: 0 0.97em;
+    background-repeat: no-repeat;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
   }
 }

@@ -1,39 +1,45 @@
 import { useTranslations } from "next-intl";
 
-import { Alert } from "@/components/ui/Alert";
+import { Seal } from "@/components/ui/Card";
 import type { ClientContact } from "@/types/api";
 
-/** Datos del cliente ya desbloqueados. Solo se renderiza con `contact` no nulo. */
+/**
+ * Datos del cliente ya desbloqueados. Solo se renderiza con `contact` no nulo.
+ *
+ * Es el unico sitio del explorador donde aparecen el nombre y el telefono
+ * reales, y solo llega relleno tras una compra pagada.
+ */
 export function ContactPanel({ contact }: { contact: ClientContact }) {
   const t = useTranslations("lead");
 
   return (
-    <div className="space-y-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5">
-      <Alert tone="success" className="border-0 bg-transparent px-0 py-0">
-        <p className="font-semibold">{t("contactUnlocked")}</p>
-      </Alert>
+    <div className="space-y-4 rounded-card border-[1.5px] border-brand bg-brand-soft p-6">
+      <Seal>{t("contactUnlocked")}</Seal>
 
-      <dl className="space-y-3 text-sm">
+      <dl className="space-y-3">
         <div>
-          <dt className="font-medium text-slate-600">{t("clientName")}</dt>
-          <dd className="text-base text-slate-900">{contact.name}</dd>
+          <dt className="text-[12.5px] font-semibold uppercase tracking-[0.7px] text-brand">
+            {t("clientName")}
+          </dt>
+          <dd className="text-card-title font-semibold text-ink">{contact.name}</dd>
         </div>
         <div>
-          <dt className="font-medium text-slate-600">{t("clientPhone")}</dt>
-          <dd className="text-base">
-            <a
-              href={`tel:${contact.phone}`}
-              className="font-semibold text-brand-700 hover:underline"
-            >
+          <dt className="text-[12.5px] font-semibold uppercase tracking-[0.7px] text-brand">
+            {t("clientPhone")}
+          </dt>
+          <dd className="text-card-title">
+            <a href={`tel:${contact.phone}`} className="font-bold text-brand hover:underline">
               {contact.phone}
             </a>
           </dd>
         </div>
         {contact.email && (
           <div>
-            <dt className="font-medium text-slate-600">{t("clientEmail")}</dt>
-            <dd className="text-base">
-              <a href={`mailto:${contact.email}`} className="text-brand-700 hover:underline">
+            <dt className="text-[12.5px] font-semibold uppercase tracking-[0.7px] text-brand">
+              {t("clientEmail")}
+            </dt>
+            <dd className="break-all text-[15px]">
+              <a href={`mailto:${contact.email}`} className="text-brand hover:underline">
                 {contact.email}
               </a>
             </dd>
@@ -43,7 +49,7 @@ export function ContactPanel({ contact }: { contact: ClientContact }) {
 
       <a
         href={`tel:${contact.phone}`}
-        className="inline-flex h-11 w-full items-center justify-center rounded-lg bg-emerald-600 px-5 text-sm font-semibold text-white hover:bg-emerald-700"
+        className="inline-flex min-h-12 w-full items-center justify-center rounded-control bg-brand px-[26px] text-base font-semibold text-surface transition-colors hover:bg-brand-hover"
       >
         {t("callClient")}
       </a>

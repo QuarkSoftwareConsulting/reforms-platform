@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
-import { Badge, Card, Skeleton } from "@/components/ui/Card";
+import { Card, Skeleton, Tag } from "@/components/ui/Card";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/Field";
 import { PhotoUploader } from "@/components/features/PhotoUploader";
 import { formatMoney } from "@/helpers/currency";
@@ -134,8 +134,8 @@ export function AdminPanel() {
   return (
     <div className="space-y-8">
       <header className="space-y-1">
-        <h1 className="text-3xl font-bold text-slate-900">{t("title")}</h1>
-        <p className="text-slate-600">{t("subtitle")}</p>
+        <h1 className="text-h1 font-bold text-ink">{t("title")}</h1>
+        <p className="text-secondary">{t("subtitle")}</p>
       </header>
 
       {error && <Alert tone="error">{error}</Alert>}
@@ -167,7 +167,7 @@ export function AdminPanel() {
 
       <section className="grid gap-6 xl:grid-cols-2">
         <Card>
-          <h2 className="mb-4 text-xl font-bold text-slate-900">{t("manual.title")}</h2>
+          <h2 className="mb-4 text-card-title font-bold text-ink">{t("manual.title")}</h2>
           <form className="grid gap-4 sm:grid-cols-2" onSubmit={(event) => void submitManualLead(event)}>
             <SelectField label={t("manual.category")} name="category_id" required>
               <option value="">{t("manual.categoryPlaceholder")}</option>
@@ -199,7 +199,7 @@ export function AdminPanel() {
         </Card>
 
         <Card className="space-y-4">
-          <h2 className="text-xl font-bold text-slate-900">{t("categoryPricing.title")}</h2>
+          <h2 className="text-card-title font-bold text-ink">{t("categoryPricing.title")}</h2>
           <SelectField
             label={t("categoryPricing.category")}
             value={categoryId}
@@ -235,8 +235,8 @@ export function AdminPanel() {
       <section className="space-y-4">
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h2 className="text-xl font-bold text-slate-900">{t("leads.title")}</h2>
-            <p className="text-sm text-slate-600">{t("leads.subtitle")}</p>
+            <h2 className="text-card-title font-bold text-ink">{t("leads.title")}</h2>
+            <p className="text-sm text-secondary">{t("leads.subtitle")}</p>
           </div>
           <div className="grid gap-2 sm:grid-cols-3">
             <SelectField
@@ -278,17 +278,17 @@ export function AdminPanel() {
             <Card key={lead.id} className="space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h3 className="font-semibold text-slate-900">{lead.title}</h3>
-                  <p className="text-sm text-slate-600">
+                  <h3 className="font-semibold text-ink">{lead.title}</h3>
+                  <p className="text-sm text-secondary">
                     {t("leads.location", { category: lead.category.name, city: lead.city })}
                   </p>
                 </div>
-                <Badge tone={lead.status === "published" ? "success" : "warning"}>
+                <Tag tone={lead.status === "published" ? "trade" : "accent"}>
                   {t(`status.${lead.status}`)}
-                </Badge>
+                </Tag>
               </div>
-              <p className="line-clamp-2 text-sm text-slate-600">{lead.description}</p>
-              <p className="text-sm text-slate-700">
+              <p className="line-clamp-2 text-sm text-secondary">{lead.description}</p>
+              <p className="text-sm text-secondary">
                 {t("leads.slots", { sold: lead.purchases_count, max: lead.max_purchases })}
               </p>
               <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
@@ -348,7 +348,7 @@ export function AdminPanel() {
 
       {selectedLead && (
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-slate-900">
+          <h2 className="text-card-title font-bold text-ink">
             {t("purchases.title", { lead: selectedLead.title })}
           </h2>
           {purchases.length === 0 ? (
@@ -356,13 +356,13 @@ export function AdminPanel() {
           ) : (
             purchases.map((entry) => (
               <Card key={entry.purchase.id} className="space-y-3">
-                <p className="font-medium text-slate-900">
+                <p className="font-medium text-ink">
                   {entry.professional?.business_name ?? t("purchases.unknownProfessional")}
                 </p>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-secondary">
                   {formatMoney(entry.purchase.amount, locale)} · {t(`purchaseStatus.${entry.purchase.status}`)}
                 </p>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-secondary">
                   {t("purchases.reviews", { count: entry.review_count })}
                 </p>
                 <div className="flex flex-wrap items-end gap-2">
@@ -399,8 +399,8 @@ export function AdminPanel() {
       <section className="space-y-4">
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-xl font-bold text-slate-900">{t("professionals.title")}</h2>
-            <p className="text-sm text-slate-600">{t("professionals.subtitle")}</p>
+            <h2 className="text-card-title font-bold text-ink">{t("professionals.title")}</h2>
+            <p className="text-sm text-secondary">{t("professionals.subtitle")}</p>
           </div>
           <TextField
             label={t("professionals.search")}
@@ -411,14 +411,14 @@ export function AdminPanel() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {professionals.map((professional) => (
             <Card key={professional.id} className="space-y-2">
-              <h3 className="font-semibold text-slate-900">{professional.business_name}</h3>
-              <p className="text-sm text-slate-600">
+              <h3 className="font-semibold text-ink">{professional.business_name}</h3>
+              <p className="text-sm text-secondary">
                 {t("professionals.location", {
                   city: professional.city ?? professional.postal_code,
                   distance: professional.service_radius_km,
                 })}
               </p>
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-secondary">
                 {professional.categories.map((category) => category.name).join(", ")}
               </p>
             </Card>
@@ -436,8 +436,8 @@ export function AdminPanel() {
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <Card>
-      <p className="text-sm text-slate-600">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-slate-900">{value}</p>
+      <p className="text-sm text-secondary">{label}</p>
+      <p className="mt-1 text-h2 font-bold text-ink">{value}</p>
     </Card>
   );
 }
