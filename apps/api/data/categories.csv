@@ -1,12 +1,12 @@
 slug,name_es,name_en,suggested_lead_price_cents,currency
-albanileria,Albanileria,Masonry,500,EUR
-carpinteria,Carpinteria,Carpentry,500,EUR
-cerrajeria,Cerrajeria,Locksmithing,500,EUR
-climatizacion,Climatizacion,Heating & Air Conditioning,700,EUR
-cristaleria,Cristaleria,Glazing,500,EUR
+albanileria,Albañilería,Masonry,500,EUR
+carpinteria,Carpintería,Carpentry,500,EUR
+cerrajeria,Cerrajería,Locksmithing,500,EUR
+climatizacion,Climatización,Heating & Air Conditioning,700,EUR
+cristaleria,Cristalería,Glazing,500,EUR
 electricidad,Electricidad,Electrical Work,600,EUR
-fontaneria,Fontaneria,Plumbing,600,EUR
-jardineria,Jardineria,Gardening,400,EUR
+fontaneria,Fontanería,Plumbing,600,EUR
+jardineria,Jardinería,Gardening,400,EUR
 limpieza,Limpieza,Cleaning,300,EUR
 pintura,Pintura,Painting,500,EUR
 reforma-integral,Reforma integral,Full Renovation,1200,EUR

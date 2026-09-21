@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { AuthGate } from "@/components/features/AuthGate";
 import { PurchaseHistory } from "@/components/features/PurchaseHistory";
 import { Skeleton } from "@/components/ui/Card";
+import { Container } from "@/components/ui/Container";
 import { isAppLocale, type AppLocale } from "@/i18n/routing";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
@@ -22,11 +23,13 @@ export default async function MyContactsPage({
   setRequestLocale(locale);
 
   return (
-    <AuthGate>
-      {/* Lee ?purchase= y ?status= al volver de la pasarela de pago. */}
-      <Suspense fallback={<Skeleton className="h-96 w-full" />}>
-        <PurchaseHistory />
-      </Suspense>
-    </AuthGate>
+    <Container className="py-10">
+      <AuthGate>
+        {/* Lee ?purchase= y ?status= al volver de la pasarela de pago. */}
+        <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+          <PurchaseHistory />
+        </Suspense>
+      </AuthGate>
+    </Container>
   );
 }

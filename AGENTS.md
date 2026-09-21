@@ -56,7 +56,7 @@ npx -y firebase-tools emulators:start --only auth \
 | Objetivo | Comando |
 |---|---|
 | Todo el lint (ruff + mypy strict + eslint + tsc) | `pnpm lint` |
-| Todos los tests (251 back + 60 front) | `pnpm test` |
+| Todos los tests (308 back + 61 front) | `pnpm test` |
 | Backend rápido, **sin Docker** (190 tests) | `cd apps/api && uv run pytest -m "not integration"` |
 | Backend completo (requiere `pnpm infra:up`) | `pnpm api:test` |
 | Un solo test de backend | `cd apps/api && uv run pytest tests/unit/domain/test_lead.py -k capping` |
@@ -252,10 +252,10 @@ dentro de `pnpm-workspace.yaml`.
 **Next.js** — un componente cliente que use `useSearchParams()` necesita un `<Suspense>`
 alrededor o el `build` falla al prerenderizar. Ver `publicar/page.tsx`.
 
-**Deuda conocida** — las 169 cadenas de `apps/web/messages/es.json` están **sin acentos**
-("Atras", "Codigo postal", "Como funciona"). Es texto de cara al usuario y debería llevar
-acentos correctos; el ASCII solo aplica al código fuente. Si tocas ese archivo, corrige lo
-que pases por delante.
+**Acentos** — `apps/web/messages/*.json` es texto de cara al usuario y lleva acentos
+correctos (284 claves por idioma). La regla de ASCII puro aplica **solo al código fuente**.
+Lo mismo vale para `apps/api/data/categories.csv`: los nombres de oficio se muestran en la
+landing y en el formulario.
 
 ---
 

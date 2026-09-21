@@ -109,10 +109,10 @@ export function ProfileForm({ categories }: { categories: Category[] }) {
   return (
     <form onSubmit={handleSubmit} className="mx-auto max-w-2xl space-y-6">
       <header className="space-y-1">
-        <h1 className="text-3xl font-bold text-slate-900">
+        <h1 className="text-h1 font-bold text-ink">
           {isOnboarding ? t("onboardingTitle") : t("title")}
         </h1>
-        <p className="text-slate-600">
+        <p className="text-secondary">
           {isOnboarding ? t("onboardingSubtitle") : t("subtitle")}
         </p>
       </header>

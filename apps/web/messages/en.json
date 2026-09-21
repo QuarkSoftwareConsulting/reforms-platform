@@ -1,11 +1,11 @@
 {
   "common": {
-    "appName": "Reforma Hub",
+    "appName": "Voy a Reformar",
     "loading": "Loading...",
     "retry": "Try again",
     "cancel": "Cancel",
     "back": "Back",
-    "next": "Next",
+    "next": "Continue",
     "save": "Save",
     "close": "Close",
     "optional": "optional",
@@ -13,42 +13,97 @@
   },
   "nav": {
     "publish": "Post a request",
-    "projects": "Requests",
+    "projects": "Contacts",
     "myContacts": "My contacts",
     "profile": "My profile",
     "login": "Log in",
     "register": "I'm a professional",
     "logout": "Log out",
-    "admin": "Admin"
+    "admin": "Admin",
+    "howWeValidate": "How we validate",
+    "pricing": "Pricing",
+    "menu": "Open menu"
+  },
+  "footer": {
+    "tagline": "Your ideas. The best professionals."
   },
   "home": {
-    "title": "Find the tradesperson you need",
-    "subtitle": "Post what you need and get calls from professionals in your area. Free for you.",
-    "clientCta": "Post my request",
-    "proCta": "I'm a professional",
-    "howItWorks": "How it works",
-    "clientTitle": "If you need work done",
-    "clientSteps": {
-      "one": "Tell us what you need and add photos.",
-      "two": "Leave your phone number and publish the request.",
-      "three": "Get calls from up to {maxProfessionals} professionals near you."
+    "title": "Phone-verified renovation contacts across Spain",
+    "subtitle": "We check every client before publishing their request. You see the job, the area and the contact price before paying. No monthly fee, no lock-in.",
+    "heroEyebrow": "Verified contacts · Spain",
+    "heroTitle": "The job is already <mark>checked</mark>. All that's left is your call.",
+    "heroSubtitle": "We check every request before publishing it. You see the job, the area and the contact price, and you decide whether to buy it.",
+    "heroProCta": "See contacts in my trade",
+    "heroClientCta": "I need work done",
+    "heroMoreTrades": "See all trades",
+    "board": {
+      "title": "Trades and contact price",
+      "live": "live catalogue",
+      "price": "Contact",
+      "all": "See all {count} trades"
     },
-    "proTitle": "If you're a professional",
-    "proSteps": {
-      "one": "Sign up and set your trades and working area.",
-      "two": "Browse nearby requests at no cost.",
-      "three": "Pay only for the contacts you want."
+    "validation": {
+      "title": "A contact isn't published until it passes these three steps",
+      "subtitle": "The same process for every trade, no exceptions.",
+      "one": {
+        "title": "We check the request",
+        "body": "We confirm the job is real and that the client wants quotes right now."
+      },
+      "two": {
+        "title": "We record scope and area",
+        "body": "What needs doing and where. The postal code sets the town and province you see on the card."
+      },
+      "three": {
+        "title": "We publish with a fixed price",
+        "body": "The contact goes live with its price visible. You know what it costs before you pay for it."
+      }
     },
-    "trades": "Available trades",
-    "priceNote": "Professionals pay per contact from {price}."
+    "trades": {
+      "title": "Trades and contact price",
+      "subtitle": "The price shown is the trade's reference price. Each contact shows its exact price on its own card.",
+      "note": "Posting a request is free and you don't need an account."
+    },
+    "why": {
+      "title": "Why buying here is different",
+      "subtitle": "Four product rules that don't depend on anyone's goodwill: they are in the code.",
+      "cap": {
+        "title": "At most {maxProfessionals} professionals per request",
+        "body": "Every request is sold to {maxProfessionals} professionals and no more. You aren't competing against an endless list."
+      },
+      "price": {
+        "title": "The contact price is visible before you pay",
+        "body": "Every card carries its amount in plain sight. No bundles, no credit packs, no prices that change at checkout."
+      },
+      "noFee": {
+        "title": "No monthly fee, no lock-in",
+        "body": "You only pay for the contacts you choose to buy. Signing up and browsing the listing costs nothing."
+      },
+      "privacy": {
+        "title": "Only the buyer sees the client's phone",
+        "body": "The public listing shows the job and the area only. The name and phone are handed over after payment."
+      }
+    },
+    "pricing": {
+      "eyebrow": "Transparent pricing",
+      "headline": "From {price} per contact",
+      "headlineFallback": "You pay per contact. Nothing else.",
+      "body": "No fee, no lock-in and the price visible on every card. Each purchase keeps the amount you paid, even if the trade's price changes later.",
+      "cta": "Create a free account"
+    },
+    "clientBanner": {
+      "title": "Planning a renovation?",
+      "body": "Tell us what you need and we'll put you in touch with professionals in your area. Free, no account needed.",
+      "cta": "Get quotes"
+    }
   },
   "publish": {
     "title": "Post your request",
+    "lockNotice": "No account needed. Only the professional who buys the contact sees your phone number.",
     "stepOf": "Step {current} of {total}",
     "steps": {
-      "category": "What you need",
-      "details": "Job details",
-      "contact": "Your details"
+      "category": "What work you need",
+      "details": "Tell us about the project",
+      "contact": "Your contact details"
     },
     "categoryLabel": "Pick a trade",
     "titleLabel": "Summarise the job",
@@ -58,6 +113,7 @@
     "descriptionHint": "At least {min} characters. More detail means better quotes.",
     "postalCodeLabel": "Postal code",
     "postalCodePlaceholder": "28001",
+    "postalCodeHint": "The public listing shows only the town and province, never the exact address.",
     "photosLabel": "Job photos",
     "photosHint": "Up to {max} photos (JPG, PNG or WEBP, max 10 MB each).",
     "photosAdd": "Add photos",
@@ -65,15 +121,43 @@
     "uploading": "Uploading...",
     "nameLabel": "Your name",
     "phoneLabel": "Phone",
-    "phoneHint": "Only professionals who buy your contact will see it.",
+    "phoneHint": "This is the key detail. Only professionals who buy your contact will see it.",
     "emailLabel": "Email",
-    "consentLabel": "I agree that Reforma Hub may share my contact details with up to {maxProfessionals} professionals so they can contact me about this job.",
-    "consentLink": "Read the privacy policy",
+    "emailHint": "We'll send you a copy of your request.",
+    "consentLabel": "I have read and accept the data processing policy. I authorise Voy a Reformar to process my data to validate the request and to share it with up to {maxProfessionals} professionals who buy the contact, under GDPR (EU) 2016/679 and LOPDGDD 3/2018.",
+    "policyShow": "See the data policy summary",
+    "policyHide": "Hide the summary",
+    "policy": {
+      "controller": {
+        "term": "Controller",
+        "body": "Voy a Reformar. The full identifying details (legal name, address and privacy email) will be published in the complete policy."
+      },
+      "purpose": {
+        "term": "Purpose",
+        "body": "To validate your renovation request and put you in touch with professionals in the trade you chose."
+      },
+      "legitimation": {
+        "term": "Legal basis",
+        "body": "Your explicit consent, which you can withdraw at any time."
+      },
+      "recipients": {
+        "term": "Recipients",
+        "body": "At most {maxProfessionals} professionals who buy your contact. Nobody else receives your name or phone."
+      },
+      "retention": {
+        "term": "Retention",
+        "body": "While the request remains active and for the statutory invoicing periods."
+      },
+      "rights": {
+        "term": "Your rights",
+        "body": "Access, rectification, erasure, objection, restriction and portability, plus the right to complain to the AEPD."
+      }
+    },
     "submit": "Publish request",
     "submitting": "Publishing...",
-    "successTitle": "Request published",
+    "successTitle": "Request received",
     "successBody": "It's now visible to professionals in {city}. They will call you directly on the number you gave us.",
-    "publishAnother": "Post another request"
+    "publishAnother": "Send another request"
   },
   "projects": {
     "title": "Requests near you",
@@ -84,21 +168,23 @@
     "filterAll": "All my trades",
     "filterRadius": "Search radius",
     "slotsLeft": "{count, plural, =0 {No slots left} one {1 slot left} other {# slots left}}",
-    "purchased": "Contact purchased",
-    "viewDetail": "View details",
+    "purchased": "Already bought",
+    "viewDetail": "See the contact",
+    "contactPrice": "Contact",
     "distanceFrom": "{distance} from you"
   },
   "lead": {
     "publishedAgo": "Posted {when}",
     "contactLocked": "Contact locked",
     "contactLockedBody": "Unlock the client's name and phone for {price}. This request accepts {slots} more professionals.",
-    "unlock": "Unlock contact for {price}",
+    "contactPrice": "Contact price",
+    "unlock": "Buy contact for {price}",
     "unlocking": "Redirecting to payment...",
     "contactUnlocked": "Contact unlocked",
     "clientName": "Name",
     "clientPhone": "Phone",
     "clientEmail": "Email",
-    "callClient": "Call",
+    "callClient": "Call now",
     "reservationPending": "You have a reservation in progress. Complete the payment within {minutes} minutes or the slot will be released.",
     "resumePayment": "Complete the payment",
     "backToProjects": "Back to requests"
@@ -155,15 +241,85 @@
     "title": "Administration",
     "subtitle": "Operate lead supply, prices and support from one place.",
     "saved": "Changes saved.",
-    "metrics": {"leads": "Total leads", "professionals": "Professionals", "coverage": "Lead coverage", "liquidity": "Lead liquidity", "paidPurchases": "Paid purchases", "revenue": "Confirmed revenue", "none": "No revenue yet", "organic": "Organic leads", "manual": "Manual leads"},
-    "manual": {"title": "Add manually captured lead", "category": "Trade", "categoryPlaceholder": "Select a trade", "titleLabel": "Job title", "description": "Job description", "postalCode": "Postal code", "name": "Client name", "phone": "Client phone", "email": "Client email", "channel": "Consent capture channel", "policy": "Policy version", "acceptedAt": "Consent accepted at", "campaign": "Campaign reference", "submit": "Publish manual lead"},
-    "categoryPricing": {"title": "Suggested category price", "category": "Trade", "placeholder": "Select a trade", "amount": "Amount in cents", "submit": "Save suggested price"},
-    "leads": {"title": "Lead inventory", "subtitle": "Moderate availability and set the exact price for each contact.", "status": "Status", "source": "Source", "category": "Trade", "all": "All", "slots": "{sold} of {max} slots sold", "location": "{category} · {city}", "price": "Price in cents", "savePrice": "Save price", "purchases": "View purchases", "disable": "Disable", "republish": "Republish"},
-    "status": {"published": "Published", "exhausted": "Sold out", "disabled": "Disabled"},
-    "source": {"organic": "Organic", "admin": "Manual"},
-    "purchases": {"title": "Purchases for {lead}", "empty": "No purchases for this lead yet.", "unknownProfessional": "Unknown professional", "reviews": "Review notes: {count}", "reviewNote": "Support note", "markReview": "Mark for review"},
-    "purchaseStatus": {"reserved": "Payment pending", "paid": "Paid", "expired": "Expired", "failed": "Failed", "refunded": "Refunded"},
-    "professionals": {"title": "Professional directory", "subtitle": "Consult registered professional profiles.", "search": "Search business or area", "location": "{city} · {distance} km"}
+    "metrics": {
+      "leads": "Total leads",
+      "professionals": "Professionals",
+      "coverage": "Lead coverage",
+      "liquidity": "Lead liquidity",
+      "paidPurchases": "Paid purchases",
+      "revenue": "Confirmed revenue",
+      "none": "No revenue yet",
+      "organic": "Organic leads",
+      "manual": "Manual leads"
+    },
+    "manual": {
+      "title": "Add manually captured lead",
+      "category": "Trade",
+      "categoryPlaceholder": "Select a trade",
+      "titleLabel": "Job title",
+      "description": "Job description",
+      "postalCode": "Postal code",
+      "name": "Client name",
+      "phone": "Client phone",
+      "email": "Client email",
+      "channel": "Consent capture channel",
+      "policy": "Policy version",
+      "acceptedAt": "Consent accepted at",
+      "campaign": "Campaign reference",
+      "submit": "Publish manual lead"
+    },
+    "categoryPricing": {
+      "title": "Suggested category price",
+      "category": "Trade",
+      "placeholder": "Select a trade",
+      "amount": "Amount in cents",
+      "submit": "Save suggested price"
+    },
+    "leads": {
+      "title": "Lead inventory",
+      "subtitle": "Moderate availability and set the exact price for each contact.",
+      "status": "Status",
+      "source": "Source",
+      "category": "Trade",
+      "all": "All",
+      "slots": "{sold} of {max} slots sold",
+      "location": "{category} · {city}",
+      "price": "Price in cents",
+      "savePrice": "Save price",
+      "purchases": "View purchases",
+      "disable": "Disable",
+      "republish": "Republish"
+    },
+    "status": {
+      "published": "Published",
+      "exhausted": "Sold out",
+      "disabled": "Disabled"
+    },
+    "source": {
+      "organic": "Organic",
+      "admin": "Manual"
+    },
+    "purchases": {
+      "title": "Purchases for {lead}",
+      "empty": "No purchases for this lead yet.",
+      "unknownProfessional": "Unknown professional",
+      "reviews": "Review notes: {count}",
+      "reviewNote": "Support note",
+      "markReview": "Mark for review"
+    },
+    "purchaseStatus": {
+      "reserved": "Payment pending",
+      "paid": "Paid",
+      "expired": "Expired",
+      "failed": "Failed",
+      "refunded": "Refunded"
+    },
+    "professionals": {
+      "title": "Professional directory",
+      "subtitle": "Consult registered professional profiles.",
+      "search": "Search business or area",
+      "location": "{city} · {distance} km"
+    }
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",

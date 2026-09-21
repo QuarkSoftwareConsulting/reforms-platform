@@ -31,13 +31,21 @@ export function PurchaseButton({ detail }: { detail: LeadDetail }) {
   const price = formatMoney(detail.lead.price, locale);
 
   return (
-    <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-5">
+    <div className="space-y-4 rounded-card border border-line bg-surface p-6">
       <div className="space-y-1">
-        <p className="font-semibold text-slate-900">{t("contactLocked")}</p>
-        <p className="text-sm text-slate-600">
+        <p className="text-card-title font-semibold text-ink">{t("contactLocked")}</p>
+        <p className="text-[14.5px] leading-[1.6] text-secondary">
           {t("contactLockedBody", { price, slots: detail.lead.remaining_slots })}
         </p>
       </div>
+
+      {/* El precio del contacto se ve siempre antes de pagar. */}
+      <p className="flex items-baseline justify-between gap-3 border-t border-divider pt-3.5">
+        <span className="text-[11px] uppercase tracking-[0.7px] text-muted">
+          {t("contactPrice")}
+        </span>
+        <span className="text-[19px] font-bold text-brand">{price}</span>
+      </p>
 
       {reserved && minutesLeft > 0 && (
         <Alert tone="warning">{t("reservationPending", { minutes: minutesLeft })}</Alert>
@@ -45,6 +53,7 @@ export function PurchaseButton({ detail }: { detail: LeadDetail }) {
 
       <Button
         type="button"
+        variant="accent"
         size="lg"
         fullWidth
         loading={purchase.pending}

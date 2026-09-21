@@ -61,10 +61,10 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   return (
     <div className="mx-auto max-w-md space-y-6">
       <header className="space-y-1 text-center">
-        <h1 className="text-3xl font-bold text-slate-900">
+        <h1 className="text-h1 font-bold text-ink">
           {isRegister ? t("registerTitle") : t("loginTitle")}
         </h1>
-        <p className="text-slate-600">
+        <p className="text-secondary">
           {isRegister ? t("registerSubtitle") : t("loginSubtitle")}
         </p>
       </header>
@@ -104,10 +104,10 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           </Button>
         </form>
 
-        <div className="flex items-center gap-3 text-xs uppercase text-slate-400">
-          <span className="h-px flex-1 bg-slate-200" />
+        <div className="flex items-center gap-3 text-xs uppercase text-disabled-soft">
+          <span className="h-px flex-1 bg-line" />
           {t("or")}
-          <span className="h-px flex-1 bg-slate-200" />
+          <span className="h-px flex-1 bg-line" />
         </div>
 
         <Button
@@ -122,11 +122,11 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         {error && <Alert tone="error">{error}</Alert>}
       </Card>
 
-      <p className="text-center text-sm text-slate-600">
+      <p className="text-center text-sm text-secondary">
         {isRegister ? t("hasAccount") : t("noAccount")}{" "}
         <Link
           href={path(locale, isRegister ? "login" : "register")}
-          className="font-semibold text-brand-700 hover:underline"
+          className="font-semibold text-brand hover:underline"
         >
           {isRegister ? t("goLogin") : t("goRegister")}
         </Link>
