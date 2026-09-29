@@ -14,7 +14,7 @@ from httpx import AsyncClient
 
 from app.application.ports import AuthenticatedIdentity, PaymentEventType
 from app.domain.models import Category
-from tests.api.conftest import PRO_TOKEN
+from tests.api.conftest import ADMIN_TOKEN, PRO_TOKEN
 from tests.fakes import FAKE_CODE, FakePhoneVerifier, FakeTokenVerifier
 from tests.fakes.payments import VALID_SIGNATURE, FakePaymentGateway
 
@@ -45,7 +45,12 @@ PROFILE_PAYLOAD = {
     "phone": "+34600111222",
     "postal_code": "28001",
     "service_radius_km": 25,
+    "professional_type": "self_employed",
+    "legal_name": "Marta Ruiz Perez",
+    "tax_id": "12345678Z",
+    "address": "Calle Mayor 1, Madrid",
 }
+ADMIN_HEADERS = {"Authorization": f"Bearer {ADMIN_TOKEN}"}
 
 
 async def publish_lead(api: AsyncClient, category: Category, **overrides: object) -> dict:
@@ -61,19 +66,52 @@ async def create_profile(
     headers: dict[str, str],
     *,
     subscribed: bool = True,
+    approved: bool = True,
     **overrides: object,
 ) -> dict:
-    """Crea (o actualiza) el perfil y, por defecto, deja la recarga al dia sin saldo.
+    """Crea (o actualiza) el perfil y, por defecto, lo deja listo para comprar.
 
-    Comprar exige la recarga mensual; sin saldo, las compras siguen pasando por el
-    checkout, que es lo que prueban la mayoria de estos tests.
+    Comprar exige el alta aprobada y la recarga al dia; sin saldo, las compras siguen
+    pasando por el checkout, que es lo que prueban la mayoria de estos tests. El alta
+    se aprueba por el mismo camino que en produccion (documento, envio y admin).
     """
     payload = {**PROFILE_PAYLOAD, "category_ids": [str(category.id)], **overrides}
     response = await api.put("/me/professional", json=payload, headers=headers)
     assert response.status_code == 200, response.text
+    profile = response.json()
+    if approved and profile["verification"]["status"] != "approved":
+        profile = await approve_registration(api, headers, profile["id"])
     if subscribed:
         await activate_subscription(api, headers)
-    return response.json()
+    return profile
+
+
+async def approve_registration(
+    api: AsyncClient, headers: dict[str, str], professional_id: str
+) -> dict:
+    upload = await api.post(
+        "/me/professional/uploads",
+        json={"purpose": "document", "filename": "036.pdf", "content_type": "application/pdf"},
+        headers=headers,
+    )
+    assert upload.status_code == 200, upload.text
+    document = await api.post(
+        "/me/professional/documents",
+        json={
+            "kind": "tax_registration",
+            "storage_key": upload.json()["storage_key"],
+            "filename": "036.pdf",
+        },
+        headers=headers,
+    )
+    assert document.status_code == 201, document.text
+    submitted = await api.post("/me/professional/submit", headers=headers)
+    assert submitted.status_code == 200, submitted.text
+    approved = await api.post(
+        f"/admin/professionals/{professional_id}/approve", headers=ADMIN_HEADERS
+    )
+    assert approved.status_code == 200, approved.text
+    return approved.json()
 
 
 async def activate_subscription(
@@ -341,9 +379,9 @@ class TestExplorerHidesPii:
     async def test_leads_outside_the_radius_are_not_listed(
         self, api: AsyncClient, carpentry_category: Category, pro_auth: dict[str, str]
     ) -> None:
-        # Los leads solo pueden estar en Madrid; el que queda lejos es el profesional.
-        await publish_lead(api, carpentry_category)
-        await create_profile(api, carpentry_category, pro_auth, postal_code="08001")
+        # Alcala queda a unos 30 km de la base (28001) y el radio es de 25.
+        await publish_lead(api, carpentry_category, postal_code="28801")
+        await create_profile(api, carpentry_category, pro_auth)
 
         assert (await api.get("/leads", headers=pro_auth)).json()["total"] == 0
 
@@ -668,12 +706,12 @@ class TestCatalogAndProfile:
     ) -> None:
         first = await create_profile(api, carpentry_category, pro_auth)
         second = await create_profile(
-            api, carpentry_category, pro_auth, service_radius_km=60, postal_code="08001"
+            api, carpentry_category, pro_auth, service_radius_km=60, postal_code="28801"
         )
 
         assert first["id"] == second["id"]
         assert second["service_radius_km"] == 60
-        assert second["city"] == "Barcelona"
+        assert second["city"] == "Alcala de Henares"
 
     async def test_invalid_radius_is_rejected_by_the_schema(
         self, api: AsyncClient, carpentry_category: Category, pro_auth: dict[str, str]

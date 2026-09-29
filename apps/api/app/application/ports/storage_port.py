@@ -1,4 +1,9 @@
-"""Puerto de almacenamiento de archivos (fotos de las solicitudes)."""
+"""Puerto de almacenamiento de archivos.
+
+Hay dos instancias: la publica (fotos de solicitudes y de profesionales) y la privada
+(documentos de alta del profesional: DNI, modelos de Hacienda). Del bucket privado
+nunca se da una URL permanente, solo descargas firmadas de corta duracion.
+"""
 
 from __future__ import annotations
 
@@ -25,6 +30,10 @@ class StoragePort(ABC):
 
     @abstractmethod
     def public_url(self, storage_key: str) -> str: ...
+
+    @abstractmethod
+    async def signed_download_url(self, storage_key: str, *, filename: str) -> str:
+        """URL de descarga que caduca en minutos. La unica via al bucket privado."""
 
     @abstractmethod
     async def delete(self, storage_key: str) -> None: ...

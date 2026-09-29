@@ -163,6 +163,19 @@ class SqlAlchemyCreditLedgerRepository(CreditLedgerRepositoryPort):
         row = (await self._session.execute(stmt)).scalar_one_or_none()
         return credit_entry_to_domain(row) if row is not None else None
 
+    async def first_topup(self, professional_id: UUID) -> CreditEntry | None:
+        stmt = (
+            select(CreditEntryRow)
+            .where(
+                CreditEntryRow.professional_id == professional_id,
+                CreditEntryRow.kind == CreditEntryKind.TOPUP,
+            )
+            .order_by(CreditEntryRow.created_at.asc())
+            .limit(1)
+        )
+        row = (await self._session.execute(stmt)).scalar_one_or_none()
+        return credit_entry_to_domain(row) if row is not None else None
+
     async def topup_totals(self) -> dict[str, int]:
         stmt = (
             select(CreditEntryRow.currency, func.sum(CreditEntryRow.amount_cents))

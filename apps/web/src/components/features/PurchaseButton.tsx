@@ -33,6 +33,7 @@ export function PurchaseButton({ detail }: { detail: LeadDetail }) {
     return null;
   }
 
+  const verification = auth.me?.professional?.verification.status ?? "incomplete";
   const reserved = detail.purchase?.status === "reserved";
   const minutesLeft = minutesUntil(detail.purchase?.reserved_until ?? null);
   const price = formatMoney(detail.lead.price, locale);
@@ -69,7 +70,21 @@ export function PurchaseButton({ detail }: { detail: LeadDetail }) {
         <Alert tone="warning">{t("reservationPending", { minutes: minutesLeft })}</Alert>
       )}
 
-      {plan.kind === "inactive" ? (
+      {verification !== "approved" ? (
+        // Compra solo quien tiene el alta aprobada (F02); se comprueba antes que la
+        // recarga porque es lo primero que tiene que resolver un profesional nuevo.
+        <>
+          <Alert tone="warning">
+            {t(verification === "pending" ? "needsApprovalPending" : "needsApproval")}
+          </Alert>
+          <Link
+            href={path(locale, "profile")}
+            className="flex min-h-[56px] w-full items-center justify-center rounded-control bg-accent px-8 text-[17px] font-semibold text-ink hover:bg-accent-hover"
+          >
+            {t("completeRegistration")}
+          </Link>
+        </>
+      ) : plan.kind === "inactive" ? (
         <>
           <Alert tone="warning">{t("needsSubscription")}</Alert>
           <Link

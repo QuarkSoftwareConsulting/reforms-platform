@@ -81,8 +81,14 @@ URLs públicas de lectura. Para GCS privado, configurar:
 ```ini
 STORAGE_BACKEND=gcs
 GCS_BUCKET=<bucket-existente>
+GCS_PRIVATE_BUCKET=<otro-bucket-sin-acceso-publico>
 GCS_SIGNED_URL_EXPIRES_SECONDS=900
 ```
+
+`GCS_PRIVATE_BUCKET` (o `S3_PRIVATE_BUCKET` con S3) guarda los documentos de alta del
+profesional (DNI, modelos de Hacienda). Tiene que ser **otro** bucket, sin acceso público:
+`Settings` no arranca si coincide con el público. En local, `pnpm infra:up` crea
+`reforma-hub-private` en MinIO sin acceso anónimo.
 
 La API usa ADC de la cuenta de servicio de Cloud Run; no configurar
 `GOOGLE_APPLICATION_CREDENTIALS` ni proporcionar archivos JSON para GCS. El proyecto
@@ -258,6 +264,13 @@ reserva: cambiar el precio después no altera compras ya creadas ni la sesión d
 que se emitió. Subir el precio sugerido de un oficio tampoco toca los leads que ya tienen
 precio propio. La UI de administración llega en la Fase 2; de momento los endpoints se
 usan desde `/docs` o con un cliente HTTP.
+
+**Compra solo un profesional con el alta aprobada.** Tras registrarse, el profesional
+aporta tipo de alta, datos fiscales y documentos y la envía a revisión; hasta que el admin
+la aprueba ve solicitudes pero no compra. Si la rechaza, se reembolsa el primer cobro de la
+recarga y se cancela la suscripción, llamando a la pasarela antes de guardar para que un
+fallo se pueda reintentar sin reembolsar dos veces. Cada decisión queda en
+`professional_verification_events`.
 
 **Una compra reembolsada sigue ocupando plaza.** El dato personal ya se cedió al
 profesional, así que la plaza no se reutiliza; para retirar un lead problemático se

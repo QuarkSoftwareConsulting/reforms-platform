@@ -13,8 +13,10 @@ import pytest
 
 from app.application.ports import PostalCodeInfo
 from app.application.use_cases import (
+    AddProfessionalDocument,
     AdjustProfessionalCredit,
     ApplySubscriptionEvent,
+    ApproveProfessional,
     ChangeLeadAvailability,
     CreateLead,
     CreditLedgerService,
@@ -23,6 +25,7 @@ from app.application.use_cases import (
     GetLeadPricing,
     GetProfessionalAccount,
     GetProfessionalProfile,
+    GetVerificationDossier,
     HandlePaymentEvent,
     ListAdminLeads,
     ListAdminProfessionals,
@@ -32,14 +35,18 @@ from app.application.use_cases import (
     ListMyPurchases,
     MarkPurchaseForReview,
     OpenBillingPortal,
+    RejectProfessional,
     ReleaseExpiredReservations,
+    RemoveProfessionalDocument,
     RequestPhotoUpload,
+    RequestProfessionalUpload,
     SetCategorySuggestedPrice,
     SetLeadPrice,
     SetSubscriptionPrice,
     StartLeadPurchase,
     StartPhoneVerification,
     StartSubscription,
+    SubmitForReview,
     SubscriptionPricing,
     SyncUserFromIdentity,
     UpsertProfessionalProfile,
@@ -111,11 +118,22 @@ class World:
     storage: FakeStorage
     tokens: FakeTokenVerifier
     phone_verifier: FakePhoneVerifier = field(default_factory=FakePhoneVerifier)
+    private_storage: FakeStorage = field(
+        default_factory=lambda: FakeStorage(base_url="https://private.test/reforma-hub")
+    )
+    """Bucket de los documentos de alta: distinto del publico."""
 
     create_lead: CreateLead = field(init=False)
     """Sin verificacion por SMS, como hoy en produccion (no hay proveedor)."""
     create_lead_with_sms: CreateLead = field(init=False)
     start_phone_verification: StartPhoneVerification = field(init=False)
+    submit_for_review: SubmitForReview = field(init=False)
+    approve_professional: ApproveProfessional = field(init=False)
+    reject_professional: RejectProfessional = field(init=False)
+    verification_dossier: GetVerificationDossier = field(init=False)
+    request_professional_upload: RequestProfessionalUpload = field(init=False)
+    add_document: AddProfessionalDocument = field(init=False)
+    remove_document: RemoveProfessionalDocument = field(init=False)
     list_leads: ListLeads = field(init=False)
     lead_detail: GetLeadDetail = field(init=False)
     start_purchase: StartLeadPurchase = field(init=False)
@@ -225,6 +243,37 @@ class World:
             clock=self.clock,
             ids=self.ids,
             uow=self.uow,
+        )
+        self.submit_for_review = SubmitForReview(
+            professionals=self.professionals, clock=self.clock, ids=self.ids, uow=self.uow
+        )
+        self.approve_professional = ApproveProfessional(
+            professionals=self.professionals, clock=self.clock, ids=self.ids, uow=self.uow
+        )
+        self.reject_professional = RejectProfessional(
+            professionals=self.professionals,
+            accounts=self.accounts,
+            ledger=self.ledger,
+            credit=self.credit,
+            payments=self.payments,
+            clock=self.clock,
+            ids=self.ids,
+            uow=self.uow,
+        )
+        self.verification_dossier = GetVerificationDossier(
+            professionals=self.professionals,
+            categories=self.categories,
+            users=self.users,
+            documents=self.private_storage,
+        )
+        self.request_professional_upload = RequestProfessionalUpload(
+            media=self.storage, documents=self.private_storage
+        )
+        self.add_document = AddProfessionalDocument(
+            professionals=self.professionals, clock=self.clock, ids=self.ids, uow=self.uow
+        )
+        self.remove_document = RemoveProfessionalDocument(
+            professionals=self.professionals, documents=self.private_storage, uow=self.uow
         )
         self.get_profile = GetProfessionalProfile(
             professionals=self.professionals, categories=self.categories

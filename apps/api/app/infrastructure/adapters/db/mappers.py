@@ -22,13 +22,15 @@ from app.domain.models import (
     LeadPhoto,
     Professional,
     ProfessionalAccount,
+    ProfessionalDocument,
     Purchase,
     PurchaseReview,
     Service,
     SubscriptionPrice,
     User,
+    VerificationEvent,
 )
-from app.domain.value_objects import Coordinates, Email, Money, PhoneNumber, PostalCode
+from app.domain.value_objects import Coordinates, Email, Money, PhoneNumber, PostalCode, TaxId
 from app.infrastructure.adapters.db.models import (
     CategoryRow,
     CreditEntryRow,
@@ -36,7 +38,11 @@ from app.infrastructure.adapters.db.models import (
     LeadRow,
     PostalCodeRow,
     ProfessionalAccountRow,
+    ProfessionalDocumentRow,
     ProfessionalRow,
+    ProfessionalServiceRow,
+    ProfessionalVerificationEventRow,
+    ProfessionalWorkPhotoRow,
     PurchaseReviewRow,
     SubscriptionPriceRow,
     UserRow,
@@ -140,6 +146,30 @@ def professional_to_domain(row: ProfessionalRow) -> Professional:
         city=row.city,
         province=row.province,
         category_ids={category.id for category in row.categories},
+        service_ids={s.service_id for s in row.services},
+        professional_type=row.professional_type,
+        legal_name=row.legal_name,
+        tax_id=TaxId(row.tax_id) if row.tax_id else None,
+        address=row.address,
+        profile_photo_key=row.profile_photo_key,
+        logo_key=row.logo_key,
+        work_photo_keys=[
+            p.storage_key for p in sorted(row.work_photos, key=lambda p: p.sort_order)
+        ],
+        documents=[
+            ProfessionalDocument(
+                id=d.id,
+                kind=d.kind,
+                storage_key=d.storage_key,
+                filename=d.filename,
+                uploaded_at=d.uploaded_at,
+            )
+            for d in sorted(row.documents, key=lambda d: d.uploaded_at)
+        ],
+        verification_status=row.verification_status,
+        submitted_at=row.submitted_at,
+        reviewed_at=row.reviewed_at,
+        rejection_reason=row.rejection_reason,
     )
 
 
@@ -153,7 +183,59 @@ def apply_professional(row: ProfessionalRow, professional: Professional) -> Prof
     row.service_radius_km = professional.service_radius_km
     row.city = professional.city
     row.province = professional.province
+    row.professional_type = professional.professional_type
+    row.legal_name = professional.legal_name
+    row.tax_id = professional.tax_id.value if professional.tax_id else None
+    row.address = professional.address
+    row.profile_photo_key = professional.profile_photo_key
+    row.logo_key = professional.logo_key
+    row.verification_status = professional.verification_status
+    row.submitted_at = professional.submitted_at
+    row.reviewed_at = professional.reviewed_at
+    row.rejection_reason = professional.rejection_reason
+    # Las colecciones hijas se reconcilian con el dominio reutilizando las filas que
+    # ya existen: borrar e insertar otra fila con la misma clave primaria en el mismo
+    # flush hace chocar la identidad en la sesion de SQLAlchemy.
+    services = {s.service_id: s for s in row.services}
+    row.services = [
+        services.get(service_id)
+        or ProfessionalServiceRow(professional_id=professional.id, service_id=service_id)
+        for service_id in sorted(professional.service_ids)
+    ]
+    photos = {p.storage_key: p for p in row.work_photos}
+    row.work_photos = []
+    for index, key in enumerate(professional.work_photo_keys):
+        photo = photos.get(key) or ProfessionalWorkPhotoRow(
+            professional_id=professional.id, storage_key=key
+        )
+        photo.sort_order = index
+        row.work_photos.append(photo)
+    documents = {d.id: d for d in row.documents}
+    row.documents = [
+        documents.get(d.id)
+        or ProfessionalDocumentRow(
+            id=d.id,
+            professional_id=professional.id,
+            kind=d.kind,
+            storage_key=d.storage_key,
+            filename=d.filename,
+            uploaded_at=d.uploaded_at,
+        )
+        for d in professional.documents
+    ]
     return row
+
+
+def verification_event_to_domain(row: ProfessionalVerificationEventRow) -> VerificationEvent:
+    return VerificationEvent(
+        id=row.id,
+        professional_id=row.professional_id,
+        from_status=row.from_status,
+        to_status=row.to_status,
+        created_at=row.created_at,
+        actor_user_id=row.actor_user_id,
+        note=row.note,
+    )
 
 
 # ------------------------------ Lead -------------------------------------

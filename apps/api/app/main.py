@@ -22,6 +22,7 @@ from app.infrastructure.adapters.db.session import create_engine, create_session
 from app.infrastructure.adapters.payments.stripe_adapter import StripePaymentGateway
 from app.infrastructure.api.dependencies import (
     Infrastructure,
+    create_document_storage,
     create_phone_verifier,
     create_storage,
 )
@@ -50,6 +51,7 @@ def build_infrastructure(settings: Settings) -> Infrastructure:
             webhook_secret=settings.stripe_webhook_secret,
         ),
         storage=create_storage(settings),
+        document_storage=create_document_storage(settings),
         token_verifier=FirebaseTokenVerifier(init_firebase_app(settings)),
         clock=clock,
         ids=Uuid4Generator(),

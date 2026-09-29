@@ -49,10 +49,18 @@ class ListLeads:
         if not selected:
             return LeadListResult(items=[], total=0, limit=limit, offset=offset)
 
+        categories = {c.id: c for c in await self.categories.get_many(selected)}
+        restricted = frozenset(
+            category.id
+            for category in categories.values()
+            if any(s.id in professional.service_ids for s in category.services)
+        )
         filters = LeadSearchFilters(
             category_ids=selected,
             center=professional.base_coordinates,
             radius_km=min(radius_km or professional.service_radius_km, 300),
+            service_ids=frozenset(professional.service_ids),
+            restricted_category_ids=restricted,
             limit=min(limit, MAX_PAGE_SIZE),
             offset=max(offset, 0),
         )
@@ -60,7 +68,6 @@ class ListLeads:
         rows = await self.leads.search(filters, requester_professional_id=professional_id)
         total = await self.leads.count(filters)
 
-        categories = {c.id: c for c in await self.categories.get_many(selected)}
         items = [
             LeadListItem(
                 lead=row.lead.public_view(),

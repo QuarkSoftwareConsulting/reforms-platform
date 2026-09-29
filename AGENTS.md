@@ -62,8 +62,8 @@ npx -y firebase-tools emulators:start --only auth \
 | Objetivo | Comando |
 |---|---|
 | Todo el lint (ruff + mypy strict + eslint + tsc) | `pnpm lint` |
-| Todos los tests (472 back + 90 front) | `pnpm test` |
-| Backend rápido, **sin Docker** (380 tests) | `cd apps/api && uv run pytest -m "not integration"` |
+| Todos los tests (553 back + 113 front) | `pnpm test` |
+| Backend rápido, **sin Docker** (460 tests) | `cd apps/api && uv run pytest -m "not integration"` |
 | Backend completo (requiere `pnpm infra:up`) | `pnpm api:test` |
 | Un solo test de backend | `cd apps/api && uv run pytest tests/unit/domain/test_lead.py -k capping` |
 | Frontend en watch | `pnpm --filter web test:watch` |
@@ -199,6 +199,22 @@ genera, caduca y limita los códigos, así que no guardamos ninguno. Con
 confirmarlo y un error en otro campo no debe obligar a pedir otro SMS.
 → `console` escribe el código en el log: `Settings` lo prohíbe fuera de development y test.
 
+**4.13 · Compra solo quien tiene el alta aprobada; un rechazo reembolsa y cancela.**
+`Professional.verification_status`: `incomplete` → `pending` (el profesional envía el alta)
+→ `approved` / `rejected` (el admin). Incompleto o en revisión **ve** solicitudes pero no
+compra (`403 PROFESSIONAL_NOT_APPROVED`, comprobado antes que la recarga); rechazado no ve
+ni compra. Cada transición deja un `VerificationEvent` (append-only, con el admin que la
+hizo). Enviado el alta, tipo, razón social, NIF y documentos quedan fijos.
+→ `RejectProfessional` llama a la pasarela **antes** de guardar, con operaciones
+idempotentes (clave de idempotencia en el reembolso; cancelar dos veces no falla): si la
+pasarela falla no se guarda nada y el admin reintenta. El saldo del primer cobro se retira
+con `VERIFICATION_REFUND` sobre la misma factura.
+→ Los documentos de alta (DNI, modelos de Hacienda) van al **bucket privado**
+(`S3_PRIVATE_BUCKET` / `GCS_PRIVATE_BUCKET`, nunca el público) y solo salen con URLs
+firmadas de corta duración en el expediente del admin. El perfil propio no las incluye.
+→ Las claves de archivo llevan el id del profesional en el prefijo y se comprueban al
+adjuntarlas: nadie adjunta un archivo subido por otro.
+
 ---
 
 ## 5. Fronteras de la arquitectura
@@ -296,7 +312,9 @@ Tres reglas aprendidas a golpes:
 tipos `ENUM` en el `downgrade`. Tampoco crea el tipo `ENUM` de una columna nueva
 añadida con `add_column` (sí lo hace `create_table`): créalo antes con
 `postgresql.ENUM(..., create_type=False).create(op.get_bind(), checkfirst=True)`, como en
-`*_catalogo_de_servicios_y_datos_del_.py`. Compara con `alembic/versions/*_initial_schema.py` y
+`*_catalogo_de_servicios_y_datos_del_.py`. Un valor nuevo en un `ENUM` existente tampoco lo
+detecta: `ALTER TYPE ... ADD VALUE IF NOT EXISTS` a mano (ver `*_validacion_del_profesional.py`).
+Compara con `alembic/versions/*_initial_schema.py` y
 verifica siempre `upgrade` → `downgrade` → `upgrade` y `alembic check`.
 
 **pnpm 10.34.5** — usa la versión fijada en `packageManager`. Los paquetes autorizados
@@ -307,7 +325,7 @@ dentro de `pnpm-workspace.yaml`.
 alrededor o el `build` falla al prerenderizar. Ver `publicar/page.tsx`.
 
 **Acentos** — `apps/web/messages/*.json` es texto de cara al usuario y lleva acentos
-correctos (381 claves por idioma). La regla de ASCII puro aplica **solo al código fuente**.
+correctos (484 claves por idioma). La regla de ASCII puro aplica **solo al código fuente**.
 Lo mismo vale para `apps/api/data/categories.csv`, `services.csv`: los nombres de oficio se muestran en la
 landing y en el formulario.
 

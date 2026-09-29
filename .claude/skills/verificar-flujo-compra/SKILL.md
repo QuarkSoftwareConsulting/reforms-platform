@@ -36,7 +36,7 @@ bloquean la terminal. Espera a que `/health` devuelva `database: true` antes de 
 ## 2 · Ejecutar
 
 ```bash
-pnpm verify:flow                # 39 comprobaciones (2 se omiten sin clave de Stripe)
+pnpm verify:flow                # 44 comprobaciones (2 se omiten sin clave de Stripe)
 pnpm verify:flow -- --verbose   # muestra cada peticion y respuesta
 pnpm verify:flow -- --keep      # conserva los datos de prueba para inspeccionarlos
 ```
@@ -52,6 +52,7 @@ tantas veces como quieras.
 | 1 | El cliente publica sin cuenta; sin consentimiento se rechaza (`CONSENT_REQUIRED`) |
 | 2 | `lead_consents` guarda politica, IP y user-agent **tomados del servidor** |
 | 3 | El backend verifica un ID token real de Firebase |
+| 3a | Sin alta aprobada no se compra; el documento va al bucket privado (403 sin firma) y el admin lo descarga firmado; un rechazado deja de ver solicitudes |
 | 4 | El explorador **no** expone nombre completo, telefono ni email; si muestra nombre de pila, CP e IVA desglosado; el detalle sigue bloqueado |
 | 5 | Si la pasarela falla: 503 y la plaza se libera al instante |
 | 6 | Firma forjada → 401. Solo el webhook firmado desbloquea |

@@ -142,6 +142,20 @@ class PaymentPort(ABC):
         """
 
     @abstractmethod
+    async def refund_invoice(self, *, invoice_id: str, idempotency_key: str) -> None:
+        """Reembolsa integro el cobro de una factura de la recarga.
+
+        Con la misma `idempotency_key` un reintento no reembolsa dos veces.
+        """
+
+    @abstractmethod
+    async def cancel_subscription(self, subscription_id: str) -> None:
+        """Cancela la recarga en el acto (no al final del periodo).
+
+        Cancelar una suscripcion ya cancelada no es un error: el reintento es seguro.
+        """
+
+    @abstractmethod
     async def create_billing_portal_session(
         self, *, customer_id: str, return_url: str, locale: str = "es"
     ) -> str:

@@ -1,135 +1,90 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { useState } from "react";
 
 import { CategoryPicker } from "@/components/features/CategoryPicker";
+import { DocumentsSection } from "@/components/features/profile/DocumentsSection";
+import { MediaFields } from "@/components/features/profile/MediaFields";
+import { VerificationCard } from "@/components/features/profile/VerificationCard";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { ChipGroup } from "@/components/ui/ChipGroup";
 import { SelectField, TextField } from "@/components/ui/Field";
-import { professionalProfileSchema } from "@/helpers/validators";
-import { useApiError } from "@/hooks/useApiError";
-import { useAuth } from "@/hooks/useAuth";
+import { OptionCard } from "@/components/ui/OptionCard";
+import { PROFESSIONAL_TYPES } from "@/helpers/professionalOptions";
+import { useProfessionalFiles } from "@/hooks/useProfessionalFiles";
+import { useProfessionalProfile, type ProfileValues } from "@/hooks/useProfessionalProfile";
 import { path, type AppLocale } from "@/i18n/routing";
-import { professionalService } from "@/services/professional.service";
-import type { Category } from "@/types/api";
+import type { CatalogCategory, Media } from "@/types/api";
 
 const RADIUS_OPTIONS = [5, 10, 25, 50, 100, 200, 300] as const;
 
-type FieldErrors = Partial<Record<"businessName" | "phone" | "postalCode" | "serviceRadiusKm" | "categoryIds", string>>;
-
 /**
- * Perfil profesional. Sirve de onboarding (primera vez) y de edicion.
+ * Perfil profesional y alta (F02). Sirve de onboarding y de edicion.
  *
- * Tras crearlo por primera vez lleva al explorador, que es lo que el profesional
- * venia buscando.
+ * Tras registrarse, el profesional configura perfil, oficios y zona; despues aporta
+ * sus datos fiscales y documentos y envia el alta a revision. Mientras no este
+ * aprobada puede ver solicitudes, pero no comprarlas. La logica vive en los hooks.
  */
-export function ProfileForm({ categories }: { categories: Category[] }) {
+export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
   const locale = useLocale() as AppLocale;
   const t = useTranslations("profile");
   const tCommon = useTranslations("common");
   const tValidation = useTranslations("validation");
-  const auth = useAuth();
-  const router = useRouter();
-  const translateError = useApiError();
+  const form = useProfessionalProfile();
+  const files = useProfessionalFiles();
+  const { values, professional } = form;
 
-  const existing = auth.me?.professional ?? null;
-  const isOnboarding = existing === null;
-
-  const [businessName, setBusinessName] = useState(existing?.business_name ?? "");
-  const [phone, setPhone] = useState(existing?.phone ?? "");
-  const [postalCode, setPostalCode] = useState(existing?.postal_code ?? "");
-  const [serviceRadiusKm, setServiceRadiusKm] = useState(existing?.service_radius_km ?? 25);
-  const [categoryIds, setCategoryIds] = useState<string[]>(
-    existing?.categories.map((category) => category.id) ?? [],
-  );
-
-  const [errors, setErrors] = useState<FieldErrors>({});
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setSubmitError(null);
-    setSaved(false);
-
-    const parsed = professionalProfileSchema.safeParse({
-      businessName,
-      phone,
-      postalCode,
-      serviceRadiusKm,
-      categoryIds,
-    });
-
-    if (!parsed.success) {
-      const nextErrors: FieldErrors = {};
-      for (const issue of parsed.error.issues) {
-        const field = issue.path[0];
-        if (typeof field === "string") {
-          nextErrors[field as keyof FieldErrors] = issue.message;
-        }
-      }
-      setErrors(nextErrors);
-      return;
-    }
-
-    setErrors({});
-    setSubmitting(true);
-    try {
-      await professionalService.upsertProfile(
-        {
-          business_name: parsed.data.businessName,
-          phone: parsed.data.phone,
-          postal_code: parsed.data.postalCode,
-          service_radius_km: parsed.data.serviceRadiusKm,
-          category_ids: parsed.data.categoryIds,
-        },
-        locale,
-      );
-      await auth.refreshMe();
-      setSaved(true);
-      if (isOnboarding) {
-        router.push(path(locale, "projects"));
-      }
-    } catch (caught) {
-      setSubmitError(translateError(caught));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const error = (field: keyof FieldErrors): string | undefined => {
-    const key = errors[field];
+  const error = (field: keyof ProfileValues): string | undefined => {
+    const key = form.errors[field];
     return key ? tValidation(key) : undefined;
   };
+  const servicesOf = (categoryId: string): string[] =>
+    categories.find((category) => category.id === categoryId)?.services.map((s) => s.id) ?? [];
+  const selectedCategories = categories.filter((c) => values.categoryIds.includes(c.id));
 
   return (
-    <form onSubmit={handleSubmit} className="mx-auto max-w-2xl space-y-6">
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        void form.save();
+      }}
+      className="mx-auto max-w-2xl space-y-6"
+    >
       <header className="space-y-1">
         <h1 className="text-h1 font-bold text-ink">
-          {isOnboarding ? t("onboardingTitle") : t("title")}
+          {professional ? t("title") : t("onboardingTitle")}
         </h1>
         <p className="text-secondary">
-          {isOnboarding ? t("onboardingSubtitle") : t("subtitle")}
+          {professional ? t("subtitle") : t("onboardingSubtitle")}
         </p>
       </header>
 
+      {professional && (
+        <VerificationCard
+          verification={professional.verification}
+          submitting={form.submitting}
+          onSubmit={() => void form.submitForReview()}
+        />
+      )}
+
       <Card className="space-y-5">
+        <h2 className="text-card-title font-semibold text-ink">{t("sections.business")}</h2>
         <TextField
           label={t("businessNameLabel")}
-          value={businessName}
-          onChange={(event) => setBusinessName(event.target.value)}
+          value={values.businessName}
+          onChange={(event) => form.setField("businessName", event.target.value)}
           error={error("businessName")}
           required
           autoComplete="organization"
         />
         <TextField
           label={t("phoneLabel")}
-          value={phone}
-          onChange={(event) => setPhone(event.target.value)}
+          hint={t("phoneHint")}
+          value={values.phone}
+          onChange={(event) => form.setField("phone", event.target.value)}
           error={error("phone")}
           required
           type="tel"
@@ -138,8 +93,9 @@ export function ProfileForm({ categories }: { categories: Category[] }) {
         />
         <TextField
           label={t("postalCodeLabel")}
-          value={postalCode}
-          onChange={(event) => setPostalCode(event.target.value)}
+          hint={t("postalCodeHint")}
+          value={values.postalCode}
+          onChange={(event) => form.setField("postalCode", event.target.value)}
           error={error("postalCode")}
           required
           inputMode="numeric"
@@ -149,8 +105,8 @@ export function ProfileForm({ categories }: { categories: Category[] }) {
         <SelectField
           label={t("radiusLabel")}
           hint={t("radiusHint")}
-          value={String(serviceRadiusKm)}
-          onChange={(event) => setServiceRadiusKm(Number(event.target.value))}
+          value={String(values.serviceRadiusKm)}
+          onChange={(event) => form.setField("serviceRadiusKm", Number(event.target.value))}
           error={error("serviceRadiusKm")}
         >
           {RADIUS_OPTIONS.map((km) => (
@@ -159,23 +115,142 @@ export function ProfileForm({ categories }: { categories: Category[] }) {
             </option>
           ))}
         </SelectField>
+      </Card>
+
+      <Card className="space-y-5">
+        <h2 className="text-card-title font-semibold text-ink">{t("sections.trades")}</h2>
         <CategoryPicker
           categories={categories}
-          selected={categoryIds}
-          onChange={setCategoryIds}
+          selected={values.categoryIds}
+          onChange={(ids) => form.setCategories(ids, servicesOf)}
           multiple
           label={t("categoriesLabel")}
           hint={t("categoriesHint")}
           error={error("categoryIds")}
         />
+        {selectedCategories
+          .filter((category) => category.services.length > 0)
+          .map((category) => (
+            <ChipGroup
+              key={category.id}
+              name={`services-${category.id}`}
+              label={t("servicesLabel", { category: category.name })}
+              hint={t("servicesHint")}
+              options={category.services.map((service) => ({
+                value: service.id,
+                label: service.name,
+              }))}
+              selected={values.serviceIds}
+              multiple
+              onToggle={(id) =>
+                form.setField(
+                  "serviceIds",
+                  values.serviceIds.includes(id)
+                    ? values.serviceIds.filter((x) => x !== id)
+                    : [...values.serviceIds, id],
+                )
+              }
+            />
+          ))}
       </Card>
 
-      {submitError && <Alert tone="error">{submitError}</Alert>}
-      {saved && !isOnboarding && <Alert tone="success">{t("saved")}</Alert>}
+      <Card className="space-y-5">
+        <div>
+          <h2 className="text-card-title font-semibold text-ink">{t("sections.registration")}</h2>
+          <p className="text-help text-muted">
+            {form.identityLocked ? t("identityLocked") : t("registrationHint")}
+          </p>
+        </div>
+        <fieldset className="space-y-3" disabled={form.identityLocked}>
+          <legend className="text-[15px] font-semibold text-ink">{t("typeLabel")}</legend>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {PROFESSIONAL_TYPES.map((type) => (
+              <OptionCard
+                key={type}
+                name="professionalType"
+                value={type}
+                title={t(`types.${type}.title`)}
+                subtitle={t(`types.${type}.subtitle`)}
+                checked={values.professionalType === type}
+                onChange={() => form.setField("professionalType", type)}
+              />
+            ))}
+          </div>
+        </fieldset>
+        <TextField
+          label={t("legalNameLabel")}
+          hint={t("legalNameHint")}
+          value={values.legalName}
+          onChange={(event) => form.setField("legalName", event.target.value)}
+          error={error("legalName")}
+          disabled={form.identityLocked}
+          autoComplete="name"
+        />
+        <TextField
+          label={t("taxIdLabel")}
+          hint={t("taxIdHint")}
+          value={values.taxId}
+          onChange={(event) => form.setField("taxId", event.target.value)}
+          error={error("taxId")}
+          disabled={form.identityLocked}
+          maxLength={20}
+        />
+        <TextField
+          label={t("addressLabel")}
+          value={values.address}
+          onChange={(event) => form.setField("address", event.target.value)}
+          error={error("address")}
+          autoComplete="street-address"
+        />
+      </Card>
 
-      <Button type="submit" size="lg" fullWidth loading={submitting}>
-        {isOnboarding ? tCommon("next") : tCommon("save")}
-      </Button>
+      {professional ? (
+        <>
+          <Card className="space-y-5">
+            <h2 className="text-card-title font-semibold text-ink">{t("sections.media")}</h2>
+            <MediaFields
+              files={files}
+              profilePhoto={values.profilePhoto}
+              logo={values.logo}
+              workPhotos={values.workPhotos}
+              onChange={(field, value) => {
+                if (field === "workPhotos") form.setField("workPhotos", value as Media[]);
+                else form.setField(field, value as Media | null);
+              }}
+            />
+          </Card>
+          <Card className="space-y-5">
+            <h2 className="text-card-title font-semibold text-ink">{t("sections.documents")}</h2>
+            <DocumentsSection
+              files={files}
+              documents={professional.documents}
+              professionalType={values.professionalType}
+              locked={form.identityLocked}
+            />
+          </Card>
+        </>
+      ) : (
+        <p className="text-help text-muted">{t("uploadsAfterSaving")}</p>
+      )}
+
+      {files.rejected && <Alert tone="warning">{tValidation(files.rejected)}</Alert>}
+      {files.error && <Alert tone="error">{files.error}</Alert>}
+      {form.error && <Alert tone="error">{form.error}</Alert>}
+      {form.saved && <Alert tone="success">{t("saved")}</Alert>}
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Button type="submit" size="lg" loading={form.saving}>
+          {professional ? tCommon("save") : t("create")}
+        </Button>
+        {professional && (
+          <Link
+            href={path(locale, "projects")}
+            className="font-semibold text-brand hover:underline"
+          >
+            {t("goToProjects")}
+          </Link>
+        )}
+      </div>
     </form>
   );
 }

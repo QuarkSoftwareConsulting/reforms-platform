@@ -24,13 +24,16 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.domain.models import (
     CreditEntryKind,
+    DocumentKind,
     LeadSource,
     LeadStatus,
+    ProfessionalType,
     ProjectSchedule,
     PropertyType,
     PurchaseStatus,
     SubscriptionStatus,
     UserRole,
+    VerificationStatus,
 )
 from app.infrastructure.adapters.db.models.base import (
     Base,
@@ -62,6 +65,17 @@ property_type_enum = Enum(
 )
 project_schedule_enum = Enum(
     ProjectSchedule, name="project_schedule", values_callable=lambda e: [m.value for m in e]
+)
+professional_type_enum = Enum(
+    ProfessionalType, name="professional_type", values_callable=lambda e: [m.value for m in e]
+)
+verification_status_enum = Enum(
+    VerificationStatus,
+    name="verification_status",
+    values_callable=lambda e: [m.value for m in e],
+)
+document_kind_enum = Enum(
+    DocumentKind, name="document_kind", values_callable=lambda e: [m.value for m in e]
 )
 
 Point = Geography(geometry_type="POINT", srid=4326, spatial_index=False)
@@ -178,14 +192,115 @@ class ProfessionalRow(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     base_location: Mapped[object] = mapped_column(Point, nullable=False)
     service_radius_km: Mapped[int] = mapped_column(Integer, nullable=False, default=25)
 
+    # --- Alta (F02) ---
+    professional_type: Mapped[ProfessionalType | None] = mapped_column(professional_type_enum)
+    legal_name: Mapped[str | None] = mapped_column(String(200))
+    tax_id: Mapped[str | None] = mapped_column(String(20))
+    address: Mapped[str | None] = mapped_column(String(300))
+    profile_photo_key: Mapped[str | None] = mapped_column(String(500))
+    logo_key: Mapped[str | None] = mapped_column(String(500))
+
+    # --- Validacion ---
+    # Los perfiles anteriores a la Etapa 1 quedan "incompletos": tienen que aportar
+    # sus datos y documentos, como cualquier alta nueva, antes de poder comprar.
+    verification_status: Mapped[VerificationStatus] = mapped_column(
+        verification_status_enum,
+        nullable=False,
+        default=VerificationStatus.INCOMPLETE,
+        server_default=text("'incomplete'"),
+    )
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    rejection_reason: Mapped[str | None] = mapped_column(Text)
+
     user: Mapped[UserRow] = relationship(back_populates="professional")
     categories: Mapped[list[CategoryRow]] = relationship(
         secondary="professional_categories", lazy="selectin"
+    )
+    services: Mapped[list[ProfessionalServiceRow]] = relationship(
+        cascade="all, delete-orphan", lazy="selectin"
+    )
+    work_photos: Mapped[list[ProfessionalWorkPhotoRow]] = relationship(
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="ProfessionalWorkPhotoRow.sort_order",
+    )
+    documents: Mapped[list[ProfessionalDocumentRow]] = relationship(
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="ProfessionalDocumentRow.uploaded_at",
     )
 
     __table_args__ = (
         CheckConstraint("service_radius_km BETWEEN 1 AND 300", name="service_radius_in_range"),
         Index("ix_professionals_base_location", "base_location", postgresql_using="gist"),
+        Index("ix_professionals_verification_status", "verification_status"),
+    )
+
+
+class ProfessionalServiceRow(Base):
+    """Tabla puente: que servicios concretos ofrece el profesional."""
+
+    __tablename__ = "professional_services"
+
+    professional_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("professionals.id", ondelete="CASCADE"), primary_key=True
+    )
+    service_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("services.id", ondelete="RESTRICT"), primary_key=True
+    )
+
+
+class ProfessionalWorkPhotoRow(Base, UUIDPrimaryKeyMixin):
+    """Fotos de trabajos realizados (bucket publico: se ensenaran a los clientes)."""
+
+    __tablename__ = "professional_work_photos"
+
+    professional_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("professionals.id", ondelete="CASCADE"), nullable=False
+    )
+    storage_key: Mapped[str] = mapped_column(String(500), nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    __table_args__ = (Index("ix_professional_work_photos_professional_id", "professional_id"),)
+
+
+class ProfessionalDocumentRow(Base, UUIDPrimaryKeyMixin):
+    """Documento de alta. La clave apunta al bucket PRIVADO: nunca a una URL publica."""
+
+    __tablename__ = "professional_documents"
+
+    professional_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("professionals.id", ondelete="CASCADE"), nullable=False
+    )
+    kind: Mapped[DocumentKind] = mapped_column(document_kind_enum, nullable=False)
+    storage_key: Mapped[str] = mapped_column(String(500), nullable=False)
+    filename: Mapped[str] = mapped_column(String(200), nullable=False)
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (Index("ix_professional_documents_professional_id", "professional_id"),)
+
+
+class ProfessionalVerificationEventRow(Base, UUIDPrimaryKeyMixin):
+    """Auditoria de la validacion. Append-only: nunca se actualiza ni se borra."""
+
+    __tablename__ = "professional_verification_events"
+
+    professional_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("professionals.id", ondelete="CASCADE"), nullable=False
+    )
+    from_status: Mapped[VerificationStatus] = mapped_column(
+        verification_status_enum, nullable=False
+    )
+    to_status: Mapped[VerificationStatus] = mapped_column(verification_status_enum, nullable=False)
+    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
+    )
+    note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        Index("ix_professional_verification_events_professional_id", "professional_id"),
     )
 
 

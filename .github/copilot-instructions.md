@@ -15,6 +15,8 @@ Resumen mínimo:
 - Los datos de contacto del cliente nunca salen por el explorador: `LeadPublicView` no
   tiene campos para ellos. No los añadas. Antes de pagar solo se ven el nombre de pila y
   el CP, y solo si el consentimiento lo cubre (`allows_public_preview`).
+- Compra solo un profesional con el alta aprobada por el admin. Sus documentos de alta van
+  al bucket privado y solo salen con URLs firmadas en el expediente del admin.
 - Cero cadenas de UI incrustadas: van a `apps/web/messages/es.json` y `en.json`, con las
   mismas claves en ambos.
 - Comentarios y commits en español, identificadores en inglés, código fuente ASCII.

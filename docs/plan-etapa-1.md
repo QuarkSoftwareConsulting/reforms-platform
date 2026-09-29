@@ -6,9 +6,12 @@ cualquier persona o sesión de agente retome el trabajo sin reconstruir la conve
 
 - Fuente original: documento del cliente "Etapa 1" (flujos F01–F03 con sus respuestas),
   transcrito en [`etapa-1-cliente.md`](./etapa-1-cliente.md).
-- Última actualización: 2026-09-28.
-- Ramas, todas sin push: Fase 1 `suscriptions` (commit `8d534f5`), Fase 2
-  `feat/reglas-lead` (commit `239e975`), Fase 3 `feat/formulario-cliente` (con commit). Cada una sale de la anterior.
+- Última actualización: 2026-09-29.
+- Ramas, todas sin push y cada una sale de la anterior:
+  - Fase 1 `suscriptions` (commit `8d534f5`)
+  - Fase 2 `feat/reglas-lead` (commit `239e975`)
+  - Fase 3 `feat/formulario-cliente` (commit `b237723`)
+  - Fase 4 `feat/validacion-profesional` (con commit)
 
 ---
 
@@ -172,23 +175,61 @@ Pendiente:
       Con un proveedor real hará falta también un **límite por IP** en
       `/leads/phone-verification`, contra el abuso de envíos pagados ("SMS pumping").
 - [ ] **Atribución de GeoNames** (CC BY 4.0) en la página legal o el pie de la web.
-- [ ] Los profesionales siguen eligiendo **categorías**, no servicios, y el explorador
-      filtra por categoría. Con categorías amplias ("Obras menores" junta pintores y
-      fontaneros), el filtro por servicio llega con el registro de la Fase 4 ("servicios
-      ofrecidos").
+- [x] Filtro por servicio en el explorador: llegó con la Fase 4.
 - [ ] Revisión visual del formulario en el navegador (no se pudo hacer en esta sesión).
 
-### Fase 4 — Registro y validación del profesional (F02) · ⏳ pendiente
+### Fase 4 — Registro y validación del profesional (F02) · ✅ implementada y con commit, pendiente de push y PR
 
-- Tipo (autónomo / empresa / trabajador independiente), dirección, móvil, foto, logo,
-  fotos de trabajos y documentos (modelos de la AEAT o DNI/TIE/pasaporte) en un bucket
-  privado.
-- `verification_status` (pendiente / aprobado / rechazado), cola de validación del admin
-  con auditoría.
-- Reglas del §1: ve en revisión, compra solo aprobado. Al rechazar: reembolso y cancelación
-  (puerto: `refund_invoice`, `cancel_subscription`; movimiento de saldo propio e
-  idempotente).
-- Datos fiscales (NIF, razón social, dirección) para poder facturar.
+Hecho:
+- **Alta del profesional:**
+  - tipo (autónomo, empresa o trabajador independiente);
+  - razón social y NIF/NIE/CIF, validado con su letra o dígito de control;
+  - dirección y móvil (solo móvil español, sin fijo);
+  - base obligatoria en la Comunidad de Madrid;
+  - foto de la cara, logo y hasta 8 fotos de trabajos (bucket público).
+- **Documentos** en un **bucket privado** aparte:
+  - modelos de la AEAT para autónomos y empresas; DNI, TIE o pasaporte para el independiente;
+  - el admin los descarga con URLs firmadas de corta duración;
+  - `verify:flow` comprueba contra MinIO que sin firma responde 403.
+- **Validación:**
+  - estados `incomplete` → `pending` (el profesional envía) → `approved` / `rejected` (el admin);
+  - cada paso queda auditado en `professional_verification_events`;
+  - cola en el panel del admin (lo más antiguo primero) con el expediente.
+- **Acceso:**
+  - incompleto o en revisión ve solicitudes, pero no compra (`403 PROFESSIONAL_NOT_APPROVED`);
+  - el estado se muestra en "Solicitudes en tu zona" y en el botón de compra.
+- **Rechazo:**
+  - reembolsa el primer cobro de la recarga y cancela la suscripción, llamando a la pasarela antes de guardar;
+  - retira ese saldo con `VERIFICATION_REFUND`;
+  - el rechazado deja de ver solicitudes.
+- **Servicios ofrecidos:**
+  - el profesional elige servicios dentro de sus oficios;
+  - en un oficio con servicios elegidos, el explorador solo le muestra los suyos y las solicitudes sin servicio;
+  - en un oficio sin servicios elegidos, lo ve todo.
+- Migración `c7d7d55fbb83`.
+
+Decisiones tomadas en la implementación (confirmar si no encajan):
+- [ ] **Perfiles existentes:** quedan "incompletos" y tienen que aportar datos y documentos
+      como un alta nueva antes de poder comprar.
+- [ ] **Bloqueo al enviar:** una vez enviada el alta, tipo, razón social, NIF y documentos
+      no se pueden cambiar. Si el cliente quiere permitir correcciones, hará falta un
+      estado "devuelta para corregir".
+- [ ] **Rechazo definitivo:** no hay reapertura. Solo se reembolsa el **primer** cobro,
+      como dice el documento; si la revisión tarda más de un mes y hay un segundo cobro,
+      ese no se reembolsa solo.
+- [ ] **Fotos opcionales**, documentos obligatorios. El NIF es opcional para el trabajador
+      independiente que se identifica con pasaporte.
+
+Sin verificar contra Stripe real (falta una clave de test):
+- El reembolso de la factura (`invoice.payments` → PaymentIntent) y la cancelación de la
+  suscripción. Probado con el objeto real del SDK, pero sin llamar a Stripe.
+
+Pendiente:
+- [x] Commit en `feat/validacion-profesional`.
+- [ ] Push y PR (esperar a que el usuario lo pida).
+- [ ] Crear el bucket privado en GCS (`GCS_PRIVATE_BUCKET`) para Cloud Run: sin él el API
+      no arranca con `STORAGE_BACKEND=gcs`.
+- [ ] Revisión visual del perfil y de la cola del admin en el navegador.
 
 ### Fase 5 — Notificaciones, WhatsApp, factura y navegación · ⏳ pendiente
 

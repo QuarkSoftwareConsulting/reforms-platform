@@ -48,6 +48,8 @@ from app.domain.models import (
     PurchaseStatus,
     SubscriptionPrice,
     User,
+    VerificationEvent,
+    VerificationStatus,
 )
 from app.domain.value_objects import PostalCode
 
@@ -150,6 +152,12 @@ class InMemoryLeadRepository(LeadRepositoryPort):
         if filters.category_ids and lead.category_id not in filters.category_ids:
             return False
         if filters.province and lead.location.province != filters.province:
+            return False
+        if (
+            lead.category_id in filters.restricted_category_ids
+            and lead.service_ids
+            and not set(lead.service_ids) & filters.service_ids
+        ):
             return False
         if filters.center is not None and filters.radius_km is not None:
             distance = filters.center.distance_km_to(lead.location.coordinates)
@@ -332,6 +340,10 @@ class InMemoryUserRepository(UserRepositoryPort):
         self.items[user.id] = user
         return user
 
+    async def get(self, user_id: UUID) -> User | None:
+        await _round_trip()
+        return self.items.get(user_id)
+
     async def get_by_firebase_uid(self, firebase_uid: str) -> User | None:
         await _round_trip()
         return next((u for u in self.items.values() if u.firebase_uid == firebase_uid), None)
@@ -345,6 +357,7 @@ class InMemoryUserRepository(UserRepositoryPort):
 class InMemoryProfessionalRepository(ProfessionalRepositoryPort):
     def __init__(self, professionals: list[Professional] | None = None) -> None:
         self.items: dict[UUID, Professional] = {p.id: p for p in (professionals or [])}
+        self.events: list[VerificationEvent] = []
 
     async def add(self, professional: Professional) -> Professional:
         await _round_trip()
@@ -364,27 +377,60 @@ class InMemoryProfessionalRepository(ProfessionalRepositoryPort):
         self.items[professional.id] = professional
         return professional
 
-    async def list_admin(self, *, query: str | None, limit: int, offset: int) -> list[Professional]:
+    async def list_admin(
+        self,
+        *,
+        query: str | None,
+        limit: int,
+        offset: int,
+        verification_status: VerificationStatus | None = None,
+    ) -> list[Professional]:
         await _round_trip()
         query_lower = query.strip().lower() if query else None
         rows = [
             professional
             for professional in self.items.values()
-            if query_lower is None
-            or query_lower in professional.business_name.lower()
-            or query_lower in (professional.city or "").lower()
-            or query_lower in (professional.province or "").lower()
+            if (
+                query_lower is None
+                or query_lower in professional.business_name.lower()
+                or query_lower in (professional.legal_name or "").lower()
+                or query_lower in (professional.city or "").lower()
+                or query_lower in (professional.province or "").lower()
+            )
+            and (
+                verification_status is None
+                or professional.verification_status is verification_status
+            )
         ]
-        rows.sort(key=lambda professional: professional.created_at, reverse=True)
+        if verification_status is VerificationStatus.PENDING:
+            rows.sort(key=lambda professional: professional.submitted_at or professional.created_at)
+        else:
+            rows.sort(key=lambda professional: professional.created_at, reverse=True)
         return rows[offset : offset + limit]
 
-    async def count_admin(self, *, query: str | None) -> int:
+    async def count_admin(
+        self, *, query: str | None, verification_status: VerificationStatus | None = None
+    ) -> int:
         await _round_trip()
-        return len(await self.list_admin(query=query, limit=1_000_000, offset=0))
+        rows = await self.list_admin(
+            query=query, limit=1_000_000, offset=0, verification_status=verification_status
+        )
+        return len(rows)
 
     async def count_all(self) -> int:
         await _round_trip()
         return len(self.items)
+
+    async def add_verification_event(self, event: VerificationEvent) -> None:
+        await _round_trip()
+        self.events.append(event)
+
+    async def list_verification_events(self, professional_id: UUID) -> list[VerificationEvent]:
+        await _round_trip()
+        return sorted(
+            (e for e in self.events if e.professional_id == professional_id),
+            key=lambda e: e.created_at,
+        )
 
 
 class InMemoryCategoryRepository(CategoryRepositoryPort):
@@ -562,6 +608,15 @@ class InMemoryCreditLedgerRepository(CreditLedgerRepositoryPort):
             if e.professional_id == professional_id and e.kind is CreditEntryKind.TOPUP
         ]
         return max(topups, key=lambda e: e.created_at) if topups else None
+
+    async def first_topup(self, professional_id: UUID) -> CreditEntry | None:
+        await _round_trip()
+        topups = [
+            e
+            for e in self.entries
+            if e.professional_id == professional_id and e.kind is CreditEntryKind.TOPUP
+        ]
+        return min(topups, key=lambda e: e.created_at) if topups else None
 
     async def topup_totals(self) -> dict[str, int]:
         await _round_trip()

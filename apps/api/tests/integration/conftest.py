@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from app.config import get_settings
-from app.domain.models import Category, Professional, Service, User, UserRole
+from app.domain.models import Category, Professional, Service, User, UserRole, VerificationStatus
 from app.domain.value_objects import Coordinates, Email, Money, PhoneNumber, PostalCode
 from app.infrastructure.adapters.db.models import Base, PostalCodeRow, ServiceRow
 from app.infrastructure.adapters.db.repositories import (
@@ -50,6 +50,10 @@ TRUNCATE_ORDER = (
     "lead_services",
     "leads",
     "professional_categories",
+    "professional_services",
+    "professional_documents",
+    "professional_work_photos",
+    "professional_verification_events",
     "professionals",
     "users",
     "services",
@@ -187,6 +191,8 @@ async def madrid_carpenter(session: AsyncSession, carpentry: Category) -> Profes
             city="Madrid",
             province="Madrid",
             category_ids={carpentry.id},
+            # Validado: los tests de integracion prueban la compra, no el alta.
+            verification_status=VerificationStatus.APPROVED,
         )
     )
     await session.commit()

@@ -371,3 +371,28 @@ class TestRowLocking:
         await asyncio.wait_for(asyncio.gather(first(), second()), timeout=10)
 
         assert order == ["primera-bloquea", "primera-commit", "segunda-obtiene-bloqueo"]
+
+
+class TestServiceFilter:
+    async def test_sql_filter_matches_the_in_memory_rule(
+        self, session: AsyncSession, carpentry: Category
+    ) -> None:
+        doors, wardrobes = carpentry.services[0], carpentry.services[1]
+        mine = await store_lead(session, carpentry, service_ids=[doors.id])
+        unspecified = await store_lead(session, carpentry)
+        await store_lead(session, carpentry, service_ids=[wardrobes.id])
+        repo = SqlAlchemyLeadRepository(session)
+
+        restricted = LeadSearchFilters(
+            category_ids={carpentry.id},
+            center=MADRID,
+            radius_km=25,
+            service_ids=frozenset({doors.id}),
+            restricted_category_ids=frozenset({carpentry.id}),
+        )
+        rows = await repo.search(restricted)
+        assert {r.lead.id for r in rows} == {mine.id, unspecified.id}
+        assert await repo.count(restricted) == 2
+
+        everything = LeadSearchFilters(category_ids={carpentry.id}, center=MADRID, radius_km=25)
+        assert await repo.count(everything) == 3

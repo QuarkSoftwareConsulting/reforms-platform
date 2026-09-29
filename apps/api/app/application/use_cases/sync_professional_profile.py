@@ -21,14 +21,18 @@ from app.application.ports import (
     UnitOfWork,
     UserRepositoryPort,
 )
+from app.application.use_cases.phone_verification import parse_mobile
+from app.application.use_cases.professional_files import assert_own_key, media_prefix
 from app.domain.exceptions import (
     CategoryNotFoundError,
+    InvalidServiceError,
+    InvalidTaxIdError,
     ProfessionalNotFoundError,
     UnknownPostalCodeError,
     ValidationError,
 )
-from app.domain.models import Professional, User, UserRole
-from app.domain.value_objects import Email, PhoneNumber, PostalCode
+from app.domain.models import MADRID, Professional, ServiceArea, User, UserRole
+from app.domain.value_objects import Email, PostalCode, TaxId
 
 
 @dataclass(slots=True)
@@ -79,7 +83,11 @@ class SyncUserFromIdentity:
 
 @dataclass(slots=True)
 class UpsertProfessionalProfile:
-    """Crea o actualiza el perfil profesional (zona base, radio y oficios)."""
+    """Crea o actualiza el perfil profesional: zona, oficios, servicios y datos de alta.
+
+    El formulario envia el perfil completo en cada guardado. Tipo, razon social y NIF
+    se pueden cambiar solo hasta enviar el alta a revision (`set_identity`).
+    """
 
     professionals: ProfessionalRepositoryPort
     categories: CategoryRepositoryPort
@@ -87,52 +95,88 @@ class UpsertProfessionalProfile:
     clock: ClockPort
     ids: IdGeneratorPort
     uow: UnitOfWork
+    service_area: ServiceArea = MADRID
 
     async def execute(self, *, user_id: UUID, data: UpsertProfessionalInput) -> Professional:
         postal_code = PostalCode(data.postal_code)
+        # Cobertura de la Etapa 1 tambien para la base del profesional (F02).
+        self.service_area.assert_covers(postal_code)
         info = await self.postal_codes.get(postal_code)
         if info is None:
             raise UnknownPostalCodeError(f"Codigo postal no reconocido: {postal_code}")
 
-        if data.category_ids:
-            found = {c.id for c in await self.categories.get_many(data.category_ids) if c.active}
-            missing = data.category_ids - found
-            if missing:
-                raise CategoryNotFoundError(
-                    f"Categorias inexistentes o inactivas: {sorted(str(m) for m in missing)}"
-                )
+        phone = parse_mobile(data.phone)
+        tax_id = self._parse_tax_id(data.tax_id)
+        await self._assert_services(data.category_ids, data.service_ids)
 
         existing = await self.professionals.get_by_user_id(user_id)
-        if existing is None:
-            professional = Professional(
-                id=self.ids.new_id(),
-                user_id=user_id,
-                business_name=data.business_name,
-                phone=PhoneNumber(data.phone),
-                base_postal_code=info.code,
-                base_coordinates=info.coordinates,
-                service_radius_km=data.service_radius_km,
-                created_at=self.clock.now(),
-                city=info.city,
-                province=info.province,
-                category_ids=set(data.category_ids),
-            )
-            async with self.uow:
-                return await self.professionals.add(professional)
+        professional = existing or Professional(
+            id=self.ids.new_id(),
+            user_id=user_id,
+            business_name=data.business_name,
+            phone=phone,
+            base_postal_code=info.code,
+            base_coordinates=info.coordinates,
+            service_radius_km=data.service_radius_km,
+            created_at=self.clock.now(),
+        )
+        self._assert_own_media(professional.id, data)
 
-        existing.business_name = data.business_name
-        existing.phone = PhoneNumber(data.phone)
-        existing.base_postal_code = info.code
-        existing.base_coordinates = info.coordinates
-        existing.service_radius_km = data.service_radius_km
-        existing.city = info.city
-        existing.province = info.province
-        existing.category_ids = set(data.category_ids)
-        # Revalida los invariantes tras la mutacion (radio, nombre no vacio).
-        existing.__post_init__()
+        professional.business_name = data.business_name
+        professional.phone = phone
+        professional.base_postal_code = info.code
+        professional.base_coordinates = info.coordinates
+        professional.service_radius_km = data.service_radius_km
+        professional.city = info.city
+        professional.province = info.province
+        professional.category_ids = set(data.category_ids)
+        professional.service_ids = set(data.service_ids)
+        professional.address = data.address
+        professional.profile_photo_key = data.profile_photo_key
+        professional.logo_key = data.logo_key
+        professional.work_photo_keys = list(data.work_photo_keys)
+        professional.set_identity(
+            professional_type=data.professional_type,
+            legal_name=data.legal_name,
+            tax_id=tax_id,
+        )
+        # Revalida los invariantes tras la mutacion (radio, nombre, fotos, CIF).
+        professional.__post_init__()
 
         async with self.uow:
-            return await self.professionals.update(existing)
+            if existing is None:
+                return await self.professionals.add(professional)
+            return await self.professionals.update(professional)
+
+    @staticmethod
+    def _parse_tax_id(raw: str | None) -> TaxId | None:
+        if raw is None or not raw.strip():
+            return None
+        try:
+            return TaxId(raw)
+        except ValueError as exc:
+            raise InvalidTaxIdError() from exc
+
+    async def _assert_services(self, category_ids: set[UUID], service_ids: set[UUID]) -> None:
+        categories = await self.categories.get_many(category_ids) if category_ids else []
+        active = [c for c in categories if c.active]
+        missing = category_ids - {c.id for c in active}
+        if missing:
+            raise CategoryNotFoundError(
+                f"Categorias inexistentes o inactivas: {sorted(str(m) for m in missing)}"
+            )
+        # Cada servicio tiene que ser de uno de los oficios elegidos.
+        offered = {s.id for c in active for s in c.active_services}
+        if not service_ids <= offered:
+            raise InvalidServiceError("Hay servicios que no pertenecen a los oficios elegidos")
+
+    @staticmethod
+    def _assert_own_media(professional_id: UUID, data: UpsertProfessionalInput) -> None:
+        prefix = media_prefix(professional_id)
+        keys = [data.profile_photo_key, data.logo_key, *data.work_photo_keys]
+        for key in keys:
+            if key is not None:
+                assert_own_key(key, prefix)
 
 
 @dataclass(slots=True)

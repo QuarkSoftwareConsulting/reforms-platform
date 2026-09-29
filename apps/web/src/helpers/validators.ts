@@ -8,6 +8,8 @@
 import { z } from "zod";
 
 import { PROJECT_SCHEDULES, PROPERTY_TYPES } from "@/helpers/leadOptions";
+import { MAX_WORK_PHOTOS, PROFESSIONAL_TYPES } from "@/helpers/professionalOptions";
+import { taxIdKind } from "@/helpers/taxId";
 
 export const MIN_DESCRIPTION_LENGTH = 20;
 export const MAX_DESCRIPTION_LENGTH = 4000;
@@ -47,6 +49,20 @@ export const phoneNumber = z
   .transform((value) => value.replace(/[\s\-().]/g, ""))
   .refine((value) => /^(\+34)?[6789]\d{8}$/.test(value), "phoneFormat");
 
+/** Movil espanol (6/7): el unico al que se puede verificar por SMS. */
+export const spanishMobile = z
+  .string()
+  .trim()
+  .transform((value) => value.replace(/[\s\-().]/g, ""))
+  .refine((value) => /^(\+34|0034)?[67]\d{8}$/.test(value), "mobileFormat");
+
+const optionalText = (max: number, tooLong: string) =>
+  z
+    .string()
+    .trim()
+    .max(max, tooLong)
+    .transform((value) => (value === "" ? null : value));
+
 export const optionalEmail = z
   .union([z.literal(""), z.string().trim().email("emailFormat")])
   .transform((value) => (value === "" ? null : value.toLowerCase()));
@@ -85,13 +101,40 @@ export const leadFormSchema = leadStepCategorySchema
 
 export type LeadFormValues = z.infer<typeof leadFormSchema>;
 
-export const professionalProfileSchema = z.object({
-  businessName: z.string().trim().min(2, "businessNameTooShort").max(200, "businessNameTooLong"),
-  phone: phoneNumber,
-  postalCode: spanishPostalCode,
-  serviceRadiusKm: z.coerce.number().int().min(1, "radiusTooSmall").max(300, "radiusTooLarge"),
-  categoryIds: z.array(z.string().uuid()).min(1, "categoriesRequired").max(12, "tooManyCategories"),
-});
+export const professionalProfileSchema = z
+  .object({
+    businessName: z
+      .string()
+      .trim()
+      .min(2, "businessNameTooShort")
+      .max(200, "businessNameTooLong"),
+    phone: spanishMobile,
+    // En la Etapa 1 la base del profesional tambien tiene que estar en Madrid (F02).
+    postalCode: coveredPostalCode,
+    serviceRadiusKm: z.coerce.number().int().min(1, "radiusTooSmall").max(300, "radiusTooLarge"),
+    categoryIds: z
+      .array(z.string().uuid())
+      .min(1, "categoriesRequired")
+      .max(12, "tooManyCategories"),
+    serviceIds: z.array(z.string().uuid()).max(100),
+    // Los datos de alta son opcionales al guardar: se exigen al enviar a revision.
+    professionalType: z.enum(PROFESSIONAL_TYPES).nullable(),
+    legalName: optionalText(200, "legalNameTooLong"),
+    taxId: z
+      .string()
+      .trim()
+      .transform((value) => (value === "" ? null : value.replace(/[\s.-]/g, "").toUpperCase()))
+      .refine((value) => value === null || taxIdKind(value) !== null, "taxIdInvalid"),
+    address: optionalText(300, "addressTooLong"),
+    workPhotoKeys: z.array(z.string()).max(MAX_WORK_PHOTOS, "tooManyWorkPhotos"),
+  })
+  .refine(
+    (values) =>
+      values.professionalType !== "company" ||
+      values.taxId === null ||
+      taxIdKind(values.taxId) === "cif",
+    { message: "companyNeedsCif", path: ["taxId"] },
+  );
 
 export type ProfessionalProfileValues = z.infer<typeof professionalProfileSchema>;
 

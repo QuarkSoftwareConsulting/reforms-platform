@@ -104,6 +104,34 @@ class ProfessionalProfileIncompleteError(DomainError):
     status = 409
 
 
+class ProfessionalNotApprovedError(DomainError):
+    """Tu perfil todavia no esta aprobado: podras comprar contactos cuando lo validemos."""
+
+    code = "PROFESSIONAL_NOT_APPROVED"
+    status = 403
+
+
+class ProfessionalRejectedError(DomainError):
+    """Tu solicitud de alta fue rechazada."""
+
+    code = "PROFESSIONAL_REJECTED"
+    status = 403
+
+
+class VerificationTransitionError(DomainError):
+    """Ese cambio de estado de la validacion no es posible ahora."""
+
+    code = "INVALID_VERIFICATION_TRANSITION"
+    status = 409
+
+
+class VerificationLockedError(DomainError):
+    """Estos datos ya se enviaron a revision y no se pueden cambiar."""
+
+    code = "VERIFICATION_LOCKED"
+    status = 409
+
+
 class ProfessionalNotFoundError(NotFoundError):
     """El profesional no existe."""
 
@@ -120,6 +148,12 @@ class UnknownPostalCodeError(ValidationError):
     """No reconocemos ese codigo postal."""
 
     code = "UNKNOWN_POSTAL_CODE"
+
+
+class InvalidTaxIdError(ValidationError):
+    """El NIF, NIE o CIF no es valido: revisa la letra o el digito de control."""
+
+    code = "INVALID_TAX_ID"
 
 
 class InvalidServiceError(ValidationError):
@@ -233,6 +267,7 @@ __all__ = [
     "InsufficientCreditError",
     "InvalidSalePriceError",
     "InvalidServiceError",
+    "InvalidTaxIdError",
     "LeadAlreadyPurchasedError",
     "LeadCapReachedError",
     "LeadNotFoundError",
@@ -245,8 +280,10 @@ __all__ = [
     "PhoneVerificationUnavailableError",
     "PostalCodeNotCoveredError",
     "ProfessionalAccountNotFoundError",
+    "ProfessionalNotApprovedError",
     "ProfessionalNotFoundError",
     "ProfessionalProfileIncompleteError",
+    "ProfessionalRejectedError",
     "PurchaseNotFoundError",
     "PurchaseNotPayableError",
     "SubscriptionAlreadyExistsError",
@@ -254,4 +291,6 @@ __all__ = [
     "TooManyVerificationAttemptsError",
     "UnknownPostalCodeError",
     "ValidationError",
+    "VerificationLockedError",
+    "VerificationTransitionError",
 ]

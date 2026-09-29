@@ -7,6 +7,11 @@
  */
 
 import type { ProjectSchedule, PropertyType } from "@/helpers/leadOptions";
+import type {
+  DocumentKind,
+  ProfessionalType,
+  VerificationStatus,
+} from "@/helpers/professionalOptions";
 
 export type Locale = "es" | "en";
 
@@ -171,6 +176,28 @@ export interface PurchasedLead {
   contact: ClientContact | null;
 }
 
+export interface Media {
+  key: string;
+  url: string;
+}
+
+/** Documento de alta. Sin URL: solo el admin lo descarga, con firma. */
+export interface ProfessionalDocument {
+  id: string;
+  kind: DocumentKind;
+  filename: string;
+  uploaded_at: string;
+}
+
+export interface Verification {
+  status: VerificationStatus;
+  submitted_at: string | null;
+  reviewed_at: string | null;
+  rejection_reason: string | null;
+  /** Lo que falta para enviar el alta a revision (claves estables). */
+  missing: string[];
+}
+
 export interface Professional {
   id: string;
   business_name: string;
@@ -180,6 +207,16 @@ export interface Professional {
   province: string | null;
   service_radius_km: number;
   categories: Category[];
+  services: Service[];
+  professional_type: ProfessionalType | null;
+  legal_name: string | null;
+  tax_id: string | null;
+  address: string | null;
+  profile_photo: Media | null;
+  logo: Media | null;
+  work_photos: Media[];
+  documents: ProfessionalDocument[];
+  verification: Verification;
 }
 
 export interface Me {
@@ -265,6 +302,35 @@ export interface AdminProfessional {
   service_radius_km: number;
   categories: Category[];
   account: AdminAccount | null;
+  legal_name: string | null;
+  verification_status: VerificationStatus;
+  submitted_at: string | null;
+}
+
+export interface DocumentDownload extends ProfessionalDocument {
+  /** Firmada; caduca en minutos. */
+  download_url: string;
+}
+
+export interface VerificationEvent {
+  from_status: VerificationStatus;
+  to_status: VerificationStatus;
+  actor_user_id: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+export interface VerificationDossier {
+  professional: Professional;
+  email: string | null;
+  documents: DocumentDownload[];
+  events: VerificationEvent[];
+}
+
+export interface Rejection {
+  professional: Professional;
+  refunded: Money | null;
+  subscription_canceled: boolean;
 }
 
 export interface SubscriptionPrice {
