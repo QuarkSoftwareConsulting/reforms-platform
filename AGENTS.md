@@ -16,8 +16,8 @@ Marketplace **pay-per-lead** de oficios. El cliente publica gratis lo que necesi
 profesional paga por desbloquear su contacto. **Para comprar necesita la recarga mensual al
 día** (sin ella puede ver solicitudes, pero no comprarlas); su importe lo fija el admin y
 se abona como saldo para pagar contactos (§4.10). **El precio de cada contacto lo decide el admin**: la categoría solo
-aporta un precio sugerido (§4.9). **Cada solicitud se vende a un máximo de 3
-profesionales.** Esa regla, y la protección de los datos personales del cliente, son el
+aporta un precio sugerido (§4.9). **Cada solicitud se vende a un máximo de 5
+profesionales** (los leads anteriores a la Etapa 1 conservan sus 3). Esa regla, y la protección de los datos personales del cliente, son el
 producto — no un detalle de implementación.
 
 Monorepo: `apps/api` (FastAPI hexagonal, Python 3.13 + uv) y `apps/web` (Next.js 15,
@@ -62,8 +62,8 @@ npx -y firebase-tools emulators:start --only auth \
 | Objetivo | Comando |
 |---|---|
 | Todo el lint (ruff + mypy strict + eslint + tsc) | `pnpm lint` |
-| Todos los tests (403 back + 72 front) | `pnpm test` |
-| Backend rápido, **sin Docker** (324 tests) | `cd apps/api && uv run pytest -m "not integration"` |
+| Todos los tests (416 back + 80 front) | `pnpm test` |
+| Backend rápido, **sin Docker** (335 tests) | `cd apps/api && uv run pytest -m "not integration"` |
 | Backend completo (requiere `pnpm infra:up`) | `pnpm api:test` |
 | Un solo test de backend | `cd apps/api && uv run pytest tests/unit/domain/test_lead.py -k capping` |
 | Frontend en watch | `pnpm --filter web test:watch` |
@@ -105,7 +105,7 @@ tuyo las simplifica, el cambio está mal.
 `StartLeadPurchase` bloquea la fila del lead (`SELECT … FOR UPDATE`), cuenta plazas vivas y
 crea la compra en `reserved` con TTL de 30 min, y solo después pide la sesión de checkout.
 *Por qué:* si el cap se validara al confirmar el pago, N profesionales podrían pagar a la
-vez por un lead de 3 plazas y habría que reembolsar a los que sobran.
+vez por un lead de 5 plazas y habría que reembolsar a los que sobran.
 → No muevas la validación del cap al webhook. No quites el `FOR UPDATE`.
 
 **4.2 · Solo dinero confirmado por el webhook desbloquea el contacto.**
@@ -121,10 +121,16 @@ Stripe reenvía eventos; procesarlos dos veces cobraría dos plazas por una vent
 → Cualquier manejador de eventos nuevo pasa por ese registro.
 
 **4.4 · La PII del cliente vive en un tipo que no la contiene.**
-`Lead.public_view()` devuelve `LeadPublicView`, que **no tiene campos** para nombre,
-teléfono ni email. Los schemas del explorador solo aceptan ese tipo.
+`Lead.public_view()` devuelve `LeadPublicView`, que **no tiene campos** para el nombre
+completo, el teléfono ni el email. Los schemas del explorador solo aceptan ese tipo.
+Antes de pagar solo se ven el **nombre de pila** y el **CP completo** (lo pidió el
+cliente, Etapa 1), y solo si `ConsentRecord.allows_public_preview`: los consentimientos
+anteriores a la política `2026-09-v2` no lo cubren y sus leads siguen sin nombre y con el
+prefijo del CP.
 → No añadas campos de contacto a `LeadPublicView` ni a `LeadPublicOut`. El único camino a
 los datos reales es `Lead.contact_view(unlocked=True)`, y solo con compra `paid`.
+→ Mostrar un dato nuevo antes de pagar exige cambiar la política de privacidad, subir
+`PRIVACY_POLICY_VERSION` y condicionarlo al consentimiento.
 → Nunca registres PII en logs.
 
 **4.5 · Sin consentimiento no hay lead orgánico.**
@@ -281,7 +287,7 @@ dentro de `pnpm-workspace.yaml`.
 alrededor o el `build` falla al prerenderizar. Ver `publicar/page.tsx`.
 
 **Acentos** — `apps/web/messages/*.json` es texto de cara al usuario y lleva acentos
-correctos (284 claves por idioma). La regla de ASCII puro aplica **solo al código fuente**.
+correctos (349 claves por idioma). La regla de ASCII puro aplica **solo al código fuente**.
 Lo mismo vale para `apps/api/data/categories.csv`: los nombres de oficio se muestran en la
 landing y en el formulario.
 

@@ -35,6 +35,7 @@ from app.application.ports import (
 )
 from app.domain.exceptions import CategoryNotFoundError
 from app.domain.models import (
+    EXPLORER_STATUSES,
     Category,
     CreditEntry,
     CreditEntryKind,
@@ -144,7 +145,7 @@ class InMemoryLeadRepository(LeadRepositoryPort):
         return lead
 
     def _matches(self, lead: Lead, filters: LeadSearchFilters) -> bool:
-        if lead.status is not LeadStatus.PUBLISHED:
+        if lead.status not in EXPLORER_STATUSES:
             return False
         if filters.category_ids and lead.category_id not in filters.category_ids:
             return False
@@ -160,10 +161,11 @@ class InMemoryLeadRepository(LeadRepositoryPort):
         self, filters: LeadSearchFilters, *, requester_professional_id: UUID | None = None
     ) -> list[LeadSearchRow]:
         await _round_trip()
+        # Mismo orden que el repositorio real: abiertos primero, y dentro de cada
+        # grupo los mas recientes.
         matching = sorted(
             (lead for lead in self.items.values() if self._matches(lead, filters)),
-            key=lambda lead: lead.created_at,
-            reverse=True,
+            key=lambda lead: (lead.is_closed, -lead.created_at.timestamp()),
         )
         window = matching[filters.offset : filters.offset + filters.limit]
 

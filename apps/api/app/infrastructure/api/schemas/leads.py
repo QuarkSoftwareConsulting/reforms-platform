@@ -54,8 +54,16 @@ class CategoryOut(ApiModel):
     """Precio de referencia del oficio. El de un lead concreto va en `price`."""
 
 
+class VatBreakdownOut(ApiModel):
+    """Desglose de un precio con IVA incluido."""
+
+    net: MoneyOut
+    vat: MoneyOut
+    rate_percent: int
+
+
 class LeadPublicOut(ApiModel):
-    """Vista del explorador: sin nombre, telefono ni email del cliente."""
+    """Vista del explorador: sin nombre completo, telefono ni email del cliente."""
 
     id: UUID
     title: str
@@ -63,15 +71,26 @@ class LeadPublicOut(ApiModel):
     city: str
     province: str
     postal_code_prefix: str
+    postal_code: str | None = Field(
+        default=None, description="CP completo; solo si el consentimiento del cliente lo cubre"
+    )
+    client_first_name: str | None = Field(
+        default=None, description="Nombre de pila; solo si el consentimiento del cliente lo cubre"
+    )
     category: CategoryOut
     photo_urls: list[str]
     created_at: datetime
     remaining_slots: int
+    purchases_count: int = Field(description="Profesionales que ya compraron el contacto")
+    max_purchases: int
+    is_closed: bool = Field(description="Agotado: se muestra como cerrado y no admite compras")
     distance_km: float | None = None
     masked_phone: str
     masked_email: str | None = None
     already_purchased: bool = False
     price: MoneyOut
+    """Precio con IVA incluido."""
+    price_breakdown: VatBreakdownOut
 
 
 class LeadListOut(ApiModel):

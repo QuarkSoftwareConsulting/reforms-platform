@@ -11,7 +11,7 @@ import { leadsService } from "@/services/leads.service";
 import type { Category } from "@/types/api";
 
 /** Cap de plazas por solicitud. Lo impone el backend; aqui solo se comunica. */
-const MAX_PROFESSIONALS = 3;
+const MAX_PROFESSIONALS = 5;
 
 /** Recarga mensual. La cobra el precio de Stripe (`SUBSCRIPTION_TOPUP_CENTS` en el API). */
 const TOPUP_CENTS = 1800;

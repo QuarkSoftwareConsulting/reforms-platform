@@ -3,7 +3,7 @@
 Marketplace **pay-per-lead** de oficios y reformas. Los clientes publican gratis lo que
 necesitan (carpintería, fontanería, pintura…); los profesionales navegan las solicitudes
 de su zona y **pagan por desbloquear el contacto** del cliente. Cada solicitud se vende a
-un máximo de 3 profesionales, y **el precio de cada contacto lo fija el administrador**
+un máximo de 5 profesionales, y **el precio de cada contacto lo fija el administrador**
 (la categoría solo aporta un precio sugerido).
 
 - **Fase 1 (esta):** flujo completo cliente → profesional → pago → contacto desbloqueado.
@@ -172,7 +172,7 @@ stripe listen --forward-to localhost:8010/api/v1/webhooks/stripe
 
 Sin clave configurada, `POST /leads/{id}/purchase` responde `503 PAYMENT_GATEWAY_ERROR` y
 **libera la plaza reservada** en el acto, para que un fallo de infraestructura no consuma
-una de las 3 plazas del lead.
+una de las plazas del lead.
 
 **Mensualidad.** Ver y comprar solicitudes exige la mensualidad al día. El admin fija su
 importe desde el panel, y eso crea el precio en Stripe. Para arrancar sin intervención del
@@ -217,7 +217,7 @@ está levantada se **omiten** con un mensaje indicando el comando para arrancarl
 lead (`SELECT … FOR UPDATE`), cuenta las plazas vivas y crea la compra en estado
 `reserved` con un TTL de 30 min *antes* de pedir la sesión de checkout. Si el cap se
 validara solo al confirmar el pago, N profesionales podrían pagar a la vez por un lead de
-3 plazas y habría que reembolsar a los que sobran. El TTL evita que un checkout abandonado
+5 plazas y habría que reembolsar a los que sobran. El TTL evita que un checkout abandonado
 bloquee el lead para siempre; lo limpian el evento `checkout.session.expired` y el job
 `release_reservations`.
 
@@ -227,8 +227,9 @@ hace de cerrojo de idempotencia (clave primaria + `ON CONFLICT DO NOTHING`), as�
 reenviar un evento no incrementa el contador dos veces.
 
 **La PII del cliente vive en un tipo aparte.** `Lead.public_view()` devuelve un
-`LeadPublicView` que *no tiene campos* para nombre, teléfono ni email, y los schemas del
-explorador solo aceptan ese tipo. Filtrar datos de contacto por descuido requeriría
+`LeadPublicView` que *no tiene campos* para el nombre completo, el teléfono ni el email, y
+los schemas del explorador solo aceptan ese tipo. Antes de pagar se ven el nombre de pila y
+el CP, solo si el consentimiento del cliente lo cubre. Filtrar datos de contacto por descuido requeriría
 cambiar el tipo, no solo olvidar un `del`.
 
 **El consentimiento RGPD es un registro auditable.** `lead_consents` guarda versión de
@@ -259,8 +260,8 @@ deshabilita el lead completo.
 Comprobado end-to-end en local contra Postgres+PostGIS real, el emulador de Firebase Auth
 y el adaptador real de Stripe (webhook firmado con HMAC): publicación con consentimiento
 auditado, explorador filtrando por radio sin filtrar PII, confirmación por webhook,
-idempotencia ante reenvíos, agotamiento del lead a las 3 compras y `409 LEAD_CAP_REACHED`
-al cuarto profesional.
+idempotencia ante reenvíos, agotamiento del lead a las 5 compras, `409 LEAD_CAP_REACHED`
+al sexto profesional y el lead agotado visible como cerrado.
 
 **Lo único no ejercitado contra el servicio real es la sesión de Stripe Checkout**, que
 requiere una clave de test de Stripe. El camino está cubierto por los tests con pasarela

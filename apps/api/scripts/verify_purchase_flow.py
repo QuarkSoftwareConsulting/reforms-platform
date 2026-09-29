@@ -578,12 +578,31 @@ async def main() -> int:
             item = next((i for i in listing.json()["items"] if i["id"] == lead_id), None)
             assert item is not None, "El lead publicado no aparece en el explorador"
             require(
-                item["remaining_slots"] == 3,
-                f"Se esperaban 3 plazas libres, hay {item['remaining_slots']}",
+                item["remaining_slots"] == 5,
+                f"Se esperaban 5 plazas libres, hay {item['remaining_slots']}",
             )
-            report.ok("Sin nombre, telefono ni email en el listado")
+            report.ok("Sin nombre completo, telefono ni email en el listado")
+            first_name, surname = CLIENT_NAME.split()[0], CLIENT_NAME.split()[-1]
+            require(
+                item["client_first_name"] == first_name and surname not in body,
+                f"Se esperaba solo el nombre de pila {first_name!r}, llego "
+                f"{item['client_first_name']!r}",
+            )
+            require(
+                item["postal_code"] == POSTAL_CODE,
+                f"Se esperaba el CP completo {POSTAL_CODE}, llego {item['postal_code']!r}",
+            )
+            breakdown = item["price_breakdown"]
+            require(
+                breakdown["net"]["amount_cents"] + breakdown["vat"]["amount_cents"]
+                == item["price"]["amount_cents"]
+                and breakdown["rate_percent"] == 21,
+                f"El desglose del IVA no cuadra con el precio: {breakdown}",
+            )
+            report.ok("Nombre de pila, CP completo y precio con IVA desglosado antes de pagar")
             report.ok(
-                f"Datos visibles: {item['city']}, {item['distance_km']} km, "
+                f"Datos visibles: {item['client_first_name']}, {item['postal_code']} "
+                f"{item['city']}, {item['distance_km']} km, "
                 f"{item['price']['formatted']}, {item['remaining_slots']} plazas"
             )
 
@@ -748,8 +767,8 @@ async def main() -> int:
                 f"El telefono desbloqueado no coincide: {unlocked['contact']}",
             )
             require(
-                unlocked["lead"]["remaining_slots"] == 2,
-                f"Tras una venta deberian quedar 2 plazas, quedan "
+                unlocked["lead"]["remaining_slots"] == 4,
+                f"Tras una venta deberian quedar 4 plazas, quedan "
                 f"{unlocked['lead']['remaining_slots']}",
             )
             report.ok("Contacto completo visible y una plaza consumida")
@@ -777,14 +796,14 @@ async def main() -> int:
             report.ok("El segundo profesional sigue viendo el contacto bloqueado")
 
             # ---------------- 10. Lead capping --------------------------
-            report.step("10 · El lead se agota a las 3 compras")
-            # Ya hay 1 venta pagada (la del webhook). Se rellenan las 2 restantes con
+            report.step("10 · El lead se agota a las 5 compras")
+            # Ya hay 1 venta pagada (la del webhook). Se rellenan las 4 restantes con
             # profesionales distintos: el indice unico parcial impide que un mismo
             # profesional ocupe dos plazas del mismo lead.
-            _, third_professional_id = await register_professional("tercero")
-            for index, professional in enumerate(
-                (other_professional_id, third_professional_id), start=2
-            ):
+            fillers = [other_professional_id]
+            for name in ("tercero", "cuarto", "quinto"):
+                fillers.append((await register_professional(name))[1])
+            for index, professional in enumerate(fillers, start=2):
                 await db.execute(
                     """
                     INSERT INTO lead_purchases (
@@ -817,10 +836,10 @@ async def main() -> int:
                 "SELECT purchases_count FROM leads WHERE id = $1", uuid.UUID(lead_id)
             )
             require(
-                sold == 3,
-                f"El escenario del cap necesita 3 ventas registradas, hay {sold}",
+                sold == 5,
+                f"El escenario del cap necesita 5 ventas registradas, hay {sold}",
             )
-            report.ok("Tres plazas vendidas: el lead queda agotado")
+            report.ok("Cinco plazas vendidas: el lead queda agotado")
 
             fourth_token, fourth_professional_id = await register_professional("sobrante")
             await activate_subscription(fourth_token, fourth_professional_id)
@@ -836,11 +855,12 @@ async def main() -> int:
             exhausted_listing = (
                 await api.request("GET", "/leads", token=fourth_token, expect=200)
             ).json()
+            closed = next((i for i in exhausted_listing["items"] if i["id"] == lead_id), None)
             require(
-                all(i["id"] != lead_id for i in exhausted_listing["items"]),
-                "Un lead agotado sigue apareciendo en el explorador",
+                closed is not None and closed["is_closed"] and closed["remaining_slots"] == 0,
+                f"El lead agotado deberia verse como cerrado en el explorador: {closed}",
             )
-            report.ok("El lead agotado desaparece del explorador")
+            report.ok("El lead agotado sigue en el explorador, marcado como cerrado")
 
             # ---------------- 11. Precio por lead (solo admin) ----------
             report.step("11 · El admin fija el precio de un contacto")

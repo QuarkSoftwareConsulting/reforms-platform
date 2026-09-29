@@ -18,7 +18,7 @@ import { usePhotoUpload } from "@/hooks/usePhotoUpload";
 import { path, type AppLocale } from "@/i18n/routing";
 import type { Category } from "@/types/api";
 
-const MAX_PROFESSIONALS = 3;
+const MAX_PROFESSIONALS = 5;
 
 /** Apartados del resumen de la politica que se despliega bajo el consentimiento. */
 const POLICY_ROWS = [

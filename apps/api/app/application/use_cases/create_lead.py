@@ -21,6 +21,7 @@ from app.domain.exceptions import (
     ValidationError,
 )
 from app.domain.models import (
+    DEFAULT_MAX_PURCHASES,
     ClientContact,
     ConsentRecord,
     Lead,
@@ -48,7 +49,7 @@ class CreateLead:
     clock: ClockPort
     ids: IdGeneratorPort
     uow: UnitOfWork
-    max_purchases: int = 3
+    max_purchases: int = DEFAULT_MAX_PURCHASES
 
     async def execute(self, data: CreateLeadInput, *, source: LeadSource) -> Lead:
         category = await self.categories.get(data.category_id)
@@ -113,4 +114,8 @@ class CreateLead:
             max_recipients=self.max_purchases,
             channel=data.consent.channel,
             campaign_reference=data.consent.campaign_reference,
+            # La politica vigente (2026-09-v2) ya informa de que el nombre de pila y
+            # el CP se muestran antes de la compra; el admin solo registra leads
+            # captados bajo esa misma politica.
+            allows_public_preview=True,
         )

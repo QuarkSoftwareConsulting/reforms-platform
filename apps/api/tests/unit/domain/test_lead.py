@@ -17,7 +17,7 @@ from app.domain.exceptions import (
 )
 from app.domain.models import MAX_SALE_PRICE_CENTS, LeadSource, LeadStatus
 from app.domain.value_objects import Money
-from tests.factories import make_lead
+from tests.factories import make_consent, make_contact, make_lead
 
 
 class TestLeadCapping:
@@ -127,6 +127,44 @@ class TestLeadPiiProtection:
         )
         assert lead.public_view().photo_keys == ["a.jpg", "b.jpg"]
 
+    def test_public_view_hides_first_name_without_consent_for_it(self) -> None:
+        # Consentimiento anterior a la politica 2026-09-v2: no cubre la vista previa.
+        view = make_lead(consent=make_consent(allows_public_preview=False)).public_view()
+        assert view.client_first_name is None
+        assert view.postal_code is None
+        assert view.postal_code_prefix == "28"
+
+    def test_public_view_shows_first_name_and_postal_code_with_consent(self) -> None:
+        lead = make_lead(
+            contact=make_contact(name="  Ana Maria Lopez Garcia "),
+            consent=make_consent(allows_public_preview=True),
+        )
+        view = lead.public_view()
+        serialized = repr(view)
+
+        assert view.client_first_name == "Ana"
+        assert view.postal_code == lead.location.postal_code.value
+        # El resto del nombre, el telefono y el email siguen sin salir.
+        assert "Lopez" not in serialized
+        assert "Maria" not in serialized
+        assert lead.contact.phone.value not in serialized
+        assert lead.contact.email is not None
+        assert lead.contact.email.value not in serialized
+
+    def test_public_view_reports_buyers_and_closed_state(self) -> None:
+        view = make_lead(
+            status=LeadStatus.EXHAUSTED, max_purchases=5, purchases_count=5
+        ).public_view()
+        assert view.is_closed is True
+        assert view.purchases_count == 5
+        assert view.max_purchases == 5
+        assert view.remaining_slots == 0
+
+    def test_open_lead_is_not_closed(self) -> None:
+        view = make_lead(max_purchases=5, purchases_count=2).public_view()
+        assert view.is_closed is False
+        assert view.purchases_count == 2
+
     def test_contact_view_requires_unlock(self) -> None:
         lead = make_lead()
         with pytest.raises(ContactLockedError):
@@ -212,3 +250,11 @@ class TestSalePrice:
     def test_invalid_override_rejected_at_construction(self) -> None:
         with pytest.raises(InvalidSalePriceError):
             make_lead(price_override=Money(0, "EUR"))
+
+
+class TestDefaultCap:
+    def test_new_leads_admit_five_professionals(self) -> None:
+        from app.domain.models import DEFAULT_MAX_PURCHASES, Lead
+
+        assert DEFAULT_MAX_PURCHASES == 5
+        assert Lead.__dataclass_fields__["max_purchases"].default == 5

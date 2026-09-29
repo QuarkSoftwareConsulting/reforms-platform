@@ -153,7 +153,6 @@ class World:
             clock=self.clock,
             ids=self.ids,
             uow=self.uow,
-            max_purchases=3,
         )
         self.list_leads = ListLeads(
             leads=self.leads, categories=self.categories, professionals=self.professionals

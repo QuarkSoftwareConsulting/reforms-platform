@@ -31,11 +31,11 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3010"
 
     # ------------------------------- Reglas de negocio -------------------
-    lead_max_purchases: int = Field(default=3, ge=1, le=10)
+    lead_max_purchases: int = Field(default=5, ge=1, le=10)
     purchase_reservation_ttl_minutes: int = Field(default=30, ge=5, le=1440)
     default_lead_price_cents: int = Field(default=500, gt=0)
     default_currency: str = "EUR"
-    privacy_policy_version: str = "2026-01-v1"
+    privacy_policy_version: str = "2026-09-v2"
     enforce_category_match: bool = True
 
     # ------------------------------- Stripe ------------------------------
