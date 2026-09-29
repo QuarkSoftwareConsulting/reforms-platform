@@ -254,6 +254,34 @@ def checkout_completed_event(purchase_id: str, session_id: str, event_id: str) -
     )
 
 
+def invoice_paid_event(customer_id: str, invoice_id: str, amount_cents: int, event_id: str) -> str:
+    """`invoice.paid` de la recarga con la forma de las versiones recientes de la API."""
+    now = int(time.time())
+    return json.dumps(
+        {
+            "id": event_id,
+            "object": "event",
+            "type": "invoice.paid",
+            "created": now,
+            "data": {
+                "object": {
+                    "id": invoice_id,
+                    "object": "invoice",
+                    "customer": customer_id,
+                    "amount_paid": amount_cents,
+                    "currency": "eur",
+                    "parent": {
+                        "type": "subscription_details",
+                        "subscription_details": {"subscription": f"sub_{customer_id}"},
+                    },
+                    "lines": {"data": [{"period": {"start": now, "end": now + 30 * 86400}}]},
+                }
+            },
+        },
+        separators=(",", ":"),
+    )
+
+
 async def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", default="http://localhost:8010")
@@ -407,6 +435,61 @@ async def main() -> int:
                 ).json()
                 return new_token, uuid.UUID(created_profile["id"])
 
+            async def send_signed(payload: str) -> dict[str, Any]:
+                response = await api.request(
+                    "POST",
+                    "/webhooks/stripe",
+                    content=payload.encode(),
+                    headers={
+                        "Stripe-Signature": sign_stripe_event(payload, webhook_secret),
+                        "Content-Type": "application/json",
+                    },
+                    expect=200,
+                )
+                return dict(response.json())
+
+            async def activate_subscription(
+                professional_token: str, professional_id: uuid.UUID, *, topup_cents: int = 0
+            ) -> str:
+                """Inicia la recarga por el API y la confirma con un `invoice.paid` firmado.
+
+                Sin clave de Stripe la pasarela no puede crear el cliente (503): en ese
+                caso se crea la cuenta directamente para poder seguir con el webhook.
+                """
+                await api.request(
+                    "POST",
+                    "/me/subscription/checkout",
+                    token=professional_token,
+                    expect=(200, 503),
+                )
+                customer_id = await db.fetchval(
+                    "SELECT stripe_customer_id FROM professional_accounts "
+                    "WHERE professional_id = $1",
+                    professional_id,
+                )
+                if customer_id is None:
+                    customer_id = f"cus_verify_{run_id}_{professional_id.hex[:8]}"
+                    await db.execute(
+                        """
+                        INSERT INTO professional_accounts (
+                            professional_id, subscription_status, stripe_customer_id,
+                            balance_cents, currency, created_at, updated_at
+                        ) VALUES ($1, 'none', $2, 0, 'EUR', now(), now())
+                        """,
+                        professional_id,
+                        customer_id,
+                    )
+                outcome = await send_signed(
+                    invoice_paid_event(
+                        customer_id,
+                        f"in_verify_{run_id}_{uuid.uuid4().hex[:8]}",
+                        topup_cents,
+                        f"evt_verify_{run_id}_inv_{uuid.uuid4().hex[:8]}",
+                    )
+                )
+                require(outcome["handled"] is True, f"El invoice.paid no se proceso: {outcome}")
+                return str(customer_id)
+
             first_email = f"verify-{run_id}-comprador@example.test"
             created_emails.append(first_email)
             token = await emulator.sign_up(first_email)
@@ -440,6 +523,48 @@ async def main() -> int:
             report.ok(
                 f"Perfil creado en {profile['city']} con radio {profile['service_radius_km']} km"
             )
+
+            # ---------------- 3b. Recarga mensual -------------------------
+            report.step("3b · Sin recarga mensual se ve pero no se compra")
+            buyer_id = uuid.UUID(profile["id"])
+            await api.request("GET", "/leads", token=token, expect=200)
+            await api.request("GET", f"/leads/{lead_id}", token=token, expect=200)
+            report.ok("Sin recarga el listado y el detalle se ven (sin datos de contacto)")
+            gated = await api.request("POST", f"/leads/{lead_id}/purchase", token=token, expect=402)
+            require(
+                gated.json()["code"] == "SUBSCRIPTION_REQUIRED",
+                f"Sin recarga se esperaba SUBSCRIPTION_REQUIRED, llego {gated.json().get('code')}",
+            )
+            report.ok("Comprar sin recarga devuelve 402 SUBSCRIPTION_REQUIRED")
+
+            started = await api.request(
+                "POST", "/me/subscription/checkout", token=token, expect=(200, 503)
+            )
+            if started.status_code == 200:
+                require(
+                    started.json()["checkout_url"].startswith("https://"),
+                    "Stripe no devolvio una URL de checkout de la recarga",
+                )
+                report.ok("Checkout de la recarga creado en Stripe (modo suscripcion)")
+            else:
+                report.skip(
+                    "Checkout de la recarga en Stripe",
+                    "sin STRIPE_SECRET_KEY o STRIPE_TOPUP_PRICE_ID de test",
+                )
+            account = (await api.request("GET", "/me/account", token=token, expect=200)).json()
+            require(
+                account["is_active"] is False,
+                "Iniciar el checkout no debe activar la cuenta: solo el webhook",
+            )
+            report.ok("Volver del checkout no activa la cuenta")
+
+            customer_id = await activate_subscription(token, buyer_id, topup_cents=0)
+            account = (await api.request("GET", "/me/account", token=token, expect=200)).json()
+            require(
+                account["is_active"] is True and account["status"] == "active",
+                f"El invoice.paid firmado no activo la cuenta: {account}",
+            )
+            report.ok("invoice.paid firmado activa la recarga (adaptador real de Stripe)")
 
             # ---------------- 4. El explorador oculta la PII -------------
             report.step("4 · El explorador muestra el lead SIN datos de contacto")
@@ -641,6 +766,7 @@ async def main() -> int:
             # ---------------- 9. Otro profesional no ve la PII ----------
             report.step("9 · La compra de uno no desbloquea para otro")
             other_token, other_professional_id = await register_professional("segundo")
+            await activate_subscription(other_token, other_professional_id)
             other_detail = (
                 await api.request("GET", f"/leads/{lead_id}", token=other_token, expect=200)
             ).json()
@@ -696,7 +822,8 @@ async def main() -> int:
             )
             report.ok("Tres plazas vendidas: el lead queda agotado")
 
-            fourth_token, _ = await register_professional("sobrante")
+            fourth_token, fourth_professional_id = await register_professional("sobrante")
+            await activate_subscription(fourth_token, fourth_professional_id)
             capped = await api.request(
                 "POST", f"/leads/{lead_id}/purchase", token=fourth_token, expect=409
             )
@@ -830,6 +957,52 @@ async def main() -> int:
             report.detail(f"tope de precio respetado ({rejected_price.json().get('code')})")
             report.ok("Un precio absurdo se rechaza (red contra el error de tecleo)")
 
+            # ---------------- 12. Compra con saldo de la recarga --------
+            report.step("12 · La recarga abona saldo y el saldo paga contactos")
+            topup_invoice = f"in_verify_{run_id}_topup"
+            topup = invoice_paid_event(
+                customer_id, topup_invoice, 1800, f"evt_verify_{run_id}_topup_1"
+            )
+            await send_signed(topup)
+            # El mismo cobro reenviado con otro event_id no debe abonarse dos veces.
+            await send_signed(
+                invoice_paid_event(customer_id, topup_invoice, 1800, f"evt_verify_{run_id}_topup_2")
+            )
+            account = (await api.request("GET", "/me/account", token=token, expect=200)).json()
+            require(
+                account["balance"]["amount_cents"] == 1800,
+                f"La recarga reenviada se abono dos veces o no se abono: {account['balance']}",
+            )
+            report.ok("Recarga de 18,00 € abonada una sola vez pese al reenvio")
+
+            # Tras borrar el precio propio, el lead vuelve al sugerido del oficio.
+            price_cents = cleared["sale_price"]["amount_cents"]
+            paid = (
+                await api.request(
+                    "POST", f"/leads/{priced['id']}/purchase", token=token, expect=201
+                )
+            ).json()
+            require(
+                paid["paid_with_credit"] is True and paid["checkout_url"] is None,
+                f"Con saldo suficiente no deberia abrirse checkout: {paid}",
+            )
+            unlocked_with_credit = (
+                await api.request("GET", f"/leads/{priced['id']}", token=token, expect=200)
+            ).json()
+            require(
+                unlocked_with_credit["is_unlocked"] is True,
+                "Pagar con saldo no desbloqueo el contacto",
+            )
+            account = (await api.request("GET", "/me/account", token=token, expect=200)).json()
+            require(
+                account["balance"]["amount_cents"] == 1800 - price_cents,
+                f"El saldo no se desconto bien: {account['balance']}",
+            )
+            report.ok(
+                f"Contacto pagado con saldo sin pasar por Stripe; queda "
+                f"{account['balance']['formatted']}"
+            )
+
         except VerificationError as error:
             print(f"\n  {RED}FALLO{RESET} {error}")
             print(
@@ -865,6 +1038,12 @@ async def main() -> int:
 
 async def cleanup(db: asyncpg.Connection, lead_ids: list[str], run_id: str) -> None:
     """Borra lo que creo este run. Los usuarios del emulador se van al pararlo."""
+    run_professionals = "SELECT id FROM professionals WHERE business_name LIKE $1"
+    for table in ("credit_entries", "professional_accounts"):
+        await db.execute(
+            f"DELETE FROM {table} WHERE professional_id IN ({run_professionals})",
+            f"%Verify {run_id}%",
+        )
     for lead_id in lead_ids:
         await db.execute("DELETE FROM lead_purchases WHERE lead_id = $1", uuid.UUID(lead_id))
         await db.execute("DELETE FROM leads WHERE id = $1", uuid.UUID(lead_id))

@@ -22,14 +22,15 @@
     "admin": "Administración",
     "howWeValidate": "Cómo validamos",
     "pricing": "Precios",
-    "menu": "Abrir menú"
+    "menu": "Abrir menú",
+    "subscription": "Mi mensualidad"
   },
   "footer": {
     "tagline": "Tus ideas. Los mejores profesionales."
   },
   "home": {
     "title": "Contactos de reforma verificados por teléfono en toda España",
-    "subtitle": "Llamamos a cada cliente antes de publicar su solicitud. Ves el trabajo, la zona y el precio del contacto antes de pagar. Sin cuota ni permanencia.",
+    "subtitle": "Llamamos a cada cliente antes de publicar su solicitud. Ves el trabajo, la zona y el precio del contacto antes de pagar. Tu mensualidad se convierte en saldo para comprar contactos.",
     "heroEyebrow": "Contactos verificados · España",
     "heroTitle": "El trabajo ya está <mark>comprobado</mark>. Solo falta tu llamada.",
     "heroSubtitle": "Llamamos a cada persona antes de publicar su solicitud. Tú ves el trabajo, la zona y el precio del contacto, y decides si lo compras.",
@@ -74,9 +75,9 @@
         "title": "El precio del contacto se ve antes de pagar",
         "body": "Cada ficha lleva su importe a la vista. No hay paquetes, ni bonos, ni precios que cambien al llegar al pago."
       },
-      "noFee": {
-        "title": "Sin cuota mensual ni permanencia",
-        "body": "Pagas solo los contactos que decides comprar. Registrarse y consultar el listado no cuesta nada."
+      "topup": {
+        "title": "Tu mensualidad se convierte en saldo",
+        "body": "Cada mes se cargan {amount} que se suman a tu saldo para comprar los contactos que elijas. Consultar el listado no cuesta nada."
       },
       "privacy": {
         "title": "El teléfono del cliente solo lo ve quien compra",
@@ -87,7 +88,7 @@
       "eyebrow": "Precio transparente",
       "headline": "Desde {price} el contacto",
       "headlineFallback": "Pagas por contacto. Nada más.",
-      "body": "Sin cuota, sin permanencia y con el precio visible en cada ficha. Cada compra queda registrada con el importe que pagaste, aunque el precio del oficio cambie después.",
+      "body": "Con tu mensualidad al día, cada contacto se paga con tu saldo y el precio está visible en cada ficha. Cada compra queda registrada con el importe que pagaste.",
       "cta": "Crear cuenta gratis"
     },
     "clientBanner": {
@@ -187,7 +188,12 @@
     "callClient": "Llamar ahora",
     "reservationPending": "Tienes una reserva en curso. Completa el pago en los próximos {minutes} minutos o la plaza se liberará.",
     "resumePayment": "Completar el pago",
-    "backToProjects": "Volver a las solicitudes"
+    "backToProjects": "Volver a las solicitudes",
+    "needsSubscription": "Necesitas la mensualidad al día para comprar este contacto.",
+    "activateToBuy": "Activar mensualidad para comprar",
+    "creditWillCover": "Se pagará con tu saldo ({balance}). No pasarás por la pasarela de pago.",
+    "creditWillApply": "Se usarán {credit} de tu saldo y pagarás {due} en la pasarela.",
+    "paymentCancelled": "Has cancelado el pago. Si tu reserva sigue vigente, puedes completarlo antes de que caduque."
   },
   "purchases": {
     "title": "Mis contactos",
@@ -204,6 +210,44 @@
     },
     "paymentSuccess": "Pago confirmado. Ya puedes contactar al cliente.",
     "paymentPending": "Estamos confirmando tu pago. Se desbloqueará en unos segundos."
+  },
+  "subscription": {
+    "title": "Mensualidad",
+    "subtitle": "Cada mes se cargan {amount}, que se suman a tu saldo para comprar contactos. Sin la recarga al día puedes ver las solicitudes, pero no comprarlas.",
+    "statusLabel": "Estado de tu cuenta",
+    "status": {
+      "none": "Sin mensualidad",
+      "pending": "Pago en confirmación",
+      "active": "Activa",
+      "past_due": "Pago pendiente",
+      "canceled": "Cancelada"
+    },
+    "balanceLabel": "Saldo disponible",
+    "topupLabel": "Mensualidad",
+    "renewsOn": "Próxima renovación: {date}",
+    "activate": "Activar mensualidad de {amount}/mes",
+    "reactivate": "Volver a activar la mensualidad",
+    "manage": "Gestionar pago o cancelar",
+    "redirecting": "Redirigiendo...",
+    "sepaNotice": "Puedes pagar con tarjeta o domiciliación bancaria (SEPA). Con domiciliación, el primer cobro tarda de 2 a 5 días en confirmarse y hasta entonces no podrás comprar.",
+    "pendingNotice": "Estamos esperando la confirmación del cobro. En cuanto llegue podrás comprar contactos y el importe se sumará a tu saldo.",
+    "pastDueNotice": "No hemos podido cobrar la recarga de este mes. Actualiza tu medio de pago para volver a comprar contactos. Tu saldo se conserva.",
+    "canceledNotice": "Tu recarga está cancelada. Puedes seguir viendo solicitudes y tu saldo se conserva; para comprar, reactívala.",
+    "checkoutSuccess": "Hemos recibido tus datos de pago. La cuenta se activará cuando se confirme el cobro.",
+    "checkoutCancelled": "Has cancelado el pago. Tu mensualidad no se ha activado.",
+    "historyTitle": "Movimientos de saldo",
+    "historyEmpty": "Todavía no hay movimientos.",
+    "entry": {
+      "topup": "Mensualidad",
+      "spend": "Compra de contacto",
+      "spend_reversal": "Devolución de reserva no pagada",
+      "adjustment_credit": "Abono de administración",
+      "adjustment_debit": "Cargo de administración"
+    },
+    "bannerActive": "Cuenta activa · Saldo: {balance}",
+    "bannerInactive": "Cuenta inactiva: puedes ver las solicitudes, pero para comprar contactos necesitas la recarga mensual al día.",
+    "bannerCta": "Activar mensualidad",
+    "bannerManage": "Ver mi mensualidad"
   },
   "profile": {
     "title": "Mi perfil profesional",
@@ -319,6 +363,20 @@
       "subtitle": "Consulta los perfiles profesionales registrados.",
       "search": "Buscar por negocio o zona",
       "location": "{city} · {distance} km"
+    },
+    "account": "Mensualidad",
+    "balance": "Saldo",
+    "activeAccounts": "Cuentas activas",
+    "noAccount": "Sin mensualidad",
+    "subscriptionPrice": {
+      "title": "Mensualidad",
+      "body": "Importe mensual que paga cada profesional para poder comprar contactos; se abona como saldo. Un cambio solo afecta a las suscripciones nuevas: quien ya paga conserva su importe.",
+      "current": "Vigente: {amount}",
+      "default": "(valor inicial de configuración)",
+      "notConfigured": "No hay precio configurado en Stripe: nadie puede suscribirse.",
+      "label": "Nuevo importe (€)",
+      "save": "Guardar mensualidad",
+      "saved": "Mensualidad actualizada a {amount} para las nuevas suscripciones."
     }
   },
   "errors": {
@@ -346,7 +404,11 @@
     "auth/email-already-in-use": "Ya existe una cuenta con ese email.",
     "auth/weak-password": "La contraseña debe tener al menos 6 caracteres.",
     "auth/invalid-email": "Ese email no es válido.",
-    "auth/too-many-requests": "Demasiados intentos. Prueba en unos minutos."
+    "auth/too-many-requests": "Demasiados intentos. Prueba en unos minutos.",
+    "SUBSCRIPTION_REQUIRED": "Activa tu recarga mensual para poder comprar contactos.",
+    "SUBSCRIPTION_ALREADY_EXISTS": "Ya tienes una mensualidad en curso. Gestiónala desde tu cuenta.",
+    "INSUFFICIENT_CREDIT": "No tienes saldo suficiente para esta operación.",
+    "ACCOUNT_NOT_FOUND": "No encontramos tu cuenta de mensualidad."
   },
   "validation": {
     "categoryRequired": "Elige un oficio.",

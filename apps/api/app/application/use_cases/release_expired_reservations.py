@@ -2,7 +2,8 @@
 
 Se dispara desde el evento `checkout.session.expired` y desde un job periodico,
 porque Stripe puede tardar en emitir ese evento (o no emitirlo si el usuario nunca
-abrio el checkout).
+abrio el checkout). Junto con la plaza se devuelve el saldo de la recarga que la
+reserva tuviera aplicado.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from app.application.ports import (
     PurchaseRepositoryPort,
     UnitOfWork,
 )
+from app.application.use_cases.credit_ledger import CreditLedgerService
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +28,7 @@ class ReleaseExpiredReservations:
     payments: PaymentPort
     clock: ClockPort
     uow: UnitOfWork
+    credit: CreditLedgerService
 
     async def execute(self, *, batch_size: int = 100) -> int:
         now = self.clock.now()
@@ -35,9 +38,12 @@ class ReleaseExpiredReservations:
 
         released = 0
         async with self.uow:
-            for purchase in expired:
+            # Ordenadas por profesional para bloquear las cuentas siempre en el mismo
+            # orden y no interbloquear con otra ejecucion concurrente del job.
+            for purchase in sorted(expired, key=lambda p: str(p.professional_id)):
                 purchase.mark_expired()
                 await self.purchases.update(purchase)
+                await self.credit.return_reserved_credit(purchase, now=now)
                 released += 1
 
         # Cerrar la sesion en la pasarela es best-effort: la plaza ya esta libre en

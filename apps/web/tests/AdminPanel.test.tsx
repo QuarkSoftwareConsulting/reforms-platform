@@ -45,6 +45,13 @@ vi.mock("@/services/admin.service", () => ({
     metrics: vi.fn().mockResolvedValue(metrics),
     leads: vi.fn().mockResolvedValue({ items: [lead], total: 1, limit: 20, offset: 0 }),
     professionals: vi.fn().mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 }),
+    subscriptionPrice: vi.fn().mockResolvedValue({
+      amount: { amount_cents: 1800, currency: "EUR", formatted: "18.00 €" },
+      updated_at: null,
+      is_default: true,
+      configured: true,
+    }),
+    setSubscriptionPrice: vi.fn(),
     createLead: vi.fn(),
     disableLead: vi.fn(),
     republishLead: vi.fn(),

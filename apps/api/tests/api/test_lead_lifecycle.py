@@ -6,6 +6,7 @@ contacto del cliente sin una compra pagada.
 
 from __future__ import annotations
 
+from urllib.parse import parse_qs, urlparse
 from uuid import UUID, uuid4
 
 import pytest
@@ -53,12 +54,48 @@ async def publish_lead(api: AsyncClient, category: Category, **overrides: object
 
 
 async def create_profile(
-    api: AsyncClient, category: Category, headers: dict[str, str], **overrides: object
+    api: AsyncClient,
+    category: Category,
+    headers: dict[str, str],
+    *,
+    subscribed: bool = True,
+    **overrides: object,
 ) -> dict:
+    """Crea (o actualiza) el perfil y, por defecto, deja la recarga al dia sin saldo.
+
+    Comprar exige la recarga mensual; sin saldo, las compras siguen pasando por el
+    checkout, que es lo que prueban la mayoria de estos tests.
+    """
     payload = {**PROFILE_PAYLOAD, "category_ids": [str(category.id)], **overrides}
     response = await api.put("/me/professional", json=payload, headers=headers)
     assert response.status_code == 200, response.text
+    if subscribed:
+        await activate_subscription(api, headers)
     return response.json()
+
+
+async def activate_subscription(
+    api: AsyncClient, headers: dict[str, str], *, topup_cents: int | None = None
+) -> None:
+    """Recarga al dia por el mismo camino que produccion: checkout + `invoice.paid`."""
+    account = (await api.get("/me/account", headers=headers)).json()
+    if account["is_active"]:
+        return
+    started = await api.post("/me/subscription/checkout", headers=headers)
+    assert started.status_code == 200, started.text
+    customer_id = parse_qs(urlparse(started.json()["checkout_url"]).query)["customer"][0]
+    response = await api.post(
+        "/webhooks/stripe",
+        content=FakePaymentGateway.subscription_event_payload(
+            event_id=f"evt_inv_{uuid4().hex}",
+            event_type=PaymentEventType.INVOICE_PAID,
+            customer_id=customer_id,
+            invoice_id=f"in_{uuid4().hex}",
+            amount_cents=topup_cents,
+        ),
+        headers={"Stripe-Signature": VALID_SIGNATURE},
+    )
+    assert response.status_code == 200, response.text
 
 
 async def pay(api: AsyncClient, purchase_id: str, event_id: str = "evt_1") -> None:

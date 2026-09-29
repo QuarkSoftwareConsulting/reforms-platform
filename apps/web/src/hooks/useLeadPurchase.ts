@@ -6,6 +6,7 @@ import { useLocale } from "next-intl";
 import { useCallback, useState } from "react";
 
 import { useApiError } from "@/hooks/useApiError";
+import { path } from "@/i18n/routing";
 import { paymentService } from "@/services/payment.service";
 import type { Locale } from "@/types/api";
 
@@ -28,6 +29,13 @@ export function useLeadPurchase(): LeadPurchaseState {
       setError(null);
       try {
         const result = await paymentService.startPurchase(leadId, locale);
+        if (result.checkout_url === null) {
+          // Pagada con saldo: ya esta desbloqueada, se lleva a "Mis contactos".
+          window.location.assign(
+            path(locale, "myContacts", `?purchase=${result.purchase_id}&status=success`),
+          );
+          return;
+        }
         // Navegacion completa (no router.push): el checkout esta en otro dominio.
         window.location.assign(result.checkout_url);
       } catch (caught) {

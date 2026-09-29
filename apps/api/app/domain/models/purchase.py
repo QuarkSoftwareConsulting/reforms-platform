@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
-from app.domain.exceptions import PurchaseNotPayableError
+from app.domain.exceptions import CurrencyMismatchError, PurchaseNotPayableError
 from app.domain.models.enums import PurchaseStatus
 from app.domain.value_objects import Money
 
@@ -18,6 +18,10 @@ class Purchase:
     Nace en `RESERVED` para bloquear una de las plazas del lead mientras el
     profesional completa el pago en Stripe. Si el checkout caduca la reserva se
     libera; si el webhook confirma el pago pasa a `PAID` y desbloquea el contacto.
+
+    `price` es siempre el importe total del contacto. Si parte (o todo) se cubrio
+    con saldo de la recarga, `credit_applied` lo registra y la pasarela solo cobra
+    `amount_due`. Una compra cubierta entera con saldo pasa a `PAID` sin checkout.
     """
 
     id: UUID
@@ -30,8 +34,30 @@ class Purchase:
     stripe_checkout_session_id: str | None = None
     stripe_payment_intent_id: str | None = None
     paid_at: datetime | None = None
+    credit_applied: Money | None = None
+
+    def __post_init__(self) -> None:
+        if self.credit_applied is None:
+            return
+        if self.credit_applied.currency != self.price.currency:
+            raise CurrencyMismatchError("El saldo aplicado debe estar en la divisa del precio")
+        if self.credit_applied.amount_cents > self.price.amount_cents:
+            raise PurchaseNotPayableError("El saldo aplicado no puede superar el precio")
 
     # ----------------------------- Consultas -----------------------------
+
+    @property
+    def credit_cents(self) -> int:
+        return self.credit_applied.amount_cents if self.credit_applied is not None else 0
+
+    @property
+    def amount_due(self) -> Money:
+        """Lo que queda por cobrar en la pasarela tras aplicar el saldo."""
+        return Money(self.price.amount_cents - self.credit_cents, self.price.currency)
+
+    @property
+    def is_covered_by_credit(self) -> bool:
+        return self.amount_due.amount_cents == 0
 
     def is_reservation_expired(self, now: datetime) -> bool:
         if self.status is not PurchaseStatus.RESERVED:

@@ -140,6 +140,36 @@ class ConsentRequiredError(ValidationError):
     code = "CONSENT_REQUIRED"
 
 
+# --------------------------- Recarga y saldo -----------------------------
+
+
+class SubscriptionRequiredError(DomainError):
+    """Activa la recarga mensual para poder comprar contactos."""
+
+    code = "SUBSCRIPTION_REQUIRED"
+    status = 402
+
+
+class SubscriptionAlreadyExistsError(DomainError):
+    """Ya tienes una recarga mensual en curso. Gestionala desde tu cuenta."""
+
+    code = "SUBSCRIPTION_ALREADY_EXISTS"
+    status = 409
+
+
+class InsufficientCreditError(DomainError):
+    """No tienes saldo suficiente para esta operacion."""
+
+    code = "INSUFFICIENT_CREDIT"
+    status = 409
+
+
+class ProfessionalAccountNotFoundError(NotFoundError):
+    """No encontramos la cuenta de recarga del profesional."""
+
+    code = "ACCOUNT_NOT_FOUND"
+
+
 class PaymentGatewayError(DomainError):
     """No hemos podido iniciar el pago. Intentalo de nuevo en unos minutos."""
 
@@ -162,6 +192,7 @@ __all__ = [
     "ContactLockedError",
     "CurrencyMismatchError",
     "DomainError",
+    "InsufficientCreditError",
     "InvalidSalePriceError",
     "LeadAlreadyPurchasedError",
     "LeadCapReachedError",
@@ -170,10 +201,13 @@ __all__ = [
     "NotFoundError",
     "PaymentGatewayError",
     "PermissionDeniedError",
+    "ProfessionalAccountNotFoundError",
     "ProfessionalNotFoundError",
     "ProfessionalProfileIncompleteError",
     "PurchaseNotFoundError",
     "PurchaseNotPayableError",
+    "SubscriptionAlreadyExistsError",
+    "SubscriptionRequiredError",
     "UnknownPostalCodeError",
     "ValidationError",
 ]

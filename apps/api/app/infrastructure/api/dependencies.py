@@ -24,11 +24,15 @@ from app.application.ports import (
     TokenVerifierPort,
 )
 from app.application.use_cases import (
+    AdjustProfessionalCredit,
+    ApplySubscriptionEvent,
     ChangeLeadAvailability,
     CreateLead,
+    CreditLedgerService,
     GetAdminMetrics,
     GetLeadDetail,
     GetLeadPricing,
+    GetProfessionalAccount,
     GetProfessionalProfile,
     HandlePaymentEvent,
     ListAdminLeads,
@@ -38,25 +42,33 @@ from app.application.use_cases import (
     ListLeads,
     ListMyPurchases,
     MarkPurchaseForReview,
+    OpenBillingPortal,
     ReleaseExpiredReservations,
     RequestPhotoUpload,
     SetCategorySuggestedPrice,
     SetLeadPrice,
+    SetSubscriptionPrice,
     StartLeadPurchase,
+    StartSubscription,
+    SubscriptionPricing,
     SyncUserFromIdentity,
     UpsertProfessionalProfile,
 )
 from app.config import Settings, get_settings
 from app.domain.exceptions import DomainError, ProfessionalNotFoundError
 from app.domain.models import Professional, User
+from app.domain.value_objects import Money
 from app.infrastructure.adapters.db.repositories import (
     SqlAlchemyCategoryRepository,
+    SqlAlchemyCreditLedgerRepository,
     SqlAlchemyLeadRepository,
     SqlAlchemyPostalCodeRepository,
     SqlAlchemyProcessedEventRepository,
+    SqlAlchemyProfessionalAccountRepository,
     SqlAlchemyProfessionalRepository,
     SqlAlchemyPurchaseRepository,
     SqlAlchemyPurchaseReviewRepository,
+    SqlAlchemySubscriptionPriceRepository,
     SqlAlchemyUserRepository,
 )
 from app.infrastructure.adapters.db.session import SqlAlchemyUnitOfWork
@@ -132,6 +144,9 @@ class RequestContainer:
     categories: SqlAlchemyCategoryRepository
     postal_codes: SqlAlchemyPostalCodeRepository
     processed_events: SqlAlchemyProcessedEventRepository
+    accounts: SqlAlchemyProfessionalAccountRepository
+    ledger: SqlAlchemyCreditLedgerRepository
+    subscription_prices: SqlAlchemySubscriptionPriceRepository
 
     @classmethod
     def build(cls, infra: Infrastructure, session: AsyncSession) -> RequestContainer:
@@ -147,7 +162,23 @@ class RequestContainer:
             categories=SqlAlchemyCategoryRepository(session),
             postal_codes=SqlAlchemyPostalCodeRepository(session),
             processed_events=SqlAlchemyProcessedEventRepository(session),
+            accounts=SqlAlchemyProfessionalAccountRepository(session),
+            ledger=SqlAlchemyCreditLedgerRepository(session),
+            subscription_prices=SqlAlchemySubscriptionPriceRepository(session),
         )
+
+    @property
+    def pricing(self) -> SubscriptionPricing:
+        settings = self.infra.settings
+        return SubscriptionPricing(
+            prices=self.subscription_prices,
+            default_amount=Money(settings.subscription_topup_cents, settings.default_currency),
+            default_price_id=settings.stripe_topup_price_id,
+        )
+
+    @property
+    def credit(self) -> CreditLedgerService:
+        return CreditLedgerService(accounts=self.accounts, ledger=self.ledger, ids=self.infra.ids)
 
     # ------------------------------ Casos de uso -------------------------
 
@@ -185,6 +216,8 @@ class RequestContainer:
             purchases=self.purchases,
             professionals=self.professionals,
             categories=self.categories,
+            accounts=self.accounts,
+            credit=self.credit,
             payments=self.infra.payments,
             clock=self.infra.clock,
             ids=self.infra.ids,
@@ -217,7 +250,12 @@ class RequestContainer:
     @property
     def admin_metrics(self) -> GetAdminMetrics:
         return GetAdminMetrics(
-            leads=self.leads, purchases=self.purchases, professionals=self.professionals
+            leads=self.leads,
+            purchases=self.purchases,
+            professionals=self.professionals,
+            accounts=self.accounts,
+            ledger=self.ledger,
+            clock=self.infra.clock,
         )
 
     @property
@@ -228,7 +266,12 @@ class RequestContainer:
 
     @property
     def admin_professionals(self) -> ListAdminProfessionals:
-        return ListAdminProfessionals(professionals=self.professionals, categories=self.categories)
+        return ListAdminProfessionals(
+            professionals=self.professionals,
+            categories=self.categories,
+            accounts=self.accounts,
+            clock=self.infra.clock,
+        )
 
     @property
     def mark_purchase_for_review(self) -> MarkPurchaseForReview:
@@ -249,6 +292,10 @@ class RequestContainer:
             payments=self.infra.payments,
             clock=self.infra.clock,
             uow=self.uow,
+            credit=self.credit,
+            subscriptions=ApplySubscriptionEvent(
+                accounts=self.accounts, credit=self.credit, clock=self.infra.clock
+            ),
         )
 
     @property
@@ -264,6 +311,60 @@ class RequestContainer:
             payments=self.infra.payments,
             clock=self.infra.clock,
             uow=self.uow,
+            credit=self.credit,
+        )
+
+    @property
+    def start_subscription(self) -> StartSubscription:
+        return StartSubscription(
+            accounts=self.accounts,
+            pricing=self.pricing,
+            payments=self.infra.payments,
+            clock=self.infra.clock,
+            uow=self.uow,
+            web_base_url=self.infra.settings.public_web_url,
+            currency=self.infra.settings.default_currency,
+        )
+
+    @property
+    def billing_portal(self) -> OpenBillingPortal:
+        return OpenBillingPortal(
+            accounts=self.accounts,
+            payments=self.infra.payments,
+            web_base_url=self.infra.settings.public_web_url,
+        )
+
+    @property
+    def get_account(self) -> GetProfessionalAccount:
+        return GetProfessionalAccount(
+            accounts=self.accounts,
+            ledger=self.ledger,
+            pricing=self.pricing,
+            clock=self.infra.clock,
+        )
+
+    @property
+    def set_subscription_price(self) -> SetSubscriptionPrice:
+        return SetSubscriptionPrice(
+            prices=self.subscription_prices,
+            pricing=self.pricing,
+            payments=self.infra.payments,
+            clock=self.infra.clock,
+            ids=self.infra.ids,
+            uow=self.uow,
+            currency=self.infra.settings.default_currency,
+        )
+
+    @property
+    def adjust_credit(self) -> AdjustProfessionalCredit:
+        return AdjustProfessionalCredit(
+            professionals=self.professionals,
+            accounts=self.accounts,
+            credit=self.credit,
+            clock=self.infra.clock,
+            ids=self.infra.ids,
+            uow=self.uow,
+            currency=self.infra.settings.default_currency,
         )
 
     @property

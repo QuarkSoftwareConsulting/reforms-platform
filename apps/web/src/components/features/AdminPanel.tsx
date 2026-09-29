@@ -20,6 +20,7 @@ import type {
   AdminProfessional,
   AdminPurchase,
   Category,
+  SubscriptionPrice,
 } from "@/types/api";
 
 const EMPTY_FILTERS: AdminLeadFilters = {};
@@ -28,6 +29,7 @@ const EMPTY_FILTERS: AdminLeadFilters = {};
 export function AdminPanel() {
   const locale = useLocale() as AppLocale;
   const t = useTranslations("admin");
+  const tSubscription = useTranslations("subscription");
   const tCommon = useTranslations("common");
   const translateError = useApiError();
   const photoUpload = usePhotoUpload();
@@ -41,6 +43,8 @@ export function AdminPanel() {
   const [priceDrafts, setPriceDrafts] = useState<Record<string, string>>({});
   const [categoryId, setCategoryId] = useState("");
   const [categoryPrice, setCategoryPrice] = useState("");
+  const [subscriptionPrice, setSubscriptionPrice] = useState<SubscriptionPrice | null>(null);
+  const [subscriptionDraft, setSubscriptionDraft] = useState("");
   const [professionalQuery, setProfessionalQuery] = useState("");
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -52,13 +56,16 @@ export function AdminPanel() {
     setLoading(true);
     setError(null);
     try {
-      const [nextMetrics, nextLeads, nextCategories, nextProfessionals] = await Promise.all([
-        adminService.metrics(locale),
-        adminService.leads(filters, locale),
-        leadsService.categories(locale),
-        adminService.professionals(professionalQuery, locale),
-      ]);
+      const [nextMetrics, nextLeads, nextCategories, nextProfessionals, nextSubscription] =
+        await Promise.all([
+          adminService.metrics(locale),
+          adminService.leads(filters, locale),
+          leadsService.categories(locale),
+          adminService.professionals(professionalQuery, locale),
+          adminService.subscriptionPrice(locale),
+        ]);
       setMetrics(nextMetrics);
+      setSubscriptionPrice(nextSubscription);
       setLeads(nextLeads.items);
       setCategories(nextCategories);
       setProfessionals(nextProfessionals.items);
@@ -160,6 +167,7 @@ export function AdminPanel() {
               .map((money) => formatMoney(money, locale))
               .join(" · ") || t("metrics.none")}
           />
+          <Metric label={t("activeAccounts")} value={String(metrics.active_accounts)} />
           <Metric label={t("metrics.organic")} value={String(metrics.leads_organic)} />
           <Metric label={t("metrics.manual")} value={String(metrics.leads_admin)} />
         </section>
@@ -228,6 +236,47 @@ export function AdminPanel() {
             }
           >
             {t("categoryPricing.submit")}
+          </Button>
+        </Card>
+
+        <Card className="space-y-4">
+          <div className="space-y-1">
+            <h2 className="text-card-title font-bold text-ink">{t("subscriptionPrice.title")}</h2>
+            <p className="text-sm text-secondary">{t("subscriptionPrice.body")}</p>
+          </div>
+          {subscriptionPrice && (
+            <p className="text-sm text-ink">
+              {t("subscriptionPrice.current", {
+                amount: formatMoney(subscriptionPrice.amount, locale),
+              })}{" "}
+              {subscriptionPrice.is_default && t("subscriptionPrice.default")}
+            </p>
+          )}
+          {subscriptionPrice && !subscriptionPrice.configured && (
+            <Alert tone="warning">{t("subscriptionPrice.notConfigured")}</Alert>
+          )}
+          <TextField
+            label={t("subscriptionPrice.label")}
+            value={subscriptionDraft}
+            onChange={(event) => setSubscriptionDraft(event.target.value)}
+            inputMode="decimal"
+            type="number"
+            min="0.5"
+            step="0.01"
+          />
+          <Button
+            loading={saving}
+            disabled={!(Number(subscriptionDraft) >= 0.5)}
+            onClick={() =>
+              void run(async () => {
+                // El importe viaja en centimos, como todo `Money`.
+                const cents = Math.round(Number(subscriptionDraft) * 100);
+                await adminService.setSubscriptionPrice(cents, locale);
+                setSubscriptionDraft("");
+              })
+            }
+          >
+            {t("subscriptionPrice.save")}
           </Button>
         </Card>
       </section>
@@ -420,6 +469,12 @@ export function AdminPanel() {
               </p>
               <p className="text-sm text-secondary">
                 {professional.categories.map((category) => category.name).join(", ")}
+              </p>
+              <p className="text-sm text-secondary">
+                {t("account")}:{" "}
+                {professional.account
+                  ? `${tSubscription(`status.${professional.account.status}`)} · ${t("balance")} ${formatMoney(professional.account.balance, locale)}`
+                  : t("noAccount")}
               </p>
             </Card>
           ))}

@@ -1,7 +1,8 @@
 """Caso de uso: explorador de solicitudes para el profesional.
 
 Devuelve siempre proyecciones publicas (`LeadPublicView`): es imposible que un
-endpoint del explorador filtre datos de contacto por descuido.
+endpoint del explorador filtre datos de contacto por descuido. No exige la
+recarga: una cuenta inactiva puede ver solicitudes, pero no comprarlas.
 """
 
 from __future__ import annotations

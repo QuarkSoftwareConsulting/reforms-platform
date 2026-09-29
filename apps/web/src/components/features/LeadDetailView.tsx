@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 
@@ -22,6 +23,8 @@ export function LeadDetailView({ leadId }: { leadId: string }) {
   const t = useTranslations("lead");
   const tProjects = useTranslations("projects");
   const translateError = useApiError();
+  // `?status=cancelled` al volver de un checkout que el profesional abandono.
+  const paymentCancelled = useSearchParams().get("status") === "cancelled";
 
   const [detail, setDetail] = useState<LeadDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -121,6 +124,9 @@ export function LeadDetailView({ leadId }: { leadId: string }) {
         </div>
 
         <aside className="space-y-4">
+          {paymentCancelled && !detail.is_unlocked && (
+            <Alert tone="warning">{t("paymentCancelled")}</Alert>
+          )}
           {detail.contact ? (
             <ContactPanel contact={detail.contact} />
           ) : (

@@ -65,6 +65,7 @@ def settings(**overrides: object) -> Settings:
         "firebase_project_id": "project",
         "stripe_secret_key": "test-key",
         "stripe_webhook_secret": "test-webhook",
+        "stripe_topup_price_id": "price_test",
         "s3_access_key_id": "",
         "s3_secret_access_key": "",
     }

@@ -1,7 +1,9 @@
 import { setRequestLocale } from "next-intl/server";
+import { Suspense } from "react";
 
 import { AuthGate } from "@/components/features/AuthGate";
 import { LeadDetailView } from "@/components/features/LeadDetailView";
+import { Skeleton } from "@/components/ui/Card";
 import { Container } from "@/components/ui/Container";
 import { isAppLocale, type AppLocale } from "@/i18n/routing";
 
@@ -19,7 +21,10 @@ export default async function LeadDetailPage({
   return (
     <Container className="py-10">
       <AuthGate>
-        <LeadDetailView leadId={leadId} />
+        {/* Lee ?status=cancelled al volver de la pasarela de pago. */}
+        <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+          <LeadDetailView leadId={leadId} />
+        </Suspense>
       </AuthGate>
     </Container>
   );

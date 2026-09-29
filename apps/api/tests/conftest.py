@@ -13,11 +13,15 @@ import pytest
 
 from app.application.ports import PostalCodeInfo
 from app.application.use_cases import (
+    AdjustProfessionalCredit,
+    ApplySubscriptionEvent,
     ChangeLeadAvailability,
     CreateLead,
+    CreditLedgerService,
     GetAdminMetrics,
     GetLeadDetail,
     GetLeadPricing,
+    GetProfessionalAccount,
     GetProfessionalProfile,
     HandlePaymentEvent,
     ListAdminLeads,
@@ -27,35 +31,52 @@ from app.application.use_cases import (
     ListLeads,
     ListMyPurchases,
     MarkPurchaseForReview,
+    OpenBillingPortal,
     ReleaseExpiredReservations,
     RequestPhotoUpload,
     SetCategorySuggestedPrice,
     SetLeadPrice,
+    SetSubscriptionPrice,
     StartLeadPurchase,
+    StartSubscription,
+    SubscriptionPricing,
     SyncUserFromIdentity,
     UpsertProfessionalProfile,
 )
-from app.domain.models import Category, Professional, User
+from app.domain.models import Category, Professional, ProfessionalAccount, User
 from app.domain.value_objects import Coordinates, Money, PostalCode
-from tests.factories import BARCELONA, MADRID, NOW, make_category, make_professional, make_user
+from tests.factories import (
+    BARCELONA,
+    MADRID,
+    NOW,
+    make_account,
+    make_category,
+    make_professional,
+    make_user,
+)
 from tests.fakes import (
     FakeClock,
     FakePaymentGateway,
     FakeStorage,
     FakeTokenVerifier,
     InMemoryCategoryRepository,
+    InMemoryCreditLedgerRepository,
     InMemoryLeadRepository,
     InMemoryPostalCodeRepository,
     InMemoryProcessedEventRepository,
+    InMemoryProfessionalAccountRepository,
     InMemoryProfessionalRepository,
     InMemoryPurchaseRepository,
     InMemoryPurchaseReviewRepository,
+    InMemorySubscriptionPriceRepository,
     InMemoryUnitOfWork,
     InMemoryUserRepository,
     SequentialIdGenerator,
 )
 
 WEB_URL = "https://reformahub.test"
+TOPUP = Money(1800, "EUR")
+DEFAULT_TOPUP_PRICE_ID = "price_config_topup"
 
 POSTAL_CODES = [
     PostalCodeInfo(PostalCode("28001"), "Madrid", "Madrid", MADRID),
@@ -81,6 +102,9 @@ class World:
     categories: InMemoryCategoryRepository
     postal_codes: InMemoryPostalCodeRepository
     processed_events: InMemoryProcessedEventRepository
+    accounts: InMemoryProfessionalAccountRepository
+    ledger: InMemoryCreditLedgerRepository
+    subscription_prices: InMemorySubscriptionPriceRepository
     payments: FakePaymentGateway
     storage: FakeStorage
     tokens: FakeTokenVerifier
@@ -106,9 +130,22 @@ class World:
     list_lead_purchases: ListLeadPurchasesForAdmin = field(init=False)
     list_admin_professionals: ListAdminProfessionals = field(init=False)
     mark_purchase_for_review: MarkPurchaseForReview = field(init=False)
+    credit: CreditLedgerService = field(init=False)
+    start_subscription: StartSubscription = field(init=False)
+    billing_portal: OpenBillingPortal = field(init=False)
+    get_account: GetProfessionalAccount = field(init=False)
+    adjust_credit: AdjustProfessionalCredit = field(init=False)
+    pricing: SubscriptionPricing = field(init=False)
+    set_subscription_price: SetSubscriptionPrice = field(init=False)
 
     def __post_init__(self) -> None:
         self.leads.purchase_index = self.purchases
+        self.credit = CreditLedgerService(accounts=self.accounts, ledger=self.ledger, ids=self.ids)
+        self.pricing = SubscriptionPricing(
+            prices=self.subscription_prices,
+            default_amount=TOPUP,
+            default_price_id=DEFAULT_TOPUP_PRICE_ID,
+        )
         self.create_lead = CreateLead(
             leads=self.leads,
             categories=self.categories,
@@ -132,6 +169,8 @@ class World:
             purchases=self.purchases,
             professionals=self.professionals,
             categories=self.categories,
+            accounts=self.accounts,
+            credit=self.credit,
             payments=self.payments,
             clock=self.clock,
             ids=self.ids,
@@ -146,12 +185,20 @@ class World:
             payments=self.payments,
             clock=self.clock,
             uow=self.uow,
+            credit=self.credit,
+            subscriptions=ApplySubscriptionEvent(
+                accounts=self.accounts, credit=self.credit, clock=self.clock
+            ),
         )
         self.my_purchases = ListMyPurchases(
             purchases=self.purchases, leads=self.leads, categories=self.categories
         )
         self.release_reservations = ReleaseExpiredReservations(
-            purchases=self.purchases, payments=self.payments, clock=self.clock, uow=self.uow
+            purchases=self.purchases,
+            payments=self.payments,
+            clock=self.clock,
+            uow=self.uow,
+            credit=self.credit,
         )
         self.sync_user = SyncUserFromIdentity(
             users=self.users, clock=self.clock, ids=self.ids, uow=self.uow
@@ -179,13 +226,21 @@ class World:
         self.list_admin_leads = ListAdminLeads(leads=self.leads, categories=self.categories)
         self.change_lead_availability = ChangeLeadAvailability(leads=self.leads, uow=self.uow)
         self.admin_metrics = GetAdminMetrics(
-            leads=self.leads, purchases=self.purchases, professionals=self.professionals
+            leads=self.leads,
+            purchases=self.purchases,
+            professionals=self.professionals,
+            accounts=self.accounts,
+            ledger=self.ledger,
+            clock=self.clock,
         )
         self.list_lead_purchases = ListLeadPurchasesForAdmin(
             purchases=self.purchases, professionals=self.professionals, reviews=self.reviews
         )
         self.list_admin_professionals = ListAdminProfessionals(
-            professionals=self.professionals, categories=self.categories
+            professionals=self.professionals,
+            categories=self.categories,
+            accounts=self.accounts,
+            clock=self.clock,
         )
         self.mark_purchase_for_review = MarkPurchaseForReview(
             purchases=self.purchases,
@@ -193,6 +248,39 @@ class World:
             clock=self.clock,
             ids=self.ids,
             uow=self.uow,
+        )
+        self.start_subscription = StartSubscription(
+            accounts=self.accounts,
+            pricing=self.pricing,
+            payments=self.payments,
+            clock=self.clock,
+            uow=self.uow,
+            web_base_url=WEB_URL,
+            currency="EUR",
+        )
+        self.billing_portal = OpenBillingPortal(
+            accounts=self.accounts, payments=self.payments, web_base_url=WEB_URL
+        )
+        self.get_account = GetProfessionalAccount(
+            accounts=self.accounts, ledger=self.ledger, pricing=self.pricing, clock=self.clock
+        )
+        self.set_subscription_price = SetSubscriptionPrice(
+            prices=self.subscription_prices,
+            pricing=self.pricing,
+            payments=self.payments,
+            clock=self.clock,
+            ids=self.ids,
+            uow=self.uow,
+            currency="EUR",
+        )
+        self.adjust_credit = AdjustProfessionalCredit(
+            professionals=self.professionals,
+            accounts=self.accounts,
+            credit=self.credit,
+            clock=self.clock,
+            ids=self.ids,
+            uow=self.uow,
+            currency="EUR",
         )
 
     # ------------------------- atajos de escenario -----------------------
@@ -202,10 +290,24 @@ class World:
         self.categories.items[category.id] = category
         return category
 
-    def add_professional(self, **kwargs: object) -> Professional:
+    def add_professional(
+        self, *, subscribed: bool = True, balance_cents: int = 0, **kwargs: object
+    ) -> Professional:
+        """Profesional listo para operar.
+
+        Por defecto esta al dia con la recarga y sin saldo, de modo que sus compras
+        pasan por el checkout. `subscribed=False` lo deja sin cuenta de recarga.
+        """
         professional = make_professional(**kwargs)
         self.professionals.items[professional.id] = professional
+        if subscribed:
+            self.add_account(professional, balance_cents=balance_cents)
         return professional
+
+    def add_account(self, professional: Professional, **kwargs: object) -> ProfessionalAccount:
+        account = make_account(professional_id=professional.id, **kwargs)
+        self.accounts.items[professional.id] = account
+        return account
 
     def add_user(self, **kwargs: object) -> User:
         user = make_user(**kwargs)
@@ -228,6 +330,9 @@ def world() -> World:
         categories=InMemoryCategoryRepository(),
         postal_codes=InMemoryPostalCodeRepository(POSTAL_CODES),
         processed_events=InMemoryProcessedEventRepository(),
+        accounts=InMemoryProfessionalAccountRepository(uow=uow),
+        ledger=InMemoryCreditLedgerRepository(),
+        subscription_prices=InMemorySubscriptionPriceRepository(),
         payments=FakePaymentGateway(),
         storage=FakeStorage(),
         tokens=FakeTokenVerifier(),

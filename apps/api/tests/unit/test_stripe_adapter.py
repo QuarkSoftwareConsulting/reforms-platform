@@ -15,12 +15,14 @@ import hashlib
 import hmac
 import json
 import time
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
 
 from app.application.ports import PaymentEventType
 from app.domain.exceptions import AuthenticationError
+from app.domain.models import SubscriptionStatus
 from app.infrastructure.adapters.payments.stripe_adapter import StripePaymentGateway
 
 WEBHOOK_SECRET = "whsec_test_secret"
@@ -162,6 +164,144 @@ class TestWebhookParsing:
         assert event.payment_intent_id == "pi_expanded"
 
 
+def signed_event(event_type: str, obj: dict[str, object], *, created: int = 1_780_000_000) -> str:
+    return json.dumps(
+        {
+            "id": f"evt_{event_type}",
+            "object": "event",
+            "type": event_type,
+            "created": created,
+            "data": {"object": obj},
+        },
+        separators=(",", ":"),
+    )
+
+
+def invoice(**overrides: object) -> dict[str, object]:
+    """Factura de la recarga tal como la envian las versiones recientes de la API."""
+    obj: dict[str, object] = {
+        "id": "in_test_1",
+        "object": "invoice",
+        "customer": "cus_test_1",
+        "amount_paid": 1800,
+        "currency": "eur",
+        "period_end": 1_700_000_000,  # periodo ANTERIOR: no debe usarse
+        "parent": {
+            "type": "subscription_details",
+            "subscription_details": {"subscription": "sub_test_1"},
+        },
+        "lines": {"data": [{"period": {"start": 1_780_000_000, "end": 1_782_592_000}}]},
+    }
+    obj.update(overrides)
+    return obj
+
+
+class TestSubscriptionEvents:
+    def test_invoice_paid_carries_what_the_topup_needs(self, gateway: StripePaymentGateway) -> None:
+        payload = signed_event("invoice.paid", invoice())
+        event = gateway.parse_webhook_event(payload.encode(), sign(payload))
+
+        assert event.type is PaymentEventType.INVOICE_PAID
+        assert event.customer_id == "cus_test_1"
+        assert event.subscription_id == "sub_test_1"
+        assert event.invoice_id == "in_test_1"
+        assert event.amount_cents == 1800
+        assert event.currency == "EUR"
+        assert event.period_end == datetime.fromtimestamp(1_782_592_000, tz=UTC)
+        assert event.occurred_at == datetime.fromtimestamp(1_780_000_000, tz=UTC)
+        assert event.purchase_id is None
+
+    def test_legacy_invoice_subscription_field_is_also_read(
+        self, gateway: StripePaymentGateway
+    ) -> None:
+        payload = signed_event("invoice.paid", invoice(parent=None, subscription="sub_legacy"))
+        event = gateway.parse_webhook_event(payload.encode(), sign(payload))
+        assert event.subscription_id == "sub_legacy"
+
+    def test_invoice_not_from_a_subscription_is_ignored(
+        self, gateway: StripePaymentGateway
+    ) -> None:
+        payload = signed_event("invoice.paid", invoice(parent=None))
+        event = gateway.parse_webhook_event(payload.encode(), sign(payload))
+        assert event.type is PaymentEventType.IGNORED
+
+    def test_invoice_payment_failed(self, gateway: StripePaymentGateway) -> None:
+        payload = signed_event("invoice.payment_failed", invoice(amount_paid=0))
+        event = gateway.parse_webhook_event(payload.encode(), sign(payload))
+        assert event.type is PaymentEventType.INVOICE_PAYMENT_FAILED
+        assert event.customer_id == "cus_test_1"
+
+    @pytest.mark.parametrize(
+        ("raw_status", "expected"),
+        [
+            ("incomplete", SubscriptionStatus.PENDING),
+            ("active", SubscriptionStatus.ACTIVE),
+            ("past_due", SubscriptionStatus.PAST_DUE),
+            ("unpaid", SubscriptionStatus.PAST_DUE),
+            ("canceled", SubscriptionStatus.CANCELED),
+            ("incomplete_expired", SubscriptionStatus.CANCELED),
+        ],
+    )
+    def test_subscription_status_is_translated(
+        self, gateway: StripePaymentGateway, raw_status: str, expected: SubscriptionStatus
+    ) -> None:
+        obj = {
+            "id": "sub_test_1",
+            "object": "subscription",
+            "customer": "cus_test_1",
+            "status": raw_status,
+            "items": {"data": [{"current_period_end": 1_782_592_000}]},
+        }
+        payload = signed_event("customer.subscription.updated", obj)
+        event = gateway.parse_webhook_event(payload.encode(), sign(payload))
+
+        assert event.type is PaymentEventType.SUBSCRIPTION_UPDATED
+        assert event.subscription_status is expected
+        assert event.subscription_id == "sub_test_1"
+        # Las versiones recientes llevan el fin de periodo en cada item.
+        assert event.period_end == datetime.fromtimestamp(1_782_592_000, tz=UTC)
+
+    def test_deleted_subscription_is_canceled(self, gateway: StripePaymentGateway) -> None:
+        obj = {"id": "sub_1", "object": "subscription", "customer": "cus_1", "status": "active"}
+        payload = signed_event("customer.subscription.deleted", obj)
+        event = gateway.parse_webhook_event(payload.encode(), sign(payload))
+        assert event.subscription_status is SubscriptionStatus.CANCELED
+
+    def test_subscription_checkout_is_not_confused_with_a_purchase(
+        self, gateway: StripePaymentGateway
+    ) -> None:
+        obj = {
+            "id": "cs_sub_1",
+            "object": "checkout.session",
+            "mode": "subscription",
+            "customer": "cus_test_1",
+            "subscription": "sub_test_1",
+            "metadata": {"professional_id": str(uuid4())},
+        }
+        payload = signed_event("checkout.session.completed", obj)
+        event = gateway.parse_webhook_event(payload.encode(), sign(payload))
+
+        assert event.type is PaymentEventType.SUBSCRIPTION_CHECKOUT_COMPLETED
+        assert event.customer_id == "cus_test_1"
+        assert event.subscription_id == "sub_test_1"
+
+    def test_expired_subscription_checkout_is_ignored(self, gateway: StripePaymentGateway) -> None:
+        obj = {"id": "cs_sub_1", "object": "checkout.session", "mode": "subscription"}
+        payload = signed_event("checkout.session.expired", obj)
+        event = gateway.parse_webhook_event(payload.encode(), sign(payload))
+        assert event.type is PaymentEventType.IGNORED
+
+    @pytest.mark.parametrize("raw_type", ["payment_intent.payment_failed", "charge.refunded"])
+    def test_payment_events_without_a_purchase_are_ignored(
+        self, gateway: StripePaymentGateway, raw_type: str
+    ) -> None:
+        """El adeudo fallido de una recarga no es el fallo de una compra inexistente."""
+        obj = {"id": "pi_1", "object": "payment_intent", "metadata": {}}
+        payload = signed_event(raw_type, obj)
+        event = gateway.parse_webhook_event(payload.encode(), sign(payload))
+        assert event.type is PaymentEventType.IGNORED
+
+
 class TestWebhookSecurity:
     def test_forged_signature_is_rejected(self, gateway: StripePaymentGateway) -> None:
         payload = checkout_completed_payload(str(uuid4()))
@@ -233,3 +373,15 @@ class TestConfigurationGuards:
             await gateway.create_checkout_session(request)
         assert exc.value.code == "PAYMENT_GATEWAY_ERROR"
         assert exc.value.status == 503
+
+    async def test_creating_a_monthly_price_without_a_secret_key_is_a_gateway_error(
+        self,
+    ) -> None:
+        from app.domain.exceptions import PaymentGatewayError
+        from app.domain.value_objects import Money
+
+        gateway = StripePaymentGateway(secret_key="", webhook_secret=WEBHOOK_SECRET)
+        with pytest.raises(PaymentGatewayError):
+            await gateway.create_recurring_price(
+                amount=Money(2000, "EUR"), product_name="Mensualidad"
+            )

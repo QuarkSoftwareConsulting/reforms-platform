@@ -1,16 +1,21 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from uuid import UUID
 
 from app.application.ports import (
     CheckoutRequest,
     CheckoutSession,
+    CustomerRequest,
     PaymentEvent,
     PaymentEventType,
     PaymentPort,
+    SubscriptionCheckoutRequest,
 )
 from app.domain.exceptions import AuthenticationError
+from app.domain.models import SubscriptionStatus
+from app.domain.value_objects import Money
 
 VALID_SIGNATURE = "valid-signature"
 
@@ -26,6 +31,10 @@ class FakePaymentGateway(PaymentPort):
         self.requests: list[CheckoutRequest] = []
         self.sessions: dict[str, CheckoutRequest] = {}
         self.expired_sessions: list[str] = []
+        self.customers: dict[str, CustomerRequest] = {}
+        self.subscription_checkouts: list[SubscriptionCheckoutRequest] = []
+        self.portal_sessions: list[str] = []
+        self.created_prices: dict[str, Money] = {}
         self.fail_on_create = fail_on_create
         self._counter = 0
 
@@ -52,10 +61,57 @@ class FakePaymentGateway(PaymentPort):
             amount_cents=data.get("amount_cents"),
             currency=data.get("currency"),
             payload=data,
+            customer_id=data.get("customer_id"),
+            subscription_id=data.get("subscription_id"),
+            invoice_id=data.get("invoice_id"),
+            subscription_status=(
+                SubscriptionStatus(data["subscription_status"])
+                if data.get("subscription_status")
+                else None
+            ),
+            period_end=(
+                datetime.fromisoformat(data["period_end"]) if data.get("period_end") else None
+            ),
+            occurred_at=(
+                datetime.fromisoformat(data["occurred_at"]) if data.get("occurred_at") else None
+            ),
         )
 
     async def expire_checkout_session(self, session_id: str) -> None:
         self.expired_sessions.append(session_id)
+
+    async def create_customer(self, request: CustomerRequest) -> str:
+        if self.fail_on_create:
+            raise RuntimeError("La pasarela no responde")
+        customer_id = f"cus_test_{len(self.customers) + 1:04d}"
+        self.customers[customer_id] = request
+        return customer_id
+
+    async def create_subscription_checkout(
+        self, request: SubscriptionCheckoutRequest
+    ) -> CheckoutSession:
+        self._counter += 1
+        session_id = f"cs_sub_{self._counter:04d}"
+        self.subscription_checkouts.append(request)
+        # El cliente va en la URL para que los tests HTTP puedan construir el
+        # `invoice.paid` que enviaria Stripe sin tener que acceder al fake.
+        return CheckoutSession(
+            id=session_id,
+            url=f"https://checkout.test/{session_id}?customer={request.customer_id}",
+        )
+
+    async def create_recurring_price(self, *, amount: Money, product_name: str) -> str:
+        if self.fail_on_create:
+            raise RuntimeError("La pasarela no responde")
+        price_id = f"price_test_{len(self.created_prices) + 1:04d}"
+        self.created_prices[price_id] = amount
+        return price_id
+
+    async def create_billing_portal_session(
+        self, *, customer_id: str, return_url: str, locale: str = "es"
+    ) -> str:
+        self.portal_sessions.append(customer_id)
+        return f"https://billing.test/{customer_id}"
 
     # ------------------------- helpers para los tests --------------------
 
@@ -77,5 +133,35 @@ class FakePaymentGateway(PaymentPort):
                 "purchase_id": str(purchase_id) if purchase_id else None,
                 "checkout_session_id": checkout_session_id,
                 "payment_intent_id": payment_intent_id,
+            }
+        ).encode()
+
+    @staticmethod
+    def subscription_event_payload(
+        *,
+        event_id: str,
+        event_type: PaymentEventType,
+        customer_id: str,
+        subscription_id: str | None = "sub_test_0001",
+        invoice_id: str | None = None,
+        amount_cents: int | None = None,
+        currency: str | None = "EUR",
+        subscription_status: SubscriptionStatus | None = None,
+        period_end: datetime | None = None,
+        occurred_at: datetime | None = None,
+    ) -> bytes:
+        return json.dumps(
+            {
+                "id": event_id,
+                "type": event_type.value,
+                "raw_type": f"stripe.{event_type.value}",
+                "customer_id": customer_id,
+                "subscription_id": subscription_id,
+                "invoice_id": invoice_id,
+                "amount_cents": amount_cents,
+                "currency": currency,
+                "subscription_status": subscription_status.value if subscription_status else None,
+                "period_end": period_end.isoformat() if period_end else None,
+                "occurred_at": occurred_at.isoformat() if occurred_at else None,
             }
         ).encode()

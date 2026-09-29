@@ -22,14 +22,15 @@
     "admin": "Admin",
     "howWeValidate": "How we validate",
     "pricing": "Pricing",
-    "menu": "Open menu"
+    "menu": "Open menu",
+    "subscription": "My monthly fee"
   },
   "footer": {
     "tagline": "Your ideas. The best professionals."
   },
   "home": {
     "title": "Phone-verified renovation contacts across Spain",
-    "subtitle": "We check every client before publishing their request. You see the job, the area and the contact price before paying. No monthly fee, no lock-in.",
+    "subtitle": "We check every client before publishing their request. You see the job, the area and the contact price before paying. Your monthly fee becomes balance to buy contacts.",
     "heroEyebrow": "Verified contacts · Spain",
     "heroTitle": "The job is already <mark>checked</mark>. All that's left is your call.",
     "heroSubtitle": "We check every request before publishing it. You see the job, the area and the contact price, and you decide whether to buy it.",
@@ -74,9 +75,9 @@
         "title": "The contact price is visible before you pay",
         "body": "Every card carries its amount in plain sight. No bundles, no credit packs, no prices that change at checkout."
       },
-      "noFee": {
-        "title": "No monthly fee, no lock-in",
-        "body": "You only pay for the contacts you choose to buy. Signing up and browsing the listing costs nothing."
+      "topup": {
+        "title": "Your monthly fee becomes balance",
+        "body": "Every month {amount} is charged and added to your balance to buy the contacts you choose. Browsing the listing costs nothing."
       },
       "privacy": {
         "title": "Only the buyer sees the client's phone",
@@ -87,7 +88,7 @@
       "eyebrow": "Transparent pricing",
       "headline": "From {price} per contact",
       "headlineFallback": "You pay per contact. Nothing else.",
-      "body": "No fee, no lock-in and the price visible on every card. Each purchase keeps the amount you paid, even if the trade's price changes later.",
+      "body": "With your monthly fee up to date, each contact is paid from your balance and the price is visible on every card. Each purchase keeps the amount you paid.",
       "cta": "Create a free account"
     },
     "clientBanner": {
@@ -187,7 +188,12 @@
     "callClient": "Call now",
     "reservationPending": "You have a reservation in progress. Complete the payment within {minutes} minutes or the slot will be released.",
     "resumePayment": "Complete the payment",
-    "backToProjects": "Back to requests"
+    "backToProjects": "Back to requests",
+    "needsSubscription": "You need an up-to-date monthly fee to buy this contact.",
+    "activateToBuy": "Activate monthly fee to buy",
+    "creditWillCover": "It will be paid from your balance ({balance}). You won't go through the payment gateway.",
+    "creditWillApply": "{credit} of your balance will be used and you'll pay {due} at checkout.",
+    "paymentCancelled": "You cancelled the payment. If your reservation is still valid, you can complete it before it expires."
   },
   "purchases": {
     "title": "My contacts",
@@ -204,6 +210,44 @@
     },
     "paymentSuccess": "Payment confirmed. You can contact the client now.",
     "paymentPending": "We're confirming your payment. It will unlock in a few seconds."
+  },
+  "subscription": {
+    "title": "Monthly fee",
+    "subtitle": "Every month {amount} is charged and added to your balance to buy contacts. Without an up-to-date top-up you can browse requests, but not buy them.",
+    "statusLabel": "Account status",
+    "status": {
+      "none": "No monthly fee",
+      "pending": "Payment being confirmed",
+      "active": "Active",
+      "past_due": "Payment overdue",
+      "canceled": "Canceled"
+    },
+    "balanceLabel": "Available balance",
+    "topupLabel": "Monthly fee",
+    "renewsOn": "Next renewal: {date}",
+    "activate": "Activate {amount}/month fee",
+    "reactivate": "Reactivate the monthly fee",
+    "manage": "Manage payment or cancel",
+    "redirecting": "Redirecting...",
+    "sepaNotice": "You can pay by card or bank direct debit (SEPA). With direct debit, the first charge takes 2 to 5 days to be confirmed and you can't buy until then.",
+    "pendingNotice": "We're waiting for the payment to be confirmed. As soon as it arrives you'll be able to buy contacts and the amount will be added to your balance.",
+    "pastDueNotice": "We couldn't charge this month's top-up. Update your payment method to buy contacts again. Your balance is kept.",
+    "canceledNotice": "Your top-up is canceled. You can still browse requests and your balance is kept; to buy, reactivate it.",
+    "checkoutSuccess": "We've received your payment details. Your account will be activated once the charge is confirmed.",
+    "checkoutCancelled": "You cancelled the payment. Your monthly fee hasn't been activated.",
+    "historyTitle": "Balance history",
+    "historyEmpty": "No movements yet.",
+    "entry": {
+      "topup": "Monthly fee",
+      "spend": "Contact purchase",
+      "spend_reversal": "Refund of unpaid reservation",
+      "adjustment_credit": "Admin credit",
+      "adjustment_debit": "Admin charge"
+    },
+    "bannerActive": "Active account · Balance: {balance}",
+    "bannerInactive": "Inactive account: you can browse requests, but to buy contacts you need an up-to-date monthly top-up.",
+    "bannerCta": "Activate monthly fee",
+    "bannerManage": "View my monthly fee"
   },
   "profile": {
     "title": "My professional profile",
@@ -319,6 +363,20 @@
       "subtitle": "Consult registered professional profiles.",
       "search": "Search business or area",
       "location": "{city} · {distance} km"
+    },
+    "account": "Monthly fee",
+    "balance": "Balance",
+    "activeAccounts": "Active accounts",
+    "noAccount": "No monthly fee",
+    "subscriptionPrice": {
+      "title": "Monthly fee",
+      "body": "Monthly amount each professional pays to be able to buy contacts; it's added as balance. A change only affects new subscriptions: existing subscribers keep their amount.",
+      "current": "Current: {amount}",
+      "default": "(initial configured value)",
+      "notConfigured": "No price configured in Stripe: nobody can subscribe.",
+      "label": "New amount (€)",
+      "save": "Save monthly fee",
+      "saved": "Monthly fee updated to {amount} for new subscriptions."
     }
   },
   "errors": {
@@ -346,7 +404,11 @@
     "auth/email-already-in-use": "An account with that email already exists.",
     "auth/weak-password": "The password must be at least 6 characters.",
     "auth/invalid-email": "That email isn't valid.",
-    "auth/too-many-requests": "Too many attempts. Try again in a few minutes."
+    "auth/too-many-requests": "Too many attempts. Try again in a few minutes.",
+    "SUBSCRIPTION_REQUIRED": "Activate your monthly top-up to buy contacts.",
+    "SUBSCRIPTION_ALREADY_EXISTS": "You already have a monthly fee in progress. Manage it from your account.",
+    "INSUFFICIENT_CREDIT": "You don't have enough balance for this operation.",
+    "ACCOUNT_NOT_FOUND": "We couldn't find your monthly fee account."
   },
   "validation": {
     "categoryRequired": "Pick a trade.",

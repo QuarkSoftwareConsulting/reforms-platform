@@ -17,8 +17,10 @@ from app.application.ports import (
     AdminLeadFilters,
     CategoryRepositoryPort,
     ClockPort,
+    CreditLedgerRepositoryPort,
     IdGeneratorPort,
     LeadRepositoryPort,
+    ProfessionalAccountRepositoryPort,
     ProfessionalRepositoryPort,
     PurchaseRepositoryPort,
     PurchaseReviewRepositoryPort,
@@ -95,6 +97,9 @@ class GetAdminMetrics:
     leads: LeadRepositoryPort
     purchases: PurchaseRepositoryPort
     professionals: ProfessionalRepositoryPort
+    accounts: ProfessionalAccountRepositoryPort
+    ledger: CreditLedgerRepositoryPort
+    clock: ClockPort
 
     async def execute(self) -> AdminMetrics:
         lead_counts = await self.leads.dashboard_counts()
@@ -110,6 +115,8 @@ class GetAdminMetrics:
             paid_purchases=purchase_metrics.count,
             paid_leads=purchase_metrics.lead_count,
             revenue_by_currency=purchase_metrics.revenue_by_currency,
+            active_accounts=await self.accounts.count_active(now=self.clock.now()),
+            topup_revenue_by_currency=await self.ledger.topup_totals(),
         )
 
 
@@ -143,6 +150,8 @@ class ListAdminProfessionals:
 
     professionals: ProfessionalRepositoryPort
     categories: CategoryRepositoryPort
+    accounts: ProfessionalAccountRepositoryPort
+    clock: ClockPort
 
     async def execute(
         self, *, query: str | None, limit: int, offset: int
@@ -158,6 +167,8 @@ class ListAdminProfessionals:
                 {category_id for professional in rows for category_id in professional.category_ids}
             )
         }
+        accounts = await self.accounts.get_many({professional.id for professional in rows})
+        now = self.clock.now()
         return AdminProfessionalListResult(
             items=[
                 AdminProfessionalItem(
@@ -167,6 +178,10 @@ class ListAdminProfessionals:
                         for category_id in professional.category_ids
                         if category_id in categories
                     ],
+                    account=accounts.get(professional.id),
+                    account_active=(
+                        professional.id in accounts and accounts[professional.id].is_active(now)
+                    ),
                 )
                 for professional in rows
             ],

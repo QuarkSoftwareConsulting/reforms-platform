@@ -174,6 +174,22 @@ Sin clave configurada, `POST /leads/{id}/purchase` responde `503 PAYMENT_GATEWAY
 **libera la plaza reservada** en el acto, para que un fallo de infraestructura no consuma
 una de las 3 plazas del lead.
 
+**Mensualidad.** Ver y comprar solicitudes exige la mensualidad al día. El admin fija su
+importe desde el panel, y eso crea el precio en Stripe. Para arrancar sin intervención del
+admin, crea en Stripe un precio recurrente mensual (EUR, IVA incluido) y ponlo en
+`STRIPE_TOPUP_PRICE_ID` junto a su importe en `SUBSCRIPTION_TOPUP_CENTS`. El webhook debe escuchar,
+además de los eventos de checkout, `invoice.paid`, `invoice.payment_failed` y
+`customer.subscription.created|updated|deleted`. Activa el Customer Portal en el panel de
+Stripe para `POST /me/subscription/portal`. En local:
+
+```bash
+stripe listen --forward-to localhost:8010/api/v1/webhooks/stripe \
+  --events checkout.session.completed,checkout.session.expired,invoice.paid,invoice.payment_failed,customer.subscription.created,customer.subscription.updated,customer.subscription.deleted,payment_intent.payment_failed,charge.refunded
+```
+
+`invoice.paid` activa la cuenta y abona el importe como saldo; el saldo se gasta en
+contactos y, si no alcanza, el resto se cobra con Checkout.
+
 ---
 
 ## Comandos

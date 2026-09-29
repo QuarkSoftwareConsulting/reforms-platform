@@ -1,16 +1,19 @@
 """Puerto de la pasarela de pago.
 
-Modela solo lo que el negocio necesita: crear una sesion de checkout y entender el
-resultado de un evento entrante. Nada de tipos de Stripe cruza esta frontera.
+Modela solo lo que el negocio necesita: cobrar un contacto, cobrar la recarga
+mensual y entender el resultado de un evento entrante. Nada de tipos de Stripe
+cruza esta frontera.
 """
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
+from app.domain.models import SubscriptionStatus
 from app.domain.value_objects import Money
 
 
@@ -38,12 +41,48 @@ class CheckoutRequest:
     expires_in_minutes: int = 30
 
 
+@dataclass(frozen=True, slots=True)
+class CustomerRequest:
+    """Alta del profesional como cliente de la pasarela (necesario para suscribirse)."""
+
+    professional_id: UUID
+    email: str
+    name: str
+
+
+@dataclass(frozen=True, slots=True)
+class SubscriptionCheckoutRequest:
+    """Checkout de la mensualidad. El importe lo fija `price_id` en la pasarela."""
+
+    professional_id: UUID
+    customer_id: str
+    price_id: str
+    success_url: str
+    cancel_url: str
+    locale: str = "es"
+
+
 class PaymentEventType(StrEnum):
+    # Compra de un contacto
     CHECKOUT_COMPLETED = "checkout_completed"
     CHECKOUT_EXPIRED = "checkout_expired"
     PAYMENT_FAILED = "payment_failed"
     REFUNDED = "refunded"
+    # Recarga mensual
+    SUBSCRIPTION_CHECKOUT_COMPLETED = "subscription_checkout_completed"
+    INVOICE_PAID = "invoice_paid"
+    INVOICE_PAYMENT_FAILED = "invoice_payment_failed"
+    SUBSCRIPTION_UPDATED = "subscription_updated"
     IGNORED = "ignored"
+
+    @property
+    def concerns_subscription(self) -> bool:
+        return self in {
+            PaymentEventType.SUBSCRIPTION_CHECKOUT_COMPLETED,
+            PaymentEventType.INVOICE_PAID,
+            PaymentEventType.INVOICE_PAYMENT_FAILED,
+            PaymentEventType.SUBSCRIPTION_UPDATED,
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,6 +98,14 @@ class PaymentEvent:
     amount_cents: int | None
     currency: str | None
     payload: dict[str, object]
+    # Solo en eventos de la recarga mensual.
+    customer_id: str | None = None
+    subscription_id: str | None = None
+    invoice_id: str | None = None
+    subscription_status: SubscriptionStatus | None = None
+    period_end: datetime | None = None
+    occurred_at: datetime | None = None
+    """Cuando ocurrio en la pasarela (no cuando llego): ordena eventos desordenados."""
 
 
 class PaymentPort(ABC):
@@ -75,3 +122,27 @@ class PaymentPort(ABC):
     @abstractmethod
     async def expire_checkout_session(self, session_id: str) -> None:
         """Cierra en la pasarela una sesion cuya reserva hemos liberado."""
+
+    @abstractmethod
+    async def create_customer(self, request: CustomerRequest) -> str:
+        """Da de alta al profesional en la pasarela y devuelve su identificador."""
+
+    @abstractmethod
+    async def create_subscription_checkout(
+        self, request: SubscriptionCheckoutRequest
+    ) -> CheckoutSession:
+        """Checkout para suscribirse a la recarga mensual (tarjeta o domiciliacion)."""
+
+    @abstractmethod
+    async def create_recurring_price(self, *, amount: Money, product_name: str) -> str:
+        """Crea un precio mensual en la pasarela y devuelve su identificador.
+
+        Los precios de la pasarela no se editan: cambiar la mensualidad es crear
+        uno nuevo, y las suscripciones existentes siguen con el suyo.
+        """
+
+    @abstractmethod
+    async def create_billing_portal_session(
+        self, *, customer_id: str, return_url: str, locale: str = "es"
+    ) -> str:
+        """URL del portal donde el profesional cambia su medio de pago o cancela."""
