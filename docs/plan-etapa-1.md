@@ -28,7 +28,7 @@ cualquier persona o sesión de agente retome el trabajo sin reconstruir la conve
   | Cambio | Rama | PR |
   |---|---|---|
   | Revisión de la Etapa 1 (5 puntos: vista previa, rechazo, concurrencia) | `fix/revision-etapa-1` | #21 |
-  | Devolución de recargas por el banco (SEPA / disputa) | `feat/devolucion-sepa` | sobre #21 |
+  | Devolución de recargas por el banco (SEPA / disputa) | `feat/devolucion-sepa` | #22 (sobre #21) |
 
 ---
 
