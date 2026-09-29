@@ -62,8 +62,8 @@ npx -y firebase-tools emulators:start --only auth \
 | Objetivo | Comando |
 |---|---|
 | Todo el lint (ruff + mypy strict + eslint + tsc) | `pnpm lint` |
-| Todos los tests (553 back + 113 front) | `pnpm test` |
-| Backend rápido, **sin Docker** (460 tests) | `cd apps/api && uv run pytest -m "not integration"` |
+| Todos los tests (561 back + 113 front) | `pnpm test` |
+| Backend rápido, **sin Docker** (468 tests) | `cd apps/api && uv run pytest -m "not integration"` |
 | Backend completo (requiere `pnpm infra:up`) | `pnpm api:test` |
 | Un solo test de backend | `cd apps/api && uv run pytest tests/unit/domain/test_lead.py -k capping` |
 | Frontend en watch | `pnpm --filter web test:watch` |
@@ -131,6 +131,10 @@ prefijo del CP.
 los datos reales es `Lead.contact_view(unlocked=True)`, y solo con compra `paid`.
 → Mostrar un dato nuevo antes de pagar exige cambiar la política de privacidad, subir
 `PRIVACY_POLICY_VERSION` y condicionarlo al consentimiento.
+→ `allows_public_preview` sale de la versión aceptada (`policy_covers_public_preview`), no
+de que el lead sea nuevo: una pestaña antigua o un lead del admin con la política anterior
+no la cubren. Al subir la versión, decláralo en `PUBLIC_PREVIEW_POLICY_VERSIONS`;
+`Settings` no arranca si la vigente falta.
 → Nunca registres PII en logs.
 
 **4.5 · Sin consentimiento no hay lead orgánico.**
@@ -207,7 +211,9 @@ ni compra. Cada transición deja un `VerificationEvent` (append-only, con el adm
 hizo). Enviado el alta, tipo, razón social, NIF y documentos quedan fijos.
 → `RejectProfessional` llama a la pasarela **antes** de guardar, con operaciones
 idempotentes (clave de idempotencia en el reembolso; cancelar dos veces no falla): si la
-pasarela falla no se guarda nada y el admin reintenta. El saldo del primer cobro se retira
+pasarela falla no se guarda nada y el admin reintenta. Lo que impida rechazar (estado,
+motivo) se comprueba antes, con `assert_can_reject`. Pasadas 24 h Stripe olvida la clave
+de idempotencia: un cargo ya reembolsado cuenta como hecho. El saldo del primer cobro se retira
 con `VERIFICATION_REFUND` sobre la misma factura.
 → Los documentos de alta (DNI, modelos de Hacienda) van al **bucket privado**
 (`S3_PRIVATE_BUCKET` / `GCS_PRIVATE_BUCKET`, nunca el público) y solo salen con URLs

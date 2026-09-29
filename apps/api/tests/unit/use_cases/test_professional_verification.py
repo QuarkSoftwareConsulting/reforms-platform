@@ -318,6 +318,22 @@ class TestRejection:
         assert len(world.payments.refunds) == 1
         assert world.accounts.items[professional.id].balance == Money(1800, "EUR")
 
+    async def test_a_blank_reason_is_refused_before_touching_the_gateway(
+        self, world: World, carpentry: Category
+    ) -> None:
+        # Tres espacios pasan el min_length del API; el dominio los recorta. Si eso
+        # saltara despues de la pasarela, el cobro se devolveria a un alta en revision.
+        professional = await self.rejected_after_paying(world, carpentry)
+
+        with pytest.raises(ValidationError):
+            await world.reject_professional.execute(
+                professional_id=professional.id, admin_user_id=ADMIN, reason="   "
+            )
+        assert world.payments.refunds == {}
+        assert world.payments.canceled_subscriptions == set()
+        stored = world.professionals.items[professional.id]
+        assert stored.verification_status is VerificationStatus.PENDING
+
     async def test_never_withdraws_more_than_the_balance(
         self, world: World, carpentry: Category
     ) -> None:

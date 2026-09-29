@@ -32,8 +32,8 @@ from app.application.ports import (
     UserRepositoryPort,
 )
 from app.application.use_cases.credit_ledger import CreditLedgerService
-from app.domain.exceptions import ProfessionalNotFoundError, VerificationTransitionError
-from app.domain.models import CreditEntryKind, Professional, VerificationStatus
+from app.domain.exceptions import ProfessionalNotFoundError
+from app.domain.models import CreditEntryKind, Professional
 from app.domain.value_objects import Money
 
 
@@ -108,12 +108,9 @@ class RejectProfessional:
         self, *, professional_id: UUID, admin_user_id: UUID, reason: str
     ) -> RejectionResult:
         professional = await _load(self.professionals, professional_id)
-        # Se comprueba antes de tocar la pasarela: rechazar un alta aprobada no
-        # debe reembolsar a nadie.
-        if professional.verification_status is not VerificationStatus.PENDING:
-            raise VerificationTransitionError(
-                f"Solo se rechaza un alta en revision, no una {professional.verification_status}"
-            )
+        # Antes de tocar la pasarela: rechazar un alta aprobada, o con un motivo que
+        # el dominio no acepta, no debe reembolsar ni cancelar nada.
+        professional.assert_can_reject(reason)
 
         account = await self.accounts.get(professional_id)
         first_charge = await self.ledger.first_topup(professional_id)

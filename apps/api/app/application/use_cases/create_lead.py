@@ -33,6 +33,7 @@ from app.domain.models import (
     LeadSource,
     LeadStatus,
     ServiceArea,
+    policy_covers_public_preview,
 )
 from app.domain.value_objects import Email, PhoneNumber, PostalCode
 
@@ -142,8 +143,8 @@ class CreateLead:
             max_recipients=self.max_purchases,
             channel=data.consent.channel,
             campaign_reference=data.consent.campaign_reference,
-            # La politica vigente (2026-09-v2) ya informa de que el nombre de pila y
-            # el CP se muestran antes de la compra; el admin solo registra leads
-            # captados bajo esa misma politica.
-            allows_public_preview=True,
+            # Sale de la version aceptada, no de que el lead sea nuevo: una pestana
+            # con el formulario antiguo, o un lead del admin captado con la politica
+            # anterior, no consintieron mostrar nombre y CP antes de la compra.
+            allows_public_preview=policy_covers_public_preview(data.consent.policy_version),
         )
