@@ -2,7 +2,7 @@
 
 Reserva una plaza ANTES de enviar al profesional a la pasarela. Si el cap se
 validara solo al confirmar el pago, N profesionales podrian pagar a la vez por un
-lead de 3 plazas y habria que reembolsar a los que sobran. Con la reserva:
+lead de 5 plazas y habria que reembolsar a los que sobran. Con la reserva:
 
   1. Bloqueamos la fila del lead (`SELECT ... FOR UPDATE`).
   2. Contamos plazas vivas (pagadas + reservas no caducadas).
@@ -11,11 +11,11 @@ lead de 3 plazas y habria que reembolsar a los que sobran. Con la reserva:
 
 El TTL evita que un checkout abandonado bloquee el lead para siempre.
 
-Solo compra quien esta al dia con la recarga mensual. El saldo de la recarga se
-gasta dentro de la misma transaccion, con la cuenta bloqueada DESPUES del lead
-(siempre en ese orden, para no interbloquear con otra compra). Si el saldo cubre
-el precio entero la compra queda pagada sin pasar por la pasarela: ese dinero ya
-lo confirmo el webhook cuando se cobro la recarga.
+Solo compra quien esta validado por el admin y al dia con la recarga mensual. El
+saldo de la recarga se gasta dentro de la misma transaccion, con la cuenta bloqueada
+DESPUES del lead (siempre en ese orden, para no interbloquear con otra compra). Si el
+saldo cubre el precio entero la compra queda pagada sin pasar por la pasarela: ese
+dinero ya lo confirmo el webhook cuando se cobro la recarga.
 """
 
 from __future__ import annotations
@@ -70,7 +70,9 @@ class StartLeadPurchase:
         professional = await self.professionals.get(professional_id)
         if professional is None:
             raise ProfessionalNotFoundError()
-        professional.assert_ready_to_browse()
+        # Compra solo quien el admin ya valido (F02); antes que la recarga, porque es
+        # lo primero que tiene que resolver un profesional recien registrado.
+        professional.assert_can_purchase()
 
         now = self.clock.now()
         reserved_until = now + timedelta(minutes=self.reservation_ttl_minutes)

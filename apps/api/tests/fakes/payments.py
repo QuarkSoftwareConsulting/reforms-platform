@@ -13,7 +13,7 @@ from app.application.ports import (
     PaymentPort,
     SubscriptionCheckoutRequest,
 )
-from app.domain.exceptions import AuthenticationError
+from app.domain.exceptions import AuthenticationError, PaymentGatewayError
 from app.domain.models import SubscriptionStatus
 from app.domain.value_objects import Money
 
@@ -35,6 +35,10 @@ class FakePaymentGateway(PaymentPort):
         self.subscription_checkouts: list[SubscriptionCheckoutRequest] = []
         self.portal_sessions: list[str] = []
         self.created_prices: dict[str, Money] = {}
+        # Como la pasarela real: una clave de idempotencia repetida no reembolsa otra vez.
+        self.refunds: dict[str, str] = {}
+        self.canceled_subscriptions: set[str] = set()
+        self.fail_on_refund = False
         self.fail_on_create = fail_on_create
         self._counter = 0
 
@@ -112,6 +116,14 @@ class FakePaymentGateway(PaymentPort):
     ) -> str:
         self.portal_sessions.append(customer_id)
         return f"https://billing.test/{customer_id}"
+
+    async def refund_invoice(self, *, invoice_id: str, idempotency_key: str) -> None:
+        if self.fail_on_refund:
+            raise PaymentGatewayError("La pasarela no responde")
+        self.refunds.setdefault(idempotency_key, invoice_id)
+
+    async def cancel_subscription(self, subscription_id: str) -> None:
+        self.canceled_subscriptions.add(subscription_id)
 
     # ------------------------- helpers para los tests --------------------
 

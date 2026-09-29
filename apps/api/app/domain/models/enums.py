@@ -93,6 +93,9 @@ class CreditEntryKind(StrEnum):
     ADJUSTMENT_DEBIT = "adjustment_debit"
     """Cargo manual del admin."""
 
+    VERIFICATION_REFUND = "verification_refund"
+    """Retirada del saldo del primer cobro, reembolsado al rechazar la validacion."""
+
     @property
     def is_credit(self) -> bool:
         return self in {
@@ -126,3 +129,37 @@ class ProjectSchedule(StrEnum):
 
     GATHERING_QUOTES = "gathering_quotes"
     """Solo esta pidiendo precios."""
+
+
+class ProfessionalType(StrEnum):
+    """Como se da de alta el profesional (F02). Decide que documentos aporta."""
+
+    SELF_EMPLOYED = "self_employed"
+    """Autonomo: modelos de alta de la Agencia Tributaria."""
+
+    COMPANY = "company"
+    """Empresa: modelos de alta de la Agencia Tributaria."""
+
+    INDEPENDENT = "independent"
+    """Trabajador independiente: documento de identidad (DNI, TIE o pasaporte)."""
+
+
+class VerificationStatus(StrEnum):
+    INCOMPLETE = "incomplete"
+    """Faltan datos o documentos; aun no se ha enviado a revision."""
+
+    PENDING = "pending"
+    """En revision por el admin. Ve solicitudes, no compra."""
+
+    APPROVED = "approved"
+
+    REJECTED = "rejected"
+    """Rechazado: se reembolsa el primer cobro y se cancela la recarga."""
+
+
+class DocumentKind(StrEnum):
+    TAX_REGISTRATION = "tax_registration"
+    """Modelos de la Agencia Tributaria (036/037, alta censal)."""
+
+    IDENTITY = "identity"
+    """DNI, TIE o pasaporte."""

@@ -385,3 +385,58 @@ class TestConfigurationGuards:
             await gateway.create_recurring_price(
                 amount=Money(2000, "EUR"), product_name="Mensualidad"
             )
+
+
+class TestInvoiceRefundTarget:
+    """El reembolso del primer cobro (rechazo del alta) sale del objeto real del SDK."""
+
+    @staticmethod
+    def invoice(payments: list[dict[str, object]]) -> object:
+        import stripe
+
+        return stripe.Invoice.construct_from(
+            {
+                "id": "in_1",
+                "object": "invoice",
+                "payments": {"object": "list", "data": payments},
+            },
+            "sk_test_x",
+        )
+
+    def test_uses_the_payment_intent_of_the_paid_payment(self) -> None:
+        from app.infrastructure.adapters.payments.stripe_adapter import _paid_invoice_payment
+
+        invoice = self.invoice(
+            [
+                {
+                    "object": "invoice_payment",
+                    "status": "canceled",
+                    "payment": {"type": "payment_intent", "payment_intent": "pi_old"},
+                },
+                {
+                    "object": "invoice_payment",
+                    "status": "paid",
+                    "payment": {"type": "payment_intent", "payment_intent": "pi_paid"},
+                },
+            ]
+        )
+        assert _paid_invoice_payment(invoice) == {"payment_intent": "pi_paid"}
+
+    def test_falls_back_to_the_charge(self) -> None:
+        from app.infrastructure.adapters.payments.stripe_adapter import _paid_invoice_payment
+
+        invoice = self.invoice(
+            [
+                {
+                    "object": "invoice_payment",
+                    "status": "paid",
+                    "payment": {"type": "charge", "charge": "ch_1"},
+                }
+            ]
+        )
+        assert _paid_invoice_payment(invoice) == {"charge": "ch_1"}
+
+    def test_nothing_to_refund_without_a_paid_payment(self) -> None:
+        from app.infrastructure.adapters.payments.stripe_adapter import _paid_invoice_payment
+
+        assert _paid_invoice_payment(self.invoice([])) is None

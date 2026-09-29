@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import Select, case, func, select
+from sqlalchemy import Select, case, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -136,6 +136,19 @@ class SqlAlchemyLeadRepository(LeadRepositoryPort):
             stmt = stmt.where(LeadRow.category_id.in_(filters.category_ids))
         if filters.province:
             stmt = stmt.where(LeadRow.province == filters.province)
+        if filters.restricted_category_ids:
+            chose_services = exists().where(LeadServiceRow.lead_id == LeadRow.id)
+            offers_one = exists().where(
+                LeadServiceRow.lead_id == LeadRow.id,
+                LeadServiceRow.service_id.in_(filters.service_ids),
+            )
+            stmt = stmt.where(
+                or_(
+                    LeadRow.category_id.not_in(filters.restricted_category_ids),
+                    ~chose_services,
+                    offers_one,
+                )
+            )
         if filters.center is not None and filters.radius_km is not None:
             # ST_DWithin sobre geography usa metros y aprovecha el indice GIST.
             stmt = stmt.where(

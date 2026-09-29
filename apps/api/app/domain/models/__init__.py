@@ -11,13 +11,16 @@ from app.domain.models.category import MAX_SERVICES_PER_LEAD, Category, Service
 from app.domain.models.coverage import MADRID, ServiceArea
 from app.domain.models.enums import (
     CreditEntryKind,
+    DocumentKind,
     LeadSource,
     LeadStatus,
+    ProfessionalType,
     ProjectSchedule,
     PropertyType,
     PurchaseStatus,
     SubscriptionStatus,
     UserRole,
+    VerificationStatus,
 )
 from app.domain.models.lead import (
     DEFAULT_MAX_PURCHASES,
@@ -36,7 +39,15 @@ from app.domain.models.pricing import (
     assert_sellable_price,
     vat_breakdown,
 )
-from app.domain.models.professional import Professional, User
+from app.domain.models.professional import (
+    MAX_DOCUMENTS,
+    MAX_WORK_PHOTOS,
+    REQUIRED_DOCUMENT,
+    Professional,
+    ProfessionalDocument,
+    User,
+    VerificationEvent,
+)
 from app.domain.models.purchase import Purchase
 from app.domain.models.purchase_review import PurchaseReview
 
@@ -44,17 +55,21 @@ __all__ = [
     "DEFAULT_MAX_PURCHASES",
     "EXPLORER_STATUSES",
     "MADRID",
+    "MAX_DOCUMENTS",
     "MAX_SALE_PRICE_CENTS",
     "MAX_SERVICES_PER_LEAD",
     "MAX_SUBSCRIPTION_CENTS",
+    "MAX_WORK_PHOTOS",
     "MIN_CHARGE_CENTS",
     "RENEWAL_GRACE",
+    "REQUIRED_DOCUMENT",
     "VAT_RATE_PERCENT",
     "Category",
     "ClientContact",
     "ConsentRecord",
     "CreditEntry",
     "CreditEntryKind",
+    "DocumentKind",
     "Lead",
     "LeadLocation",
     "LeadPhoto",
@@ -63,6 +78,8 @@ __all__ = [
     "LeadStatus",
     "Professional",
     "ProfessionalAccount",
+    "ProfessionalDocument",
+    "ProfessionalType",
     "ProjectSchedule",
     "PropertyType",
     "Purchase",
@@ -75,6 +92,8 @@ __all__ = [
     "User",
     "UserRole",
     "VatBreakdown",
+    "VerificationEvent",
+    "VerificationStatus",
     "assert_sellable_price",
     "assert_valid_subscription_amount",
     "vat_breakdown",

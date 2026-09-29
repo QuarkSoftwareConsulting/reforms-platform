@@ -2,6 +2,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { AdminGate } from "@/components/features/AdminGate";
 import { AdminPanel } from "@/components/features/AdminPanel";
+import { AdminVerificationQueue } from "@/components/features/AdminVerificationQueue";
 import { Container } from "@/components/ui/Container";
 import { isAppLocale, type AppLocale } from "@/i18n/routing";
 
@@ -18,7 +19,10 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
   return (
     <Container className="py-10">
       <AdminGate>
-        <AdminPanel />
+        <div className="space-y-8">
+          <AdminVerificationQueue />
+          <AdminPanel />
+        </div>
       </AdminGate>
     </Container>
   );

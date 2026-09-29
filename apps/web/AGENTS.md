@@ -78,7 +78,7 @@ solo `lib/firebase.ts` y ese hook.
 **Cero cadenas de UI incrustadas en componentes.** Todo texto visible sale de
 `messages/es.json` / `messages/en.json`.
 
-- Los dos archivos deben tener **exactamente las mismas claves** (hoy: 381 cada uno).
+- Los dos archivos deben tener **exactamente las mismas claves** (hoy: 484 cada uno).
   Comprobación rápida:
 
   ```bash
@@ -121,7 +121,7 @@ subida al bucket en un archivo inválido.
 ## Tests
 
 ```bash
-pnpm test              # vitest, 90 tests
+pnpm test              # vitest, 113 tests
 pnpm test:watch
 pnpm lint              # eslint + tsc --noEmit
 ```

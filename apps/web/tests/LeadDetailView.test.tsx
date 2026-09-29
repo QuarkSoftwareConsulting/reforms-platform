@@ -17,9 +17,11 @@ vi.mock("next/image", () => ({
 }));
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams() }));
 vi.mock("@/services/leads.service", () => ({ leadsService: { detail: detailMock } }));
+const verification = { status: "approved" };
 vi.mock("@/hooks/useAuth", () => ({
   useAuth: () => ({
     me: {
+      professional: { verification },
       account: {
         status: "active",
         is_active: true,
@@ -76,7 +78,10 @@ function detail(lead: Partial<LeadPublic> = {}): LeadDetail {
 }
 
 describe("LeadDetailView", () => {
-  beforeEach(() => detailMock.mockReset());
+  beforeEach(() => {
+    detailMock.mockReset();
+    verification.status = "approved";
+  });
 
   it("shows first name, postcode, buyers and the VAT breakdown before paying", async () => {
     detailMock.mockResolvedValue(detail());
@@ -102,5 +107,15 @@ describe("LeadDetailView", () => {
     expect(await screen.findByText(messages.lead.closedTitle)).toBeDefined();
     expect(screen.getByText(messages.projects.closed)).toBeDefined();
     expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("does not offer to buy until the registration is approved", async () => {
+    verification.status = "pending";
+    detailMock.mockResolvedValue(detail());
+    renderWithIntl(<LeadDetailView leadId="lead-1" />);
+
+    expect(await screen.findByText(messages.lead.needsApprovalPending)).toBeDefined();
+    expect(screen.queryByRole("button", { name: /Comprar contacto/ })).toBeNull();
+    expect(screen.getByRole("link", { name: messages.lead.completeRegistration })).toBeDefined();
   });
 });

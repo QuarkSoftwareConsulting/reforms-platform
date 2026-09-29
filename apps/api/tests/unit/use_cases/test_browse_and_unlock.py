@@ -331,3 +331,37 @@ class TestPhotoUpload:
             filename="a.jpg", content_type="image/jpeg; charset=binary"
         )
         assert upload.headers["Content-Type"] == "image/jpeg"
+
+
+class TestServiceFilter:
+    """Con servicios elegidos en un oficio, solo ve los suyos (o los que no indican)."""
+
+    async def test_filters_by_offered_services_within_the_trade(self, world: World) -> None:
+        from app.domain.models import Service
+
+        doors = Service(id=uuid4(), slug="puertas", name_es="Puertas", name_en="Doors")
+        kitchens = Service(id=uuid4(), slug="cocinas", name_es="Cocinas", name_en="Kitchens")
+        carpentry = world.add_category(slug="carpinteria", services=[doors, kitchens])
+        painting = world.add_category(slug="pintura")
+        professional = world.add_professional(
+            category_ids={carpentry.id, painting.id}, service_ids={doors.id}
+        )
+
+        mine = add_lead(world, carpentry, service_ids=[doors.id])
+        unspecified = add_lead(world, carpentry)
+        add_lead(world, carpentry, service_ids=[kitchens.id])
+        # En pintura no eligio servicios: ve todo lo de ese oficio.
+        other_trade = add_lead(world, painting, service_ids=[uuid4()])
+
+        result = await world.list_leads.execute(professional_id=professional.id)
+
+        assert {i.lead.id for i in result.items} == {mine.id, unspecified.id, other_trade.id}
+        assert result.total == 3
+
+    async def test_without_chosen_services_sees_the_whole_trade(
+        self, world: World, carpentry: Category
+    ) -> None:
+        professional = world.add_professional(category_ids={carpentry.id})
+        lead = add_lead(world, carpentry, service_ids=[uuid4()])
+        result = await world.list_leads.execute(professional_id=professional.id)
+        assert [i.lead.id for i in result.items] == [lead.id]

@@ -1,5 +1,6 @@
 /** Cliente HTTP del backoffice. */
 
+import type { VerificationStatus } from "@/helpers/professionalOptions";
 import { request } from "@/services/api";
 import type {
   AdminLeadList,
@@ -9,7 +10,10 @@ import type {
   Category,
   CreatedLead,
   Locale,
+  Professional,
+  Rejection,
   SubscriptionPrice,
+  VerificationDossier,
 } from "@/types/api";
 
 export interface AdminLeadFilters {
@@ -104,10 +108,38 @@ export const adminService = {
     return request<AdminPurchase[]>(`/admin/leads/${leadId}/purchases`, { locale });
   },
 
-  professionals(query: string, locale: Locale): Promise<AdminProfessionalList> {
+  professionals(
+    query: string,
+    locale: Locale,
+    verificationStatus?: VerificationStatus,
+  ): Promise<AdminProfessionalList> {
     const params = new URLSearchParams();
     if (query.trim()) params.set("query", query.trim());
+    if (verificationStatus) params.set("verification_status", verificationStatus);
     return request<AdminProfessionalList>(`/admin/professionals?${params.toString()}`, { locale });
+  },
+
+  /** Expediente de validacion. Las URLs de los documentos caducan en minutos. */
+  verificationDossier(professionalId: string, locale: Locale): Promise<VerificationDossier> {
+    return request<VerificationDossier>(`/admin/professionals/${professionalId}/verification`, {
+      locale,
+    });
+  },
+
+  approveProfessional(professionalId: string, locale: Locale): Promise<Professional> {
+    return request<Professional>(`/admin/professionals/${professionalId}/approve`, {
+      method: "POST",
+      locale,
+    });
+  },
+
+  /** Reembolsa el primer cobro y cancela la recarga. 503 si la pasarela falla. */
+  rejectProfessional(professionalId: string, reason: string, locale: Locale): Promise<Rejection> {
+    return request<Rejection>(`/admin/professionals/${professionalId}/reject`, {
+      method: "POST",
+      body: { reason },
+      locale,
+    });
   },
 
   reviewPurchase(purchaseId: string, note: string, locale: Locale): Promise<void> {

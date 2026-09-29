@@ -60,10 +60,14 @@ class Settings(BaseSettings):
     # ------------------------------- Almacenamiento ----------------------
     storage_backend: Literal["s3", "gcs"] = "s3"
     gcs_bucket: str = ""
+    # Bucket PRIVADO de los documentos de alta del profesional (DNI, modelos de
+    # Hacienda). Sin acceso publico: solo descargas firmadas para el admin.
+    gcs_private_bucket: str = ""
     gcs_signed_url_expires_seconds: int = Field(default=900, ge=1, le=604800)
     s3_endpoint_url: str = "http://localhost:9000"
     s3_public_base_url: str = "http://localhost:9000/reforma-hub-dev"
     s3_bucket: str = "reforma-hub-dev"
+    s3_private_bucket: str = "reforma-hub-private"
     s3_region: str = "auto"
     s3_access_key_id: str = ""
     s3_secret_access_key: str = ""
@@ -73,6 +77,15 @@ class Settings(BaseSettings):
     def _validate_storage(self) -> Settings:
         if self.storage_backend == "gcs" and not self.gcs_bucket.strip():
             raise ValueError("GCS_BUCKET es obligatorio con STORAGE_BACKEND=gcs")
+        if self.storage_backend == "gcs" and not self.gcs_private_bucket.strip():
+            raise ValueError("GCS_PRIVATE_BUCKET es obligatorio con STORAGE_BACKEND=gcs")
+        private = (
+            self.gcs_private_bucket if self.storage_backend == "gcs" else self.s3_private_bucket
+        )
+        public = self.gcs_bucket if self.storage_backend == "gcs" else self.s3_bucket
+        if private.strip() == public.strip():
+            # Con el mismo bucket los documentos de identidad serian publicos.
+            raise ValueError("El bucket privado de documentos no puede ser el publico")
         if self.storage_backend == "gcs" and self.google_application_credentials:
             raise ValueError("GCS requiere ADC del runtime, sin GOOGLE_APPLICATION_CREDENTIALS")
         return self

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { formatCents, formatMoney, toUnits } from "@/helpers/currency";
 import { formatRelative, minutesUntil } from "@/helpers/date";
 import { formatDistance } from "@/helpers/distance";
+import { taxIdKind } from "@/helpers/taxId";
 import {
   MAX_PHOTO_BYTES,
   leadFormSchema,
@@ -176,10 +177,47 @@ describe("professional profile schema", () => {
     postalCode: "28001",
     serviceRadiusKm: 25,
     categoryIds: ["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
+    serviceIds: [],
+    professionalType: "self_employed" as const,
+    legalName: "Ana Lopez Garcia",
+    taxId: "12.345.678-z",
+    address: "Calle Mayor 1",
+    workPhotoKeys: [],
   };
 
-  it("accepts a complete profile", () => {
-    expect(professionalProfileSchema.safeParse(valid).success).toBe(true);
+  it("accepts a complete profile and normalises the tax id", () => {
+    const result = professionalProfileSchema.safeParse(valid);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.taxId).toBe("12345678Z");
+  });
+
+  it("leaves the registration details optional until submitting", () => {
+    const result = professionalProfileSchema.safeParse({
+      ...valid,
+      professionalType: null,
+      legalName: "",
+      taxId: "",
+      address: "",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.taxId).toBeNull();
+  });
+
+  it("needs a Spanish mobile and a base in Madrid", () => {
+    const landline = professionalProfileSchema.safeParse({ ...valid, phone: "912345678" });
+    expect(landline.success).toBe(false);
+    if (!landline.success) expect(landline.error.issues[0]?.message).toBe("mobileFormat");
+    const barcelona = professionalProfileSchema.safeParse({ ...valid, postalCode: "08001" });
+    expect(barcelona.success).toBe(false);
+  });
+
+  it("rejects a mistyped tax id and a company without CIF", () => {
+    const typo = professionalProfileSchema.safeParse({ ...valid, taxId: "12345678A" });
+    expect(typo.success).toBe(false);
+    if (!typo.success) expect(typo.error.issues[0]?.message).toBe("taxIdInvalid");
+    const company = professionalProfileSchema.safeParse({ ...valid, professionalType: "company" });
+    expect(company.success).toBe(false);
+    if (!company.success) expect(company.error.issues[0]?.message).toBe("companyNeedsCif");
   });
 
   it("requires at least one trade", () => {
@@ -239,4 +277,22 @@ describe("photo validation", () => {
     expect(accepted).toHaveLength(1);
     expect(rejected[0]?.reason).toBe("count");
   });
+});
+
+describe("tax id", () => {
+  it.each([
+    ["12345678Z", "dni"],
+    ["x1234567l", "nie"],
+    ["B12345674", "cif"],
+    ["Q2826000H", "cif"],
+  ])("recognises %s", (raw, kind) => {
+    expect(taxIdKind(raw)).toBe(kind);
+  });
+
+  it.each(["12345678A", "B12345670", "B1234567D", "Q2826000A", "1234", ""])(
+    "rejects %s",
+    (raw) => {
+      expect(taxIdKind(raw)).toBeNull();
+    },
+  );
 });

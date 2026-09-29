@@ -25,8 +25,10 @@ from app.application.ports import (
     TokenVerifierPort,
 )
 from app.application.use_cases import (
+    AddProfessionalDocument,
     AdjustProfessionalCredit,
     ApplySubscriptionEvent,
+    ApproveProfessional,
     ChangeLeadAvailability,
     CreateLead,
     CreditLedgerService,
@@ -35,6 +37,7 @@ from app.application.use_cases import (
     GetLeadPricing,
     GetProfessionalAccount,
     GetProfessionalProfile,
+    GetVerificationDossier,
     HandlePaymentEvent,
     ListAdminLeads,
     ListAdminProfessionals,
@@ -44,14 +47,18 @@ from app.application.use_cases import (
     ListMyPurchases,
     MarkPurchaseForReview,
     OpenBillingPortal,
+    RejectProfessional,
     ReleaseExpiredReservations,
+    RemoveProfessionalDocument,
     RequestPhotoUpload,
+    RequestProfessionalUpload,
     SetCategorySuggestedPrice,
     SetLeadPrice,
     SetSubscriptionPrice,
     StartLeadPurchase,
     StartPhoneVerification,
     StartSubscription,
+    SubmitForReview,
     SubscriptionPricing,
     SyncUserFromIdentity,
     UpsertProfessionalProfile,
@@ -96,6 +103,23 @@ def create_storage(settings: Settings) -> StoragePort:
     )
 
 
+def create_document_storage(settings: Settings) -> StoragePort:
+    """Bucket privado de los documentos de alta. Nunca se sirve con URL publica."""
+    if settings.storage_backend == "gcs":
+        return GCSStorage(
+            bucket=settings.gcs_private_bucket,
+            signed_url_expires_seconds=settings.gcs_signed_url_expires_seconds,
+        )
+    return S3Storage(
+        bucket=settings.s3_private_bucket,
+        endpoint_url=settings.s3_endpoint_url,
+        access_key_id=settings.s3_access_key_id,
+        secret_access_key=settings.s3_secret_access_key,
+        region=settings.s3_region,
+        presign_expires_seconds=settings.s3_presign_expires_seconds,
+    )
+
+
 def create_phone_verifier(settings: Settings, clock: ClockPort) -> PhoneVerificationPort | None:
     """`None` desactiva la verificacion por SMS: el formulario publica sin codigo."""
     if settings.phone_verification_backend == "console":
@@ -117,6 +141,14 @@ class Infrastructure:
     ids: IdGeneratorPort
     # De proceso: el adaptador de consola guarda los codigos en memoria.
     phone_verifier: PhoneVerificationPort | None = None
+    document_storage: StoragePort | None = None
+    """Bucket privado. `None` solo en tests que no tocan documentos."""
+
+    @property
+    def documents(self) -> StoragePort:
+        if self.document_storage is None:
+            raise RuntimeError("Falta configurar el almacenamiento privado de documentos")
+        return self.document_storage
 
 
 def get_infrastructure(request: Request) -> Infrastructure:
@@ -400,6 +432,66 @@ class RequestContainer:
             clock=self.infra.clock,
             ids=self.infra.ids,
             uow=self.uow,
+            service_area=ServiceArea.from_prefixes(self.infra.settings.covered_postal_prefixes),
+        )
+
+    @property
+    def request_professional_upload(self) -> RequestProfessionalUpload:
+        return RequestProfessionalUpload(media=self.infra.storage, documents=self.infra.documents)
+
+    @property
+    def add_professional_document(self) -> AddProfessionalDocument:
+        return AddProfessionalDocument(
+            professionals=self.professionals,
+            clock=self.infra.clock,
+            ids=self.infra.ids,
+            uow=self.uow,
+        )
+
+    @property
+    def remove_professional_document(self) -> RemoveProfessionalDocument:
+        return RemoveProfessionalDocument(
+            professionals=self.professionals, documents=self.infra.documents, uow=self.uow
+        )
+
+    @property
+    def submit_for_review(self) -> SubmitForReview:
+        return SubmitForReview(
+            professionals=self.professionals,
+            clock=self.infra.clock,
+            ids=self.infra.ids,
+            uow=self.uow,
+        )
+
+    @property
+    def approve_professional(self) -> ApproveProfessional:
+        return ApproveProfessional(
+            professionals=self.professionals,
+            clock=self.infra.clock,
+            ids=self.infra.ids,
+            uow=self.uow,
+        )
+
+    @property
+    def reject_professional(self) -> RejectProfessional:
+        return RejectProfessional(
+            professionals=self.professionals,
+            accounts=self.accounts,
+            ledger=self.ledger,
+            credit=self.credit,
+            payments=self.infra.payments,
+            clock=self.infra.clock,
+            ids=self.infra.ids,
+            uow=self.uow,
+        )
+
+    @property
+    def verification_dossier(self) -> GetVerificationDossier:
+        return GetVerificationDossier(
+            professionals=self.professionals,
+            categories=self.categories,
+            users=self.users,
+            documents=self.infra.documents,
         )
 
     @property

@@ -25,6 +25,7 @@ from app.domain.models import (
     SubscriptionStatus,
     User,
     UserRole,
+    VerificationStatus,
 )
 from app.domain.value_objects import Coordinates, Email, Money, PhoneNumber, PostalCode
 
@@ -129,6 +130,9 @@ def make_professional(*, category_ids: set[UUID] | None = None, **kwargs: object
         "city": "Madrid",
         "province": "Madrid",
         "category_ids": category_ids if category_ids is not None else {uuid4()},
+        # Por defecto, un profesional ya validado: la mayoria de tests prueban lo
+        # que ocurre cuando puede comprar. Los de validacion fijan su estado.
+        "verification_status": VerificationStatus.APPROVED,
     }
     defaults.update(kwargs)
     return Professional(**defaults)  # type: ignore[arg-type]

@@ -17,10 +17,12 @@ from app.domain.models import (
     MAX_SERVICES_PER_LEAD,
     ProjectSchedule,
     PropertyType,
+    VerificationStatus,
 )
 from app.infrastructure.api.schemas.billing import AdminAccountOut
 from app.infrastructure.api.schemas.common import ApiModel, MoneyOut
 from app.infrastructure.api.schemas.leads import CategoryOut, CreateLeadOut, PurchaseOut
+from app.infrastructure.api.schemas.professionals import ProfessionalDocumentOut, ProfessionalOut
 
 
 class SetLeadPriceIn(ApiModel):
@@ -139,12 +141,44 @@ class AdminMetricsOut(ApiModel):
 class AdminProfessionalOut(ApiModel):
     id: UUID
     business_name: str
+    legal_name: str | None = None
     postal_code: str
     city: str | None = None
     province: str | None = None
     service_radius_km: int
     categories: list[CategoryOut]
     account: AdminAccountOut | None = None
+    verification_status: VerificationStatus
+    submitted_at: datetime | None = None
+
+
+class DocumentDownloadOut(ProfessionalDocumentOut):
+    download_url: str = Field(description="Firmada; caduca en minutos")
+
+
+class VerificationEventOut(ApiModel):
+    from_status: VerificationStatus
+    to_status: VerificationStatus
+    actor_user_id: UUID | None = None
+    note: str | None = None
+    created_at: datetime
+
+
+class VerificationDossierOut(ApiModel):
+    professional: ProfessionalOut
+    email: str | None = None
+    documents: list[DocumentDownloadOut]
+    events: list[VerificationEventOut]
+
+
+class RejectProfessionalIn(ApiModel):
+    reason: str = Field(min_length=3, max_length=1000)
+
+
+class RejectionOut(ApiModel):
+    professional: ProfessionalOut
+    refunded: MoneyOut | None = None
+    subscription_canceled: bool
 
 
 class AdminProfessionalListOut(ApiModel):

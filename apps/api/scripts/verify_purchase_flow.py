@@ -45,6 +45,14 @@ POSTAL_CODE = "28001"
 CATEGORY_SLUG = "obras-menores"
 # Tipo de inmueble y programacion: obligatorios en el formulario publico.
 PROJECT_DATA = {"property_type": "flat", "schedule": "within_weeks"}
+# Datos de alta del profesional (F02): sin ellos no se puede enviar a revision.
+REGISTRATION_DATA = {
+    "professional_type": "self_employed",
+    "legal_name": "Verificacion Automatica Profesional",
+    "tax_id": "12345678Z",
+    "address": "Calle de la Verificacion 1, Madrid",
+}
+DOCUMENT_BYTES = b"%PDF-1.4\n% documento de prueba de verify_purchase_flow\n"
 DESCRIPTION = (
     "Lead creado por scripts/verify_purchase_flow.py para comprobar el flujo "
     "de compra de punta a punta. Se borra al terminar."
@@ -99,6 +107,30 @@ def load_env(path: Path) -> dict[str, str]:
         key, _, raw = line.partition("=")
         values[key.strip()] = raw.strip().strip('"').strip("'")
     return values
+
+
+def upload_base(env: dict[str, str]) -> str:
+    """URL sin firma del bucket privado: tiene que responder 403."""
+    endpoint = env.get("S3_ENDPOINT_URL", "http://localhost:9000").rstrip("/")
+    return f"{endpoint}/{env.get('S3_PRIVATE_BUCKET', 'reforma-hub-private')}"
+
+
+def delete_private_objects(env: dict[str, str], keys: list[str]) -> None:
+    """Borra del bucket privado los documentos que subio este run."""
+    if not keys:
+        return
+    import boto3
+
+    client = boto3.client(
+        "s3",
+        endpoint_url=env.get("S3_ENDPOINT_URL", "http://localhost:9000"),
+        aws_access_key_id=env.get("S3_ACCESS_KEY_ID", ""),
+        aws_secret_access_key=env.get("S3_SECRET_ACCESS_KEY", ""),
+        region_name=env.get("S3_REGION", "auto"),
+    )
+    bucket = env.get("S3_PRIVATE_BUCKET", "reforma-hub-private")
+    for key in keys:
+        client.delete_object(Bucket=bucket, Key=key)
 
 
 # --------------------------------------------------------------------------
@@ -298,6 +330,7 @@ async def main() -> int:
     run_id = uuid.uuid4().hex[:8]
     created_lead_ids: list[str] = []
     created_emails: list[str] = []
+    uploaded_keys: list[str] = []
 
     dsn = env.get("DATABASE_URL", "").replace("+asyncpg", "")
     require(bool(dsn), "Falta DATABASE_URL en apps/api/.env")
@@ -452,8 +485,15 @@ async def main() -> int:
             # ---------------- 3. El profesional se registra --------------
             report.step("3 · El profesional se registra y completa su perfil")
 
-            async def register_professional(label: str) -> tuple[str, uuid.UUID]:
-                """Crea cuenta en el emulador + perfil, y devuelve token e id."""
+            admin_email = f"verify-{run_id}-admin@example.test"
+            created_emails.append(admin_email)
+            admin_token = await emulator.sign_up_admin(admin_email)
+
+            async def register_professional(
+                label: str, *, approve: bool = True
+            ) -> tuple[str, uuid.UUID]:
+                """Crea cuenta en el emulador + perfil (aprobado por el admin), y devuelve
+                token e id."""
                 email = f"verify-{run_id}-{label}@example.test"
                 created_emails.append(email)
                 new_token = await emulator.sign_up(email)
@@ -468,11 +508,68 @@ async def main() -> int:
                             "postal_code": POSTAL_CODE,
                             "service_radius_km": 25,
                             "category_ids": [category["id"]],
+                            **REGISTRATION_DATA,
                         },
                         expect=200,
                     )
                 ).json()
-                return new_token, uuid.UUID(created_profile["id"])
+                professional_id = uuid.UUID(created_profile["id"])
+                if approve:
+                    await submit_registration(new_token)
+                    await admin_decides(professional_id, "approve")
+                return new_token, professional_id
+
+            async def submit_registration(professional_token: str) -> str:
+                """Sube el documento DE VERDAD al bucket privado, lo adjunta y envia el alta."""
+                upload = (
+                    await api.request(
+                        "POST",
+                        "/me/professional/uploads",
+                        token=professional_token,
+                        json_body={
+                            "purpose": "document",
+                            "filename": "036.pdf",
+                            "content_type": "application/pdf",
+                        },
+                        expect=200,
+                    )
+                ).json()
+                put = await api._client.put(
+                    upload["upload_url"], content=DOCUMENT_BYTES, headers=upload["headers"]
+                )
+                require(
+                    put.status_code in (200, 204),
+                    f"No se pudo subir el documento al bucket privado ({put.status_code}). "
+                    "Levanta MinIO con: pnpm infra:up",
+                )
+                uploaded_keys.append(upload["storage_key"])
+                await api.request(
+                    "POST",
+                    "/me/professional/documents",
+                    token=professional_token,
+                    json_body={
+                        "kind": "tax_registration",
+                        "storage_key": upload["storage_key"],
+                        "filename": "036.pdf",
+                    },
+                    expect=201,
+                )
+                await api.request(
+                    "POST", "/me/professional/submit", token=professional_token, expect=200
+                )
+                return str(upload["storage_key"])
+
+            async def admin_decides(
+                professional_id: uuid.UUID, action: str, body: dict[str, Any] | None = None
+            ) -> dict[str, Any]:
+                response = await api.request(
+                    "POST",
+                    f"/admin/professionals/{professional_id}/{action}",
+                    token=admin_token,
+                    json_body=body,
+                    expect=200,
+                )
+                return dict(response.json())
 
             async def send_signed(payload: str) -> dict[str, Any]:
                 response = await api.request(
@@ -555,6 +652,7 @@ async def main() -> int:
                         "postal_code": POSTAL_CODE,
                         "service_radius_km": 25,
                         "category_ids": [category["id"]],
+                        **REGISTRATION_DATA,
                     },
                     expect=200,
                 )
@@ -563,9 +661,72 @@ async def main() -> int:
                 f"Perfil creado en {profile['city']} con radio {profile['service_radius_km']} km"
             )
 
+            # ---------------- 3a. Validacion del alta ---------------------
+            report.step("3a · El alta la valida el admin antes de poder comprar")
+            buyer_id = uuid.UUID(profile["id"])
+            require(
+                profile["verification"]["status"] == "incomplete",
+                f"Un perfil nuevo deberia estar incompleto: {profile['verification']}",
+            )
+            unapproved = await api.request(
+                "POST", f"/leads/{lead_id}/purchase", token=token, expect=403
+            )
+            require(
+                unapproved.json()["code"] == "PROFESSIONAL_NOT_APPROVED",
+                f"Sin validar se esperaba PROFESSIONAL_NOT_APPROVED, llego "
+                f"{unapproved.json().get('code')}",
+            )
+            report.ok("Sin alta aprobada no se compra (403 PROFESSIONAL_NOT_APPROVED)")
+
+            document_key = await submit_registration(token)
+            anonymous = await api._client.get(upload_base(env) + "/" + document_key)
+            require(
+                anonymous.status_code in (401, 403),
+                f"FUGA: el documento de alta se lee sin firma ({anonymous.status_code})",
+            )
+            report.ok("Documento subido al bucket privado; sin firma responde 403")
+
+            dossier = (
+                await api.request(
+                    "GET",
+                    f"/admin/professionals/{buyer_id}/verification",
+                    token=admin_token,
+                    expect=200,
+                )
+            ).json()
+            signed = await api._client.get(dossier["documents"][0]["download_url"])
+            require(
+                signed.status_code == 200 and signed.content == DOCUMENT_BYTES,
+                f"La descarga firmada del admin no devolvio el documento ({signed.status_code})",
+            )
+            report.ok("El admin descarga el documento con la URL firmada del expediente")
+
+            approved = await admin_decides(buyer_id, "approve")
+            require(
+                approved["verification"]["status"] == "approved",
+                f"El alta no quedo aprobada: {approved['verification']}",
+            )
+            report.ok("Alta aprobada por el admin; queda en la auditoria")
+
+            rejected_token, rejected_id = await register_professional("rechazado", approve=False)
+            await submit_registration(rejected_token)
+            outcome = await admin_decides(
+                rejected_id, "reject", {"reason": "Documento de prueba, no valido"}
+            )
+            require(
+                outcome["professional"]["verification"]["status"] == "rejected"
+                and outcome["refunded"] is None,
+                f"El rechazo sin cobro no se aplico como se esperaba: {outcome}",
+            )
+            locked_out = await api.request("GET", "/leads", token=rejected_token, expect=403)
+            require(
+                locked_out.json()["code"] == "PROFESSIONAL_REJECTED",
+                f"Un rechazado no deberia ver solicitudes: {locked_out.json()}",
+            )
+            report.ok("Rechazado sin cobro previo: nada que reembolsar y deja de ver solicitudes")
+
             # ---------------- 3b. Recarga mensual -------------------------
             report.step("3b · Sin recarga mensual se ve pero no se compra")
-            buyer_id = uuid.UUID(profile["id"])
             await api.request("GET", "/leads", token=token, expect=200)
             await api.request("GET", f"/leads/{lead_id}", token=token, expect=200)
             report.ok("Sin recarga el listado y el detalle se ven (sin datos de contacto)")
@@ -945,9 +1106,6 @@ async def main() -> int:
             )
             report.ok("Un profesional recibe 403 en los endpoints de precio")
 
-            admin_token = await emulator.sign_up_admin(f"verify-{run_id}-admin@example.test")
-            created_emails.append(f"verify-{run_id}-admin@example.test")
-
             initial = (
                 await api.request(
                     "GET",
@@ -1088,6 +1246,7 @@ async def main() -> int:
                 print(f"\n{DIM}--keep: se conservan los datos del run {run_id}{RESET}")
             else:
                 await cleanup(db, created_lead_ids, run_id)
+                delete_private_objects(env, uploaded_keys)
                 print(f"\n{DIM}datos de prueba del run {run_id} eliminados{RESET}")
             await db.close()
 

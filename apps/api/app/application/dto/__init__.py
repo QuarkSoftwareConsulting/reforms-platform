@@ -20,11 +20,14 @@ from app.domain.models import (
     LeadStatus,
     Professional,
     ProfessionalAccount,
+    ProfessionalDocument,
+    ProfessionalType,
     ProjectSchedule,
     PropertyType,
     Purchase,
     PurchaseReview,
     SubscriptionStatus,
+    VerificationEvent,
 )
 from app.domain.value_objects import Money
 
@@ -145,12 +148,46 @@ class UpsertProfessionalInput:
     postal_code: str
     service_radius_km: int
     category_ids: set[UUID]
+    service_ids: set[UUID] = field(default_factory=set)
+    professional_type: ProfessionalType | None = None
+    legal_name: str | None = None
+    tax_id: str | None = None
+    address: str | None = None
+    profile_photo_key: str | None = None
+    logo_key: str | None = None
+    work_photo_keys: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True, slots=True)
 class ProfessionalProfile:
     professional: Professional
     categories: list[Category]
+
+
+@dataclass(frozen=True, slots=True)
+class DocumentDownload:
+    document: ProfessionalDocument
+    download_url: str
+    """Firmada y de corta duracion: nunca se guarda ni se envia fuera del panel."""
+
+
+@dataclass(frozen=True, slots=True)
+class VerificationDossier:
+    """Lo que el admin revisa para aprobar o rechazar un alta."""
+
+    professional: Professional
+    categories: list[Category]
+    documents: list[DocumentDownload]
+    events: list[VerificationEvent]
+    email: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class RejectionResult:
+    professional: Professional
+    refunded: Money | None
+    """Importe del primer cobro reembolsado; `None` si no llego a pagar."""
+    subscription_canceled: bool
 
 
 @dataclass(frozen=True, slots=True)

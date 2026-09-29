@@ -48,6 +48,10 @@ TRUNCATE_ORDER = (
     "lead_services",
     "leads",
     "professional_categories",
+    "professional_services",
+    "professional_documents",
+    "professional_work_photos",
+    "professional_verification_events",
     "professionals",
     "users",
     "services",
@@ -137,6 +141,11 @@ def fake_phone_verifier() -> FakePhoneVerifier:
     return FakePhoneVerifier()
 
 
+@pytest.fixture
+def private_storage() -> FakeStorage:
+    return FakeStorage(base_url="https://private.test/reforma-hub")
+
+
 @pytest_asyncio.fixture
 async def api(
     request: pytest.FixtureRequest,
@@ -146,6 +155,7 @@ async def api(
     fake_clock: FakeClock,
     fake_tokens: FakeTokenVerifier,
     fake_phone_verifier: FakePhoneVerifier,
+    private_storage: FakeStorage,
 ) -> AsyncIterator[AsyncClient]:
     session_factory = async_sessionmaker(api_engine, expire_on_commit=False, autoflush=False)
 
@@ -170,6 +180,7 @@ async def api(
         session_factory=session_factory,
         payments=fake_gateway,
         storage=FakeStorage(),
+        document_storage=private_storage,
         token_verifier=fake_tokens,
         clock=fake_clock,
         ids=Uuid4Generator(),

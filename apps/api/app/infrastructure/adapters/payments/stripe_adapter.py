@@ -294,6 +294,61 @@ class StripePaymentGateway(PaymentPort):
             raise PaymentGatewayError() from exc
         return str(session.url)
 
+    async def refund_invoice(self, *, invoice_id: str, idempotency_key: str) -> None:
+        client = self._require_client()
+        try:
+            # Desde la API 2025-03-31 la factura ya no trae `payment_intent`: el cobro
+            # cuelga de `invoice.payments`, con su PaymentIntent o su Charge.
+            invoice = await asyncio.to_thread(
+                client.v1.invoices.retrieve, invoice_id, params={"expand": ["payments"]}
+            )
+            target = _paid_invoice_payment(invoice)
+            if target is None:
+                logger.error("stripe_reembolso_sin_cobro: invoice=%s", invoice_id)
+                raise PaymentGatewayError("La factura no tiene un cobro que reembolsar")
+            await asyncio.to_thread(
+                client.v1.refunds.create,
+                params=cast(Any, target),
+                options={"idempotency_key": idempotency_key},
+            )
+        except stripe.StripeError as exc:
+            logger.error("stripe_reembolso_fallido: %s", exc, exc_info=True)
+            raise PaymentGatewayError() from exc
+
+    async def cancel_subscription(self, subscription_id: str) -> None:
+        client = self._require_client()
+        try:
+            await asyncio.to_thread(client.v1.subscriptions.cancel, subscription_id)
+        except stripe.InvalidRequestError as exc:
+            # Cancelar una ya cancelada falla en Stripe; para nosotros es un reintento.
+            try:
+                current = await asyncio.to_thread(client.v1.subscriptions.retrieve, subscription_id)
+            except stripe.StripeError:
+                current = None
+            if current is not None and current.status == "canceled":
+                return
+            logger.error("stripe_cancelacion_fallida: %s", exc, exc_info=True)
+            raise PaymentGatewayError() from exc
+        except stripe.StripeError as exc:
+            logger.error("stripe_cancelacion_fallida: %s", exc, exc_info=True)
+            raise PaymentGatewayError() from exc
+
+
+def _paid_invoice_payment(invoice: Any) -> dict[str, str] | None:
+    """Parametros del reembolso: el PaymentIntent (o el Charge) que pago la factura."""
+    payments = getattr(invoice, "payments", None)
+    for item in getattr(payments, "data", None) or []:
+        if getattr(item, "status", None) != "paid":
+            continue
+        payment = item.payment
+        intent = getattr(payment, "payment_intent", None)
+        if intent:
+            return {"payment_intent": intent if isinstance(intent, str) else intent.id}
+        charge = getattr(payment, "charge", None)
+        if charge:
+            return {"charge": charge if isinstance(charge, str) else charge.id}
+    return None
+
 
 def _classify(raw_type: str, obj: dict[str, Any], purchase_id: UUID | None) -> PaymentEventType:
     """Decide que significa el evento para el negocio."""
