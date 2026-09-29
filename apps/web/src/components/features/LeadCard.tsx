@@ -28,6 +28,7 @@ export function LeadCard({ lead }: { lead: LeadPublic }) {
   const locale = useLocale() as AppLocale;
   const t = useTranslations("projects");
   const tLead = useTranslations("lead");
+  const tProject = useTranslations("project");
   const cover = lead.photo_urls[0];
   const closed = lead.is_closed && !lead.already_purchased;
   const href = `${path(locale, "projects")}/${lead.id}`;
@@ -64,6 +65,21 @@ export function LeadCard({ lead }: { lead: LeadPublic }) {
 
       <div className="flex-1 space-y-2">
         <h3 className="text-card-title font-semibold text-ink">{lead.title}</h3>
+        {lead.services.length > 0 && (
+          <p className="text-[14px] text-secondary">
+            {lead.services.map((service) => service.name).join(" · ")}
+          </p>
+        )}
+        {(lead.property_type || lead.schedule) && (
+          <p className="text-help text-muted">
+            {[
+              lead.property_type && tProject(`propertyTypes.${lead.property_type}`),
+              lead.schedule && tProject(`schedules.${lead.schedule}`),
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        )}
         {!closed && (
           <p className="line-clamp-3 text-[14.5px] leading-[1.6] text-secondary">
             {lead.description}

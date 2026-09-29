@@ -26,6 +26,8 @@ from app.domain.models import (
     CreditEntryKind,
     LeadSource,
     LeadStatus,
+    ProjectSchedule,
+    PropertyType,
     PurchaseStatus,
     SubscriptionStatus,
     UserRole,
@@ -55,6 +57,12 @@ subscription_status_enum = Enum(
 credit_entry_kind_enum = Enum(
     CreditEntryKind, name="credit_entry_kind", values_callable=lambda e: [m.value for m in e]
 )
+property_type_enum = Enum(
+    PropertyType, name="property_type", values_callable=lambda e: [m.value for m in e]
+)
+project_schedule_enum = Enum(
+    ProjectSchedule, name="project_schedule", values_callable=lambda e: [m.value for m in e]
+)
 
 Point = Geography(geometry_type="POINT", srid=4326, spatial_index=False)
 
@@ -83,10 +91,59 @@ class CategoryRow(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     suggested_lead_price_cents: Mapped[int] = mapped_column(Integer, nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="EUR")
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    sort_order: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
+
+    # Se cargan todos, tambien los retirados: un lead antiguo sigue nombrando el suyo.
+    services: Mapped[list[ServiceRow]] = relationship(
+        back_populates="category",
+        lazy="selectin",
+        order_by="ServiceRow.sort_order",
+    )
 
     __table_args__ = (
         CheckConstraint("suggested_lead_price_cents > 0", name="suggested_lead_price_positive"),
     )
+
+
+class ServiceRow(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """Servicio dentro de una categoria (segundo nivel del catalogo)."""
+
+    __tablename__ = "services"
+
+    category_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("categories.id", ondelete="RESTRICT"), nullable=False
+    )
+    slug: Mapped[str] = mapped_column(String(80), nullable=False)
+    name_es: Mapped[str] = mapped_column(String(160), nullable=False)
+    name_en: Mapped[str] = mapped_column(String(160), nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    category: Mapped[CategoryRow] = relationship(back_populates="services")
+
+    __table_args__ = (
+        # El mismo servicio puede existir en dos categorias (Domotica esta en Seguridad
+        # Electronica y en Instaladores), pero no dos veces en la misma.
+        UniqueConstraint("category_id", "slug", name="uq_services_category_slug"),
+    )
+
+
+class LeadServiceRow(Base):
+    """Tabla puente: que servicios de su categoria eligio el cliente."""
+
+    __tablename__ = "lead_services"
+
+    lead_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("leads.id", ondelete="CASCADE"), primary_key=True
+    )
+    service_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("services.id", ondelete="RESTRICT"), primary_key=True
+    )
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    lead: Mapped[LeadRow] = relationship(back_populates="services")
 
 
 class ProfessionalCategoryRow(Base):
@@ -167,11 +224,21 @@ class LeadRow(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     price_override_cents: Mapped[int | None] = mapped_column(Integer)
     price_override_currency: Mapped[str | None] = mapped_column(String(3))
 
+    # NULL en los leads anteriores al formulario de la Etapa 1.
+    property_type: Mapped[PropertyType | None] = mapped_column(property_type_enum)
+    schedule: Mapped[ProjectSchedule | None] = mapped_column(project_schedule_enum)
+
     photos: Mapped[list[LeadPhotoRow]] = relationship(
         back_populates="lead", cascade="all, delete-orphan", lazy="selectin"
     )
     consents: Mapped[list[LeadConsentRow]] = relationship(
         back_populates="lead", cascade="all, delete-orphan", lazy="selectin"
+    )
+    services: Mapped[list[LeadServiceRow]] = relationship(
+        back_populates="lead",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="LeadServiceRow.sort_order",
     )
 
     __table_args__ = (

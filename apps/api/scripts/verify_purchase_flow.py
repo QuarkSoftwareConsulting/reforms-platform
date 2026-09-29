@@ -42,6 +42,9 @@ CLIENT_NAME = "Verificacion Automatica"
 CLIENT_PHONE = "+34611000999"
 CLIENT_EMAIL = "verificacion@example.test"
 POSTAL_CODE = "28001"
+CATEGORY_SLUG = "obras-menores"
+# Tipo de inmueble y programacion: obligatorios en el formulario publico.
+PROJECT_DATA = {"property_type": "flat", "schedule": "within_weeks"}
 DESCRIPTION = (
     "Lead creado por scripts/verify_purchase_flow.py para comprobar el flujo "
     "de compra de punta a punta. Se borra al terminar."
@@ -337,8 +340,17 @@ async def main() -> int:
                 len(categories) > 0,
                 "No hay categorias. Carga las semillas con: pnpm api:seed",
             )
-            category = next(c for c in categories if c["slug"] == "carpinteria")
-            report.ok(f"Catalogo cargado ({len(categories)} oficios)")
+            category = next((c for c in categories if c["slug"] == CATEGORY_SLUG), None)
+            require(
+                category is not None and len(category["services"]) > 0,
+                f"Falta la categoria {CATEGORY_SLUG!r} con sus servicios: pnpm api:seed",
+            )
+            assert category is not None
+            service = category["services"][0]
+            report.ok(
+                f"Catalogo cargado ({len(categories)} categorias; "
+                f"{category['name']}: {len(category['services'])} servicios)"
+            )
 
             # ---------------- 1. El cliente publica ----------------------
             report.step("1 · El cliente publica una solicitud (sin cuenta)")
@@ -355,6 +367,8 @@ async def main() -> int:
                         "client_phone": CLIENT_PHONE,
                         "client_email": CLIENT_EMAIL,
                         "photo_keys": [],
+                        "service_ids": [service["id"]],
+                        **PROJECT_DATA,
                         "consent": {"accepted": True},
                     },
                     expect=201,
@@ -378,6 +392,7 @@ async def main() -> int:
                     "client_phone": CLIENT_PHONE,
                     "client_email": None,
                     "photo_keys": [],
+                    **PROJECT_DATA,
                     "consent": {"accepted": False},
                 },
                 expect=422,
@@ -388,6 +403,30 @@ async def main() -> int:
                 f"{rejected.json().get('code')}",
             )
             report.ok("Publicar sin consentimiento se rechaza (CONSENT_REQUIRED)")
+
+            outside = await api.request(
+                "POST",
+                "/leads",
+                json_body={
+                    "category_id": category["id"],
+                    "title": f"[verify {run_id}] fuera de Madrid",
+                    "description": DESCRIPTION,
+                    "postal_code": "08001",
+                    "client_name": CLIENT_NAME,
+                    "client_phone": CLIENT_PHONE,
+                    "client_email": None,
+                    "photo_keys": [],
+                    **PROJECT_DATA,
+                    "consent": {"accepted": True},
+                },
+                expect=422,
+            )
+            require(
+                outside.json()["code"] == "POSTAL_CODE_NOT_COVERED",
+                f"Un CP de Barcelona se esperaba POSTAL_CODE_NOT_COVERED, llego "
+                f"{outside.json().get('code')}",
+            )
+            report.ok("Fuera de la Comunidad de Madrid no se publica (POSTAL_CODE_NOT_COVERED)")
 
             # ---------------- 2. Consentimiento auditable ----------------
             report.step("2 · Registro auditable del consentimiento (RGPD)")
@@ -600,6 +639,16 @@ async def main() -> int:
                 f"El desglose del IVA no cuadra con el precio: {breakdown}",
             )
             report.ok("Nombre de pila, CP completo y precio con IVA desglosado antes de pagar")
+            require(
+                [s["id"] for s in item["services"]] == [service["id"]]
+                and item["property_type"] == PROJECT_DATA["property_type"]
+                and item["schedule"] == PROJECT_DATA["schedule"],
+                f"El explorador no muestra servicio, inmueble y programacion: {item}",
+            )
+            report.ok(
+                f"Servicio ({item['services'][0]['name']}), tipo de inmueble y programacion "
+                "visibles antes de pagar"
+            )
             report.ok(
                 f"Datos visibles: {item['client_first_name']}, {item['postal_code']} "
                 f"{item['city']}, {item['distance_km']} km, "
@@ -877,6 +926,7 @@ async def main() -> int:
                         "client_phone": CLIENT_PHONE,
                         "client_email": None,
                         "photo_keys": [],
+                        **PROJECT_DATA,
                         "consent": {"accepted": True},
                     },
                     expect=201,

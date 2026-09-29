@@ -24,6 +24,7 @@ from app.domain.models import (
     ProfessionalAccount,
     Purchase,
     PurchaseReview,
+    Service,
     SubscriptionPrice,
     User,
 )
@@ -73,6 +74,18 @@ def category_to_domain(row: CategoryRow) -> Category:
         name_en=row.name_en,
         suggested_lead_price=Money(row.suggested_lead_price_cents, row.currency),
         active=row.active,
+        sort_order=row.sort_order,
+        services=[
+            Service(
+                id=s.id,
+                slug=s.slug,
+                name_es=s.name_es,
+                name_en=s.name_en,
+                sort_order=s.sort_order,
+                active=s.active,
+            )
+            for s in sorted(row.services, key=lambda s: s.sort_order)
+        ],
     )
 
 
@@ -83,6 +96,8 @@ def apply_category(row: CategoryRow, category: Category) -> CategoryRow:
     row.suggested_lead_price_cents = category.suggested_lead_price.amount_cents
     row.currency = category.suggested_lead_price.currency
     row.active = category.active
+    row.sort_order = category.sort_order
+    # Los servicios no se tocan aqui: el catalogo lo mantiene la semilla.
     return row
 
 
@@ -192,6 +207,9 @@ def lead_to_domain(row: LeadRow) -> Lead:
             if row.price_override_cents is not None and row.price_override_currency is not None
             else None
         ),
+        service_ids=[s.service_id for s in sorted(row.services, key=lambda s: s.sort_order)],
+        property_type=row.property_type,
+        schedule=row.schedule,
     )
 
 
@@ -214,6 +232,9 @@ def apply_lead(row: LeadRow, lead: Lead) -> LeadRow:
     row.published_at = lead.published_at
     row.price_override_cents = lead.price_override.amount_cents if lead.price_override else None
     row.price_override_currency = lead.price_override.currency if lead.price_override else None
+    row.property_type = lead.property_type
+    row.schedule = lead.schedule
+    # Los servicios los fija `add()` al crear el lead y no cambian despues.
     return row
 
 

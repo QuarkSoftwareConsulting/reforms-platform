@@ -12,7 +12,12 @@ from uuid import UUID
 
 from pydantic import Field, field_validator
 
-from app.domain.models import MAX_SALE_PRICE_CENTS
+from app.domain.models import (
+    MAX_SALE_PRICE_CENTS,
+    MAX_SERVICES_PER_LEAD,
+    ProjectSchedule,
+    PropertyType,
+)
 from app.infrastructure.api.schemas.billing import AdminAccountOut
 from app.infrastructure.api.schemas.common import ApiModel, MoneyOut
 from app.infrastructure.api.schemas.leads import CategoryOut, CreateLeadOut, PurchaseOut
@@ -68,6 +73,10 @@ class AdminCreateLeadIn(ApiModel):
     client_email: str | None = Field(default=None, max_length=320)
     photo_keys: list[str] = Field(default_factory=list, max_length=8)
     consent: AdminConsentIn
+    # Opcionales: un lead captado en una campana externa puede no traerlos.
+    service_ids: list[UUID] = Field(default_factory=list, max_length=MAX_SERVICES_PER_LEAD)
+    property_type: PropertyType | None = None
+    schedule: ProjectSchedule | None = None
 
     @field_validator("photo_keys")
     @classmethod

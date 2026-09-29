@@ -10,13 +10,15 @@ import { PhotoUploader } from "@/components/features/PhotoUploader";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Card";
+import { ChipGroup } from "@/components/ui/ChipGroup";
 import { CheckboxField, TextAreaField, TextField } from "@/components/ui/Field";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { PROJECT_SCHEDULES, PROPERTY_TYPES } from "@/helpers/leadOptions";
 import { MIN_DESCRIPTION_LENGTH } from "@/helpers/validators";
 import { STEPS, useLeadForm } from "@/hooks/useLeadForm";
 import { usePhotoUpload } from "@/hooks/usePhotoUpload";
 import { path, type AppLocale } from "@/i18n/routing";
-import type { Category } from "@/types/api";
+import type { CatalogCategory } from "@/types/api";
 
 const MAX_PROFESSIONALS = 5;
 
@@ -31,11 +33,12 @@ const POLICY_ROWS = [
 ] as const;
 
 /** Formulario de publicacion en tres pasos. Toda la logica vive en los hooks. */
-export function LeadWizard({ categories }: { categories: Category[] }) {
+export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
   const locale = useLocale() as AppLocale;
   const t = useTranslations("publish");
   const tCommon = useTranslations("common");
   const tValidation = useTranslations("validation");
+  const tProject = useTranslations("project");
   const form = useLeadForm();
   const upload = usePhotoUpload();
   const searchParams = useSearchParams();
@@ -46,7 +49,7 @@ export function LeadWizard({ categories }: { categories: Category[] }) {
   useEffect(() => {
     if (!presetSlug || form.values.categoryId) return;
     const match = categories.find((category) => category.slug === presetSlug);
-    if (match) form.setField("categoryId", match.id);
+    if (match) form.setCategory(match.id);
   }, [presetSlug, categories, form]);
 
   const error = (field: keyof typeof form.values): string | undefined => {
@@ -82,6 +85,20 @@ export function LeadWizard({ categories }: { categories: Category[] }) {
   }
 
   const isLastStep = form.stepIndex === STEPS.length - 1;
+  const selectedCategory = categories.find((category) => category.id === form.values.categoryId);
+  // El cliente eligio la opcion 1 del mockup con un cambio: los servicios de la
+  // categoria se ven junto al boton "Continuar", no debajo de la rejilla.
+  const services =
+    form.step === "category" && selectedCategory && selectedCategory.services.length > 0
+      ? selectedCategory.services
+      : null;
+  const toggleService = (id: string) =>
+    form.setField(
+      "serviceIds",
+      form.values.serviceIds.includes(id)
+        ? form.values.serviceIds.filter((x) => x !== id)
+        : [...form.values.serviceIds, id],
+    );
 
   return (
     <form
@@ -121,7 +138,7 @@ export function LeadWizard({ categories }: { categories: Category[] }) {
           <CategoryPicker
             categories={categories}
             selected={form.values.categoryId ? [form.values.categoryId] : []}
-            onChange={(ids) => form.setField("categoryId", ids[0] ?? "")}
+            onChange={(ids) => form.setCategory(ids[0] ?? "")}
             label={t("categoryLabel")}
             error={error("categoryId")}
           />
@@ -147,6 +164,30 @@ export function LeadWizard({ categories }: { categories: Category[] }) {
               error={error("description")}
               required
               maxLength={4000}
+            />
+            <ChipGroup
+              name="propertyType"
+              label={t("propertyTypeLabel")}
+              options={PROPERTY_TYPES.map((value) => ({
+                value,
+                label: tProject(`propertyTypes.${value}`),
+              }))}
+              selected={form.values.propertyType ? [form.values.propertyType] : []}
+              onToggle={(value) => form.setField("propertyType", value)}
+              error={error("propertyType")}
+              required
+            />
+            <ChipGroup
+              name="schedule"
+              label={t("scheduleLabel")}
+              options={PROJECT_SCHEDULES.map((value) => ({
+                value,
+                label: tProject(`schedules.${value}`),
+              }))}
+              selected={form.values.schedule ? [form.values.schedule] : []}
+              onToggle={(value) => form.setField("schedule", value)}
+              error={error("schedule")}
+              required
             />
             <TextField
               label={t("postalCodeLabel")}
@@ -195,6 +236,32 @@ export function LeadWizard({ categories }: { categories: Category[] }) {
               autoComplete="email"
             />
 
+            {form.smsSentTo && (
+              <div className="space-y-2 rounded-option border border-brand bg-brand-soft p-5">
+                <TextField
+                  label={t("phoneCodeLabel")}
+                  hint={t("phoneCodeHint", { phone: form.smsSentTo })}
+                  value={form.values.phoneCode}
+                  onChange={(event) => form.setField("phoneCode", event.target.value)}
+                  error={error("phoneCode")}
+                  // Sin `required` nativo: si el cliente corrige el telefono, el
+                  // formulario tiene que poder enviarse para pedir otro codigo.
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                />
+                <Button
+                  type="button"
+                  variant="text"
+                  loading={form.resendingCode}
+                  onClick={() => void form.resendCode()}
+                  className="text-[13px]"
+                >
+                  {t("phoneCodeResend")}
+                </Button>
+              </div>
+            )}
+
             <div className="space-y-3 rounded-option border border-line bg-page p-5">
               <CheckboxField
                 label={t("consentLabel", { maxProfessionals: MAX_PROFESSIONALS })}
@@ -239,18 +306,33 @@ export function LeadWizard({ categories }: { categories: Category[] }) {
 
       {form.submitError && <Alert tone="error">{form.submitError}</Alert>}
 
-      <div className="flex items-center justify-between gap-3">
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={form.goBack}
-          disabled={form.stepIndex === 0}
-        >
-          {tCommon("back")}
-        </Button>
-        <Button type="submit" size="lg" loading={form.submitting || upload.uploading}>
-          {isLastStep ? (form.submitting ? t("submitting") : t("submit")) : tCommon("next")}
-        </Button>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
+        {services && (
+          <ChipGroup
+            name="services"
+            label={t("servicesLabel", { category: selectedCategory?.name ?? "" })}
+            hint={t("servicesHint")}
+            options={services.map((service) => ({ value: service.id, label: service.name }))}
+            selected={form.values.serviceIds}
+            onToggle={toggleService}
+            multiple
+            error={error("serviceIds")}
+            className="flex-1 rounded-option border border-line bg-surface p-5"
+          />
+        )}
+        <div className="flex items-center justify-between gap-3 lg:ml-auto lg:justify-end">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={form.goBack}
+            disabled={form.stepIndex === 0}
+          >
+            {tCommon("back")}
+          </Button>
+          <Button type="submit" size="lg" loading={form.submitting || upload.uploading}>
+            {isLastStep ? (form.submitting ? t("submitting") : t("submit")) : tCommon("next")}
+          </Button>
+        </div>
       </div>
     </form>
   );

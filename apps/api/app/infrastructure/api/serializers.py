@@ -31,6 +31,7 @@ from app.domain.models import (
     Professional,
     Purchase,
     PurchaseReview,
+    Service,
     User,
     VatBreakdown,
     vat_breakdown,
@@ -54,6 +55,7 @@ from app.infrastructure.api.schemas.billing import (
 )
 from app.infrastructure.api.schemas.common import MoneyOut
 from app.infrastructure.api.schemas.leads import (
+    CatalogCategoryOut,
     CategoryOut,
     ClientContactOut,
     CreateLeadOut,
@@ -62,6 +64,7 @@ from app.infrastructure.api.schemas.leads import (
     LeadPublicOut,
     PresignPhotoOut,
     PurchaseOut,
+    ServiceOut,
     VatBreakdownOut,
 )
 from app.infrastructure.api.schemas.professionals import ProfessionalOut
@@ -88,6 +91,17 @@ def category_out(category: Category, locale: str) -> CategoryOut:
     )
 
 
+def service_out(service: Service, locale: str) -> ServiceOut:
+    return ServiceOut(id=service.id, slug=service.slug, name=service.name(locale))
+
+
+def catalog_category_out(category: Category, locale: str) -> CatalogCategoryOut:
+    return CatalogCategoryOut(
+        **category_out(category, locale).model_dump(),
+        services=[service_out(s, locale) for s in category.active_services],
+    )
+
+
 def lead_public_out(
     view: LeadPublicView,
     category: Category,
@@ -108,6 +122,9 @@ def lead_public_out(
         postal_code=view.postal_code,
         client_first_name=view.client_first_name,
         category=category_out(category, locale),
+        services=[service_out(s, locale) for s in category.services_named(view.service_ids)],
+        property_type=view.property_type,
+        schedule=view.schedule,
         photo_urls=[storage.public_url(key) for key in view.photo_keys],
         created_at=view.created_at,
         remaining_slots=view.remaining_slots,

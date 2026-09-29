@@ -1,10 +1,12 @@
 /**
  * DTOs del API. Reflejan los schemas Pydantic de `apps/api`.
  *
- * Nota importante sobre `LeadPublic`: no tiene campos para el nombre, telefono ni
- * email del cliente. Esa ausencia es intencionada — el explorador no puede
- * mostrar lo que su tipo no contiene.
+ * Nota importante sobre `LeadPublic`: no tiene campos para el nombre completo, el
+ * telefono ni el email del cliente (solo el nombre de pila). Esa ausencia es
+ * intencionada — el explorador no puede mostrar lo que su tipo no contiene.
  */
+
+import type { ProjectSchedule, PropertyType } from "@/helpers/leadOptions";
 
 export type Locale = "es" | "en";
 
@@ -20,6 +22,18 @@ export interface Category {
   name: string;
   /** Precio de referencia del oficio. El de un lead concreto viene en `LeadPublic.price`. */
   suggested_lead_price: Money;
+}
+
+/** Servicio concreto dentro de una categoria (segundo nivel del catalogo). */
+export interface Service {
+  id: string;
+  slug: string;
+  name: string;
+}
+
+/** Categoria del catalogo con los servicios que hoy se ofrecen en el formulario. */
+export interface CatalogCategory extends Category {
+  services: Service[];
 }
 
 /** Desglose de un precio con IVA incluido. */
@@ -41,6 +55,11 @@ export interface LeadPublic {
   /** Nombre de pila; `null` si el consentimiento del cliente no cubre mostrarlo. */
   client_first_name: string | null;
   category: Category;
+  /** Servicios de la categoria que eligio el cliente (puede estar vacio). */
+  services: Service[];
+  /** `null` en solicitudes anteriores al formulario de la Etapa 1. */
+  property_type: PropertyType | null;
+  schedule: ProjectSchedule | null;
   photo_urls: string[];
   created_at: string;
   remaining_slots: number;

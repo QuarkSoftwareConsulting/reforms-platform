@@ -62,8 +62,8 @@ npx -y firebase-tools emulators:start --only auth \
 | Objetivo | Comando |
 |---|---|
 | Todo el lint (ruff + mypy strict + eslint + tsc) | `pnpm lint` |
-| Todos los tests (416 back + 80 front) | `pnpm test` |
-| Backend rápido, **sin Docker** (335 tests) | `cd apps/api && uv run pytest -m "not integration"` |
+| Todos los tests (472 back + 90 front) | `pnpm test` |
+| Backend rápido, **sin Docker** (380 tests) | `cd apps/api && uv run pytest -m "not integration"` |
 | Backend completo (requiere `pnpm infra:up`) | `pnpm api:test` |
 | Un solo test de backend | `cd apps/api && uv run pytest tests/unit/domain/test_lead.py -k capping` |
 | Frontend en watch | `pnpm --filter web test:watch` |
@@ -182,6 +182,23 @@ Stripe y una fila en `subscription_prices` (append-only; vige la más reciente).
 a las suscripciones nuevas: quien ya paga conserva su importe. Hasta que el admin lo fije,
 rige `STRIPE_TOPUP_PRICE_ID` + `SUBSCRIPTION_TOPUP_CENTS`.
 
+**4.11 · Solo se publica dentro de la zona de cobertura.**
+En la Etapa 1, la Comunidad de Madrid (CP 28xxx). `CreateLead` lo comprueba con
+`ServiceArea` **antes** de consultar el catálogo de CP, para que un CP real de fuera
+responda `POSTAL_CODE_NOT_COVERED` y no `UNKNOWN_POSTAL_CODE`. La zona es configuración
+(`COVERED_POSTAL_PREFIXES`), no código.
+→ Si falta un CP 28xxx real en `postal_codes_es.csv`, regenéralo con
+`scripts/import_postal_codes.py`; no quites la comprobación.
+
+**4.12 · El móvil del cliente se verifica por SMS antes de publicar.**
+El cliente publica como invitado: el SMS es lo único que prueba que el teléfono que
+vendemos existe y es suyo. Lo hace el puerto `PhoneVerificationPort`; el proveedor
+genera, caduca y limita los códigos, así que no guardamos ninguno. Con
+`PHONE_VERIFICATION_BACKEND=disabled` (hoy, sin proveedor) se publica sin código.
+→ El código se confirma **lo último**, después de validar todo lo demás: se consume al
+confirmarlo y un error en otro campo no debe obligar a pedir otro SMS.
+→ `console` escribe el código en el log: `Settings` lo prohíbe fuera de development y test.
+
 ---
 
 ## 5. Fronteras de la arquitectura
@@ -276,7 +293,10 @@ Tres reglas aprendidas a golpes:
 
 **Alembic** — `--autogenerate` produce migraciones que **hay que revisar a mano**: no añade
 `import geoalchemy2` (aunque lo referencie), no crea la extensión PostGIS y no borra los
-tipos `ENUM` en el `downgrade`. Compara con `alembic/versions/*_initial_schema.py` y
+tipos `ENUM` en el `downgrade`. Tampoco crea el tipo `ENUM` de una columna nueva
+añadida con `add_column` (sí lo hace `create_table`): créalo antes con
+`postgresql.ENUM(..., create_type=False).create(op.get_bind(), checkfirst=True)`, como en
+`*_catalogo_de_servicios_y_datos_del_.py`. Compara con `alembic/versions/*_initial_schema.py` y
 verifica siempre `upgrade` → `downgrade` → `upgrade` y `alembic check`.
 
 **pnpm 10.34.5** — usa la versión fijada en `packageManager`. Los paquetes autorizados
@@ -287,8 +307,8 @@ dentro de `pnpm-workspace.yaml`.
 alrededor o el `build` falla al prerenderizar. Ver `publicar/page.tsx`.
 
 **Acentos** — `apps/web/messages/*.json` es texto de cara al usuario y lleva acentos
-correctos (349 claves por idioma). La regla de ASCII puro aplica **solo al código fuente**.
-Lo mismo vale para `apps/api/data/categories.csv`: los nombres de oficio se muestran en la
+correctos (381 claves por idioma). La regla de ASCII puro aplica **solo al código fuente**.
+Lo mismo vale para `apps/api/data/categories.csv`, `services.csv`: los nombres de oficio se muestran en la
 landing y en el formulario.
 
 ---

@@ -24,6 +24,8 @@ from app.infrastructure.api.schemas.leads import (
     CreateLeadOut,
     LeadDetailOut,
     LeadListOut,
+    PhoneVerificationIn,
+    PhoneVerificationOut,
     PostalCodeOut,
     PresignPhotoIn,
     PresignPhotoOut,
@@ -58,6 +60,10 @@ async def create_lead(
             client_phone=payload.client_phone,
             client_email=payload.client_email,
             photo_keys=payload.photo_keys,
+            service_ids=payload.service_ids,
+            property_type=payload.property_type,
+            schedule=payload.schedule,
+            phone_verification_code=payload.phone_verification_code,
             consent=ConsentInput(
                 accepted=payload.consent.accepted,
                 policy_version=payload.consent.policy_version or settings.privacy_policy_version,
@@ -68,6 +74,23 @@ async def create_lead(
         source=LeadSource.ORGANIC,
     )
     return serializers.created_lead_out(lead)
+
+
+@router.post(
+    "/leads/phone-verification",
+    response_model=PhoneVerificationOut,
+    summary="Enviar el SMS que verifica el movil del cliente",
+)
+async def start_phone_verification(
+    payload: PhoneVerificationIn, container: ContainerDep
+) -> PhoneVerificationOut:
+    """Endpoint publico, como la publicacion: el cliente no tiene cuenta.
+
+    Con `required=False` el entorno no verifica por SMS y el formulario publica sin
+    codigo. El limite de envios por telefono lo aplica el proveedor.
+    """
+    result = await container.start_phone_verification.execute(payload.phone)
+    return PhoneVerificationOut(required=result.required)
 
 
 @router.post(

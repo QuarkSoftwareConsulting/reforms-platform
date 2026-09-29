@@ -91,6 +91,9 @@ async def create_admin_lead(
             client_phone=payload.client_phone,
             client_email=payload.client_email,
             photo_keys=payload.photo_keys,
+            service_ids=payload.service_ids,
+            property_type=payload.property_type,
+            schedule=payload.schedule,
             consent=ConsentInput(
                 accepted=True,
                 policy_version=payload.consent.policy_version,

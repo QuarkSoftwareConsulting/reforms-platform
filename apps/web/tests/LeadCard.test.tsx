@@ -32,6 +32,9 @@ const LEAD: LeadPublic = {
     name: "Carpinteria",
     suggested_lead_price: { amount_cents: 500, currency: "EUR", formatted: "5.00 €" },
   },
+  services: [{ id: "svc-1", slug: "armarios", name: "Armarios a medida" }],
+  property_type: "flat",
+  schedule: "asap",
   photo_urls: ["https://cdn.test/a.jpg"],
   created_at: new Date(Date.now() - 3 * 3600_000).toISOString(),
   remaining_slots: 2,
@@ -135,6 +138,21 @@ describe("LeadCard", () => {
     );
     expect(screen.queryByText(messages.projects.closed)).toBeNull();
     expect(screen.getByRole("link")).toBeDefined();
+  });
+
+  it("shows the chosen services, property type and timing", () => {
+    renderWithIntl(<LeadCard lead={LEAD} />);
+    expect(screen.getByText("Armarios a medida")).toBeDefined();
+    const project = `${messages.project.propertyTypes.flat} · ${messages.project.schedules.asap}`;
+    expect(screen.getByText(project)).toBeDefined();
+  });
+
+  it("renders older leads that have no project data", () => {
+    renderWithIntl(
+      <LeadCard lead={{ ...LEAD, services: [], property_type: null, schedule: null }} />,
+    );
+    expect(screen.queryByText(messages.project.propertyTypes.flat)).toBeNull();
+    expect(screen.getByText(LEAD.title)).toBeDefined();
   });
 
   it("omits distance when it is unknown", () => {

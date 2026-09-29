@@ -20,6 +20,7 @@ from app.application.ports import (
     ClockPort,
     IdGeneratorPort,
     PaymentPort,
+    PhoneVerificationPort,
     StoragePort,
     TokenVerifierPort,
 )
@@ -49,6 +50,7 @@ from app.application.use_cases import (
     SetLeadPrice,
     SetSubscriptionPrice,
     StartLeadPurchase,
+    StartPhoneVerification,
     StartSubscription,
     SubscriptionPricing,
     SyncUserFromIdentity,
@@ -56,7 +58,7 @@ from app.application.use_cases import (
 )
 from app.config import Settings, get_settings
 from app.domain.exceptions import DomainError, ProfessionalNotFoundError
-from app.domain.models import Professional, User
+from app.domain.models import Professional, ServiceArea, User
 from app.domain.value_objects import Money
 from app.infrastructure.adapters.db.repositories import (
     SqlAlchemyCategoryRepository,
@@ -72,6 +74,7 @@ from app.infrastructure.adapters.db.repositories import (
     SqlAlchemyUserRepository,
 )
 from app.infrastructure.adapters.db.session import SqlAlchemyUnitOfWork
+from app.infrastructure.adapters.sms import ConsolePhoneVerifier
 from app.infrastructure.adapters.storage.gcs_adapter import GCSStorage
 from app.infrastructure.adapters.storage.s3_adapter import S3Storage
 
@@ -93,6 +96,13 @@ def create_storage(settings: Settings) -> StoragePort:
     )
 
 
+def create_phone_verifier(settings: Settings, clock: ClockPort) -> PhoneVerificationPort | None:
+    """`None` desactiva la verificacion por SMS: el formulario publica sin codigo."""
+    if settings.phone_verification_backend == "console":
+        return ConsolePhoneVerifier(clock=clock)
+    return None
+
+
 @dataclass(slots=True)
 class Infrastructure:
     """Recursos de proceso: se crean al arrancar y se comparten entre peticiones."""
@@ -105,6 +115,8 @@ class Infrastructure:
     token_verifier: TokenVerifierPort
     clock: ClockPort
     ids: IdGeneratorPort
+    # De proceso: el adaptador de consola guarda los codigos en memoria.
+    phone_verifier: PhoneVerificationPort | None = None
 
 
 def get_infrastructure(request: Request) -> Infrastructure:
@@ -192,7 +204,13 @@ class RequestContainer:
             ids=self.infra.ids,
             uow=self.uow,
             max_purchases=self.infra.settings.lead_max_purchases,
+            service_area=ServiceArea.from_prefixes(self.infra.settings.covered_postal_prefixes),
+            phone_verifier=self.infra.phone_verifier,
         )
+
+    @property
+    def start_phone_verification(self) -> StartPhoneVerification:
+        return StartPhoneVerification(verifier=self.infra.phone_verifier)
 
     @property
     def list_leads(self) -> ListLeads:
