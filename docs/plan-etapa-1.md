@@ -29,7 +29,7 @@ cualquier persona o sesión de agente retome el trabajo sin reconstruir la conve
   |---|---|---|
   | Revisión de la Etapa 1 (5 puntos: vista previa, rechazo, concurrencia) | `fix/revision-etapa-1` | #21 |
   | Devolución de recargas por el banco (SEPA / disputa) | `feat/devolucion-sepa` | #22 (sobre #21) |
-  | Ajuste de saldo en el admin, GeoNames y límite de SMS por IP | `feat/pendientes-etapa-1` | sobre #22 |
+  | Ajuste de saldo en el admin, GeoNames y límite de SMS por IP | `feat/pendientes-etapa-1` | #23 (sobre #22) |
 
 ---
 
