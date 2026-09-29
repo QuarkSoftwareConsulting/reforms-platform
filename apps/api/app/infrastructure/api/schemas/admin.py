@@ -13,6 +13,7 @@ from uuid import UUID
 from pydantic import Field, field_validator
 
 from app.domain.models import MAX_SALE_PRICE_CENTS
+from app.infrastructure.api.schemas.billing import AdminAccountOut
 from app.infrastructure.api.schemas.common import ApiModel, MoneyOut
 from app.infrastructure.api.schemas.leads import CategoryOut, CreateLeadOut, PurchaseOut
 
@@ -122,6 +123,8 @@ class AdminMetricsOut(ApiModel):
     coverage_rate: float
     liquidity: float
     revenue_by_currency: dict[str, MoneyOut]
+    active_accounts: int = 0
+    topup_revenue_by_currency: dict[str, MoneyOut] = Field(default_factory=dict)
 
 
 class AdminProfessionalOut(ApiModel):
@@ -132,6 +135,7 @@ class AdminProfessionalOut(ApiModel):
     province: str | None = None
     service_radius_km: int
     categories: list[CategoryOut]
+    account: AdminAccountOut | None = None
 
 
 class AdminProfessionalListOut(ApiModel):

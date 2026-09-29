@@ -1,29 +1,35 @@
 from app.infrastructure.adapters.db.models.base import Base
 from app.infrastructure.adapters.db.models.tables import (
     CategoryRow,
+    CreditEntryRow,
     LeadConsentRow,
     LeadPhotoRow,
     LeadPurchaseRow,
     LeadRow,
     PostalCodeRow,
     ProcessedPaymentEventRow,
+    ProfessionalAccountRow,
     ProfessionalCategoryRow,
     ProfessionalRow,
     PurchaseReviewRow,
+    SubscriptionPriceRow,
     UserRow,
 )
 
 __all__ = [
     "Base",
     "CategoryRow",
+    "CreditEntryRow",
     "LeadConsentRow",
     "LeadPhotoRow",
     "LeadPurchaseRow",
     "LeadRow",
     "PostalCodeRow",
     "ProcessedPaymentEventRow",
+    "ProfessionalAccountRow",
     "ProfessionalCategoryRow",
     "ProfessionalRow",
     "PurchaseReviewRow",
+    "SubscriptionPriceRow",
     "UserRow",
 ]

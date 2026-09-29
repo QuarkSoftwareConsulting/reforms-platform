@@ -13,12 +13,15 @@ from uuid import UUID
 
 from app.domain.models import (
     Category,
+    CreditEntry,
     Lead,
     LeadSource,
     LeadStatus,
     Professional,
+    ProfessionalAccount,
     Purchase,
     PurchaseReview,
+    SubscriptionPrice,
     User,
 )
 from app.domain.value_objects import Coordinates, PostalCode
@@ -244,3 +247,71 @@ class PurchaseReviewRepositoryPort(ABC):
 
     @abstractmethod
     async def list_for_purchase(self, purchase_id: UUID) -> list[PurchaseReview]: ...
+
+
+class ProfessionalAccountRepositoryPort(ABC):
+    """Cuenta de recarga + saldo. Una por profesional, creada al iniciar la recarga."""
+
+    @abstractmethod
+    async def add(self, account: ProfessionalAccount) -> ProfessionalAccount: ...
+
+    @abstractmethod
+    async def update(self, account: ProfessionalAccount) -> ProfessionalAccount: ...
+
+    @abstractmethod
+    async def get(self, professional_id: UUID) -> ProfessionalAccount | None: ...
+
+    @abstractmethod
+    async def get_for_update(self, professional_id: UUID) -> ProfessionalAccount | None:
+        """Bloquea la cuenta hasta el final de la transaccion.
+
+        Es lo que impide gastar dos veces el mismo saldo en compras simultaneas.
+        Quien bloquee tambien un lead debe bloquear primero el lead y despues la
+        cuenta, siempre en ese orden, para no provocar interbloqueos.
+        """
+
+    @abstractmethod
+    async def get_by_customer_for_update(self, customer_id: str) -> ProfessionalAccount | None:
+        """Cuenta asociada al cliente de la pasarela, bloqueada (eventos del webhook)."""
+
+    @abstractmethod
+    async def get_many(self, professional_ids: set[UUID]) -> dict[UUID, ProfessionalAccount]: ...
+
+    @abstractmethod
+    async def count_active(self, *, now: datetime) -> int: ...
+
+
+class CreditLedgerRepositoryPort(ABC):
+    """Libro append-only de movimientos de saldo."""
+
+    @abstractmethod
+    async def add_if_absent(self, entry: CreditEntry) -> bool:
+        """Registra el movimiento y devuelve True si no existia otro igual.
+
+        "Igual" es el mismo `kind` con la misma `source_ref`. Si devuelve False el
+        movimiento ya se habia aplicado y el caso de uso no debe tocar el saldo.
+        """
+
+    @abstractmethod
+    async def list_for_professional(
+        self, professional_id: UUID, *, limit: int = 50, offset: int = 0
+    ) -> list[CreditEntry]: ...
+
+    @abstractmethod
+    async def latest_topup(self, professional_id: UUID) -> CreditEntry | None:
+        """Ultima recarga cobrada: dice cuanto paga ESTE profesional al mes."""
+
+    @abstractmethod
+    async def topup_totals(self) -> dict[str, int]:
+        """Suma de recargas cobradas por divisa (en centimos)."""
+
+
+class SubscriptionPriceRepositoryPort(ABC):
+    """Historial append-only del importe de la mensualidad."""
+
+    @abstractmethod
+    async def add(self, price: SubscriptionPrice) -> SubscriptionPrice: ...
+
+    @abstractmethod
+    async def current(self) -> SubscriptionPrice | None:
+        """La mas reciente, o None si el admin aun no la ha fijado."""

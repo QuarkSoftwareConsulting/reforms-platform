@@ -16,12 +16,20 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.domain.models import LeadSource, LeadStatus, PurchaseStatus, UserRole
+from app.domain.models import (
+    CreditEntryKind,
+    LeadSource,
+    LeadStatus,
+    PurchaseStatus,
+    SubscriptionStatus,
+    UserRole,
+)
 from app.infrastructure.adapters.db.models.base import (
     Base,
     TimestampMixin,
@@ -38,6 +46,14 @@ lead_source_enum = Enum(
 )
 purchase_status_enum = Enum(
     PurchaseStatus, name="purchase_status", values_callable=lambda e: [m.value for m in e]
+)
+subscription_status_enum = Enum(
+    SubscriptionStatus,
+    name="subscription_status",
+    values_callable=lambda e: [m.value for m in e],
+)
+credit_entry_kind_enum = Enum(
+    CreditEntryKind, name="credit_entry_kind", values_callable=lambda e: [m.value for m in e]
 )
 
 Point = Geography(geometry_type="POINT", srid=4326, spatial_index=False)
@@ -234,6 +250,10 @@ class LeadPurchaseRow(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     stripe_checkout_session_id: Mapped[str | None] = mapped_column(String(255), unique=True)
     stripe_payment_intent_id: Mapped[str | None] = mapped_column(String(255))
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Parte del importe cubierta con saldo de la recarga; el resto se cobro en Stripe.
+    credit_applied_cents: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
 
     __table_args__ = (
         # Un profesional no puede tener dos compras vivas del mismo lead. El indice
@@ -252,6 +272,10 @@ class LeadPurchaseRow(Base, UUIDPrimaryKeyMixin, TimestampMixin):
             postgresql_where=text("status = 'reserved'"),
         ),
         CheckConstraint("amount_cents > 0", name="amount_positive"),
+        CheckConstraint(
+            "credit_applied_cents >= 0 AND credit_applied_cents <= amount_cents",
+            name="credit_applied_in_range",
+        ),
     )
 
 
@@ -302,17 +326,99 @@ class ProcessedPaymentEventRow(Base):
     )
 
 
+class ProfessionalAccountRow(Base, TimestampMixin):
+    """Recarga mensual y saldo de un profesional.
+
+    El saldo se guarda cacheado aqui para poder bloquearlo con la fila (FOR UPDATE)
+    al comprar; `credit_entries` es el libro que lo justifica movimiento a
+    movimiento.
+    """
+
+    __tablename__ = "professional_accounts"
+
+    professional_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("professionals.id", ondelete="RESTRICT"),
+        primary_key=True,
+    )
+    subscription_status: Mapped[SubscriptionStatus] = mapped_column(
+        subscription_status_enum, nullable=False, default=SubscriptionStatus.NONE
+    )
+    stripe_customer_id: Mapped[str | None] = mapped_column(String(255), unique=True)
+    stripe_subscription_id: Mapped[str | None] = mapped_column(String(255))
+    current_period_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    status_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    balance_cents: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="EUR")
+
+    __table_args__ = (
+        # Ultima barrera contra gastar saldo que no existe, aunque el dominio falle.
+        CheckConstraint("balance_cents >= 0", name="balance_non_negative"),
+    )
+
+
+class CreditEntryRow(Base, UUIDPrimaryKeyMixin):
+    """Movimiento append-only del saldo. Nunca se actualiza ni se borra."""
+
+    __tablename__ = "credit_entries"
+
+    professional_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("professional_accounts.professional_id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    kind: Mapped[CreditEntryKind] = mapped_column(credit_entry_kind_enum, nullable=False)
+    amount_cents: Mapped[int] = mapped_column(Integer, nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    source_ref: Mapped[str] = mapped_column(String(255), nullable=False)
+    note: Mapped[str | None] = mapped_column(String(500))
+    created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT")
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        # Cerrojo de idempotencia del libro: la misma factura no se abona dos veces
+        # y la misma compra no gasta (ni devuelve) saldo dos veces.
+        UniqueConstraint("kind", "source_ref", name="uq_credit_entries_kind_source_ref"),
+        Index("ix_credit_entries_professional", "professional_id", text("created_at DESC")),
+        CheckConstraint("amount_cents > 0", name="amount_positive"),
+    )
+
+
+class SubscriptionPriceRow(Base, UUIDPrimaryKeyMixin):
+    """Historial append-only de la mensualidad; la vigente es la mas reciente."""
+
+    __tablename__ = "subscription_prices"
+
+    amount_cents: Mapped[int] = mapped_column(Integer, nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    stripe_price_id: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT")
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        Index("ix_subscription_prices_created_at", text("created_at DESC")),
+        CheckConstraint("amount_cents > 0", name="amount_positive"),
+    )
+
+
 __all__ = [
     "Base",
     "CategoryRow",
+    "CreditEntryRow",
     "LeadConsentRow",
     "LeadPhotoRow",
     "LeadPurchaseRow",
     "LeadRow",
     "PostalCodeRow",
     "ProcessedPaymentEventRow",
+    "ProfessionalAccountRow",
     "ProfessionalCategoryRow",
     "ProfessionalRow",
     "PurchaseReviewRow",
+    "SubscriptionPriceRow",
     "UserRow",
 ]

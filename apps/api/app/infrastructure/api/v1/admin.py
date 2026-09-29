@@ -31,6 +31,12 @@ from app.infrastructure.api.schemas.admin import (
     SetCategoryPriceIn,
     SetLeadPriceIn,
 )
+from app.infrastructure.api.schemas.billing import (
+    AdminAccountOut,
+    CreditAdjustmentIn,
+    SetSubscriptionPriceIn,
+    SubscriptionPriceOut,
+)
 from app.infrastructure.api.schemas.leads import CategoryOut, CreateLeadOut
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -152,6 +158,61 @@ async def list_admin_professionals(
 ) -> AdminProfessionalListOut:
     result = await container.admin_professionals.execute(query=query, limit=limit, offset=offset)
     return serializers.admin_professional_list_out(result, locale)
+
+
+@router.get(
+    "/subscription-price",
+    response_model=SubscriptionPriceOut,
+    summary="Mensualidad vigente para suscripciones nuevas",
+)
+async def get_subscription_price(container: ContainerDep, _: AdminDep) -> SubscriptionPriceOut:
+    return serializers.subscription_price_out(await container.pricing.current())
+
+
+@router.put(
+    "/subscription-price",
+    response_model=SubscriptionPriceOut,
+    summary="Cambiar la mensualidad",
+)
+async def set_subscription_price(
+    payload: SetSubscriptionPriceIn, container: ContainerDep, admin: AdminDep
+) -> SubscriptionPriceOut:
+    """Crea un precio nuevo en la pasarela. Los ya suscritos conservan el suyo."""
+    info = await container.set_subscription_price.execute(
+        amount_cents=payload.amount_cents, admin_user_id=admin.id
+    )
+    return serializers.subscription_price_out(info)
+
+
+@router.post(
+    "/professionals/{professional_id}/credit-adjustments",
+    response_model=AdminAccountOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Ajustar a mano el saldo de un profesional",
+)
+async def adjust_professional_credit(
+    professional_id: UUID,
+    payload: CreditAdjustmentIn,
+    container: ContainerDep,
+    admin: AdminDep,
+) -> AdminAccountOut:
+    """Abona (importe positivo) o carga (negativo) saldo, con nota obligatoria.
+
+    Es la via para compensar una compra reembolsada: la plaza no se libera, pero
+    el profesional recupera el importe como saldo.
+    """
+    account = await container.adjust_credit.execute(
+        professional_id=professional_id,
+        amount_cents=payload.amount_cents,
+        note=payload.note,
+        admin_user_id=admin.id,
+    )
+    return AdminAccountOut(
+        status=account.subscription_status.value,
+        is_active=account.is_active(container.infra.clock.now()),
+        balance=serializers.money_out(account.balance),
+        current_period_end=account.current_period_end,
+    )
 
 
 @router.post(

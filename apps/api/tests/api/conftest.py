@@ -32,6 +32,9 @@ pytestmark = pytest.mark.integration
 
 TRUNCATE_ORDER = (
     "processed_payment_events",
+    "credit_entries",
+    "professional_accounts",
+    "subscription_prices",
     "purchase_reviews",
     "lead_purchases",
     "lead_consents",
@@ -60,6 +63,9 @@ def api_settings() -> Settings:
     settings = Settings(environment="test")
     # La app de test apunta a la BD de integracion, no a la de desarrollo.
     settings.database_url = settings.test_database_url
+    # Mensualidad inicial fija para no depender del .env de desarrollo.
+    settings.stripe_topup_price_id = "price_test_config"
+    settings.subscription_topup_cents = 1800
     return settings
 
 

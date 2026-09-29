@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     # ------------------------------- Stripe ------------------------------
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
+    # Mensualidad INICIAL, hasta que el admin fije la suya desde el panel (que crea
+    # su propio precio en Stripe y tiene prioridad). Deben coincidir entre si.
+    stripe_topup_price_id: str = ""
+    subscription_topup_cents: int = Field(default=1800, gt=0)
 
     # ------------------------------- Firebase ----------------------------
     firebase_project_id: str = ""

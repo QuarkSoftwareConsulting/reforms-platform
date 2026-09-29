@@ -138,8 +138,10 @@ async def start_purchase(
 ) -> StartPurchaseOut:
     """Reserva la plaza y devuelve la URL del checkout.
 
-    El contacto se desbloquea cuando el webhook confirma el pago, no al volver de
-    la pasarela: la confirmacion tiene que venir de Stripe, no del navegador.
+    Exige estar al dia con la recarga mensual (402 `SUBSCRIPTION_REQUIRED`). Si el
+    saldo cubre el precio, la compra queda pagada sin checkout. Si no, el contacto
+    se desbloquea cuando el webhook confirma el pago, no al volver de la pasarela:
+    la confirmacion tiene que venir de Stripe, no del navegador.
     """
     result = await container.start_purchase.execute(
         lead_id=lead_id, professional_id=professional.id, locale=locale
@@ -148,6 +150,9 @@ async def start_purchase(
         purchase_id=result.purchase_id,
         checkout_url=result.checkout_url,
         amount=serializers.money_out(result.amount),
+        credit_applied=serializers.money_out(result.credit_applied),
+        amount_due=serializers.money_out(result.amount_due),
+        paid_with_credit=result.paid_with_credit,
         expires_at=result.expires_at,
     )
 

@@ -60,6 +60,8 @@ export interface Purchase {
   id: string;
   status: PurchaseStatus;
   amount: Money;
+  /** Parte pagada con el saldo de la recarga; el resto se cobro en la pasarela. */
+  credit_applied?: Money | null;
   created_at: string;
   paid_at: string | null;
   reserved_until: string | null;
@@ -80,11 +82,45 @@ export interface CreatedLead {
   created_at: string;
 }
 
+/**
+ * Resultado de iniciar una compra. Si `paid_with_credit`, el saldo cubrio todo:
+ * no hay checkout y el contacto ya esta desbloqueado.
+ */
 export interface StartPurchase {
   purchase_id: string;
-  checkout_url: string;
+  checkout_url: string | null;
   amount: Money;
+  credit_applied: Money;
+  amount_due: Money;
+  paid_with_credit: boolean;
   expires_at: string | null;
+}
+
+export type SubscriptionStatus = "none" | "pending" | "active" | "past_due" | "canceled";
+
+export type CreditEntryKind =
+  | "topup"
+  | "spend"
+  | "spend_reversal"
+  | "adjustment_credit"
+  | "adjustment_debit";
+
+export interface CreditEntry {
+  kind: CreditEntryKind;
+  amount: Money;
+  signed_amount_cents: number;
+  created_at: string;
+}
+
+/** Recarga mensual y saldo. `is_active` es lo que decide si se puede comprar. */
+export interface Account {
+  status: SubscriptionStatus;
+  is_active: boolean;
+  balance: Money;
+  topup_amount: Money;
+  current_period_end: string | null;
+  can_manage_billing: boolean;
+  entries: CreditEntry[];
 }
 
 export interface PurchasedLead {
@@ -115,6 +151,8 @@ export interface Me {
   role: "professional" | "admin";
   display_name: string | null;
   professional: Professional | null;
+  /** Solo presente cuando ya existe perfil profesional. */
+  account: Account | null;
 }
 
 export interface PostalCodeInfo {
@@ -177,6 +215,8 @@ export interface AdminMetrics {
   coverage_rate: number;
   liquidity: number;
   revenue_by_currency: Record<string, Money>;
+  active_accounts: number;
+  topup_revenue_by_currency: Record<string, Money>;
 }
 
 export interface AdminProfessional {
@@ -187,6 +227,23 @@ export interface AdminProfessional {
   province: string | null;
   service_radius_km: number;
   categories: Category[];
+  account: AdminAccount | null;
+}
+
+export interface SubscriptionPrice {
+  amount: Money;
+  updated_at: string | null;
+  /** Aun no la fijo el admin: rige el valor inicial de configuracion. */
+  is_default: boolean;
+  /** Sin precio en Stripe nadie puede suscribirse. */
+  configured: boolean;
+}
+
+export interface AdminAccount {
+  status: SubscriptionStatus;
+  is_active: boolean;
+  balance: Money;
+  current_period_end: string | null;
 }
 
 export interface AdminProfessionalList {

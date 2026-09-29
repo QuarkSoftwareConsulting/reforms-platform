@@ -7,6 +7,7 @@ dos cosas que no pertenecen al dominio.
 from __future__ import annotations
 
 from app.application.dto import (
+    AccountSummary,
     AdminLeadItem,
     AdminLeadListResult,
     AdminMetrics,
@@ -18,11 +19,13 @@ from app.application.dto import (
     LeadListResult,
     LeadPricing,
     PurchasedContact,
+    SubscriptionPriceInfo,
 )
 from app.application.ports import PresignedUpload, StoragePort
 from app.domain.models import (
     Category,
     ClientContact,
+    CreditEntry,
     Lead,
     LeadPublicView,
     Professional,
@@ -40,6 +43,12 @@ from app.infrastructure.api.schemas.admin import (
     AdminPurchaseOut,
     LeadPricingOut,
     PurchaseReviewOut,
+)
+from app.infrastructure.api.schemas.billing import (
+    AccountOut,
+    AdminAccountOut,
+    CreditEntryOut,
+    SubscriptionPriceOut,
 )
 from app.infrastructure.api.schemas.common import MoneyOut
 from app.infrastructure.api.schemas.leads import (
@@ -139,6 +148,9 @@ def purchase_out(purchase: Purchase) -> PurchaseOut:
         id=purchase.id,
         status=purchase.status.value,
         amount=money_out(purchase.price),
+        credit_applied=(
+            money_out(purchase.credit_applied) if purchase.credit_applied is not None else None
+        ),
         created_at=purchase.created_at,
         paid_at=purchase.paid_at,
         reserved_until=purchase.reserved_until,
@@ -260,6 +272,11 @@ def admin_metrics_out(metrics: AdminMetrics) -> AdminMetricsOut:
             currency: money_out(Money(amount, currency))
             for currency, amount in metrics.revenue_by_currency.items()
         },
+        active_accounts=metrics.active_accounts,
+        topup_revenue_by_currency={
+            currency: money_out(Money(amount, currency))
+            for currency, amount in metrics.topup_revenue_by_currency.items()
+        },
     )
 
 
@@ -273,6 +290,16 @@ def admin_professional_out(item: AdminProfessionalItem, locale: str) -> AdminPro
         province=professional.province,
         service_radius_km=professional.service_radius_km,
         categories=[category_out(category, locale) for category in item.categories],
+        account=(
+            AdminAccountOut(
+                status=item.account.subscription_status.value,
+                is_active=item.account_active,
+                balance=money_out(item.account.balance),
+                current_period_end=item.account.current_period_end,
+            )
+            if item.account is not None
+            else None
+        ),
     )
 
 
@@ -325,3 +352,33 @@ def user_summary(user: User) -> dict[str, object]:
         "role": user.role.value,
         "display_name": user.display_name,
     }
+
+
+def credit_entry_out(entry: CreditEntry) -> CreditEntryOut:
+    return CreditEntryOut(
+        kind=entry.kind.value,
+        amount=money_out(entry.amount),
+        signed_amount_cents=entry.signed_cents,
+        created_at=entry.created_at,
+    )
+
+
+def account_out(summary: AccountSummary) -> AccountOut:
+    return AccountOut(
+        status=summary.status.value,
+        is_active=summary.is_active,
+        balance=money_out(summary.balance),
+        topup_amount=money_out(summary.topup_amount),
+        current_period_end=summary.current_period_end,
+        can_manage_billing=summary.can_manage_billing,
+        entries=[credit_entry_out(entry) for entry in summary.entries],
+    )
+
+
+def subscription_price_out(info: SubscriptionPriceInfo) -> SubscriptionPriceOut:
+    return SubscriptionPriceOut(
+        amount=money_out(info.amount),
+        updated_at=info.updated_at,
+        is_default=info.is_default,
+        configured=info.stripe_price_id is not None,
+    )

@@ -14,9 +14,14 @@ from app.infrastructure.api.schemas.leads import (
 
 
 class StartPurchaseOut(ApiModel):
+    """Si `paid_with_credit`, el saldo cubrio todo: no hay checkout y ya esta pagada."""
+
     purchase_id: UUID
-    checkout_url: str
+    checkout_url: str | None = None
     amount: MoneyOut
+    credit_applied: MoneyOut
+    amount_due: MoneyOut
+    paid_with_credit: bool
     expires_at: datetime | None = None
 
 

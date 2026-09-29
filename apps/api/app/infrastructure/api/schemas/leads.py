@@ -93,6 +93,7 @@ class PurchaseOut(ApiModel):
     id: UUID
     status: str
     amount: MoneyOut
+    credit_applied: MoneyOut | None = None
     created_at: datetime
     paid_at: datetime | None = None
     reserved_until: datetime | None = None

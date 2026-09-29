@@ -60,6 +60,38 @@ describe("useLeadPurchase", () => {
     expect(assign).toHaveBeenCalledWith("https://checkout.stripe.test/cs_123");
   });
 
+  it("goes straight to my contacts when the balance paid the whole contact", async () => {
+    startPurchase.mockResolvedValue({
+      purchase_id: "purchase-1",
+      checkout_url: null,
+      amount: { amount_cents: 1800, currency: "EUR", formatted: "18.00 €" },
+      credit_applied: { amount_cents: 1800, currency: "EUR", formatted: "18.00 €" },
+      amount_due: { amount_cents: 0, currency: "EUR", formatted: "0.00 €" },
+      paid_with_credit: true,
+      expires_at: null,
+    });
+
+    const { result } = renderHook(() => useLeadPurchase(), { wrapper });
+    await act(async () => {
+      await result.current.start("lead-1");
+    });
+
+    expect(assign).toHaveBeenCalledWith("/es/mis-contactos?purchase=purchase-1&status=success");
+  });
+
+  it("translates the missing top-up error", async () => {
+    startPurchase.mockRejectedValue(
+      new ApiError(402, { code: "SUBSCRIPTION_REQUIRED", message: "sin recarga" }),
+    );
+
+    const { result } = renderHook(() => useLeadPurchase(), { wrapper });
+    await act(async () => {
+      await result.current.start("lead-1");
+    });
+
+    await waitFor(() => expect(result.current.error).toBe(messages.errors.SUBSCRIPTION_REQUIRED));
+  });
+
   it("stays pending after a successful redirect so a second click cannot double-book", async () => {
     startPurchase.mockResolvedValue({
       purchase_id: "purchase-1",

@@ -9,6 +9,7 @@ import type {
   Category,
   CreatedLead,
   Locale,
+  SubscriptionPrice,
 } from "@/types/api";
 
 export interface AdminLeadFilters {
@@ -45,6 +46,19 @@ function paramsFor(filters: AdminLeadFilters): string {
 export const adminService = {
   metrics(locale: Locale): Promise<AdminMetrics> {
     return request<AdminMetrics>("/admin/metrics", { locale });
+  },
+
+  subscriptionPrice(locale: Locale): Promise<SubscriptionPrice> {
+    return request<SubscriptionPrice>("/admin/subscription-price", { locale });
+  },
+
+  /** Crea un precio nuevo en Stripe: solo afecta a las suscripciones nuevas. */
+  setSubscriptionPrice(amountCents: number, locale: Locale): Promise<SubscriptionPrice> {
+    return request<SubscriptionPrice>("/admin/subscription-price", {
+      method: "PUT",
+      body: { amount_cents: amountCents },
+      locale,
+    });
   },
 
   leads(filters: AdminLeadFilters, locale: Locale): Promise<AdminLeadList> {

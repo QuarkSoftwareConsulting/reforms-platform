@@ -54,3 +54,49 @@ class PurchaseStatus(StrEnum):
     def unlocks_contact(self) -> bool:
         """Solo un pago confirmado da acceso a los datos del cliente."""
         return self is PurchaseStatus.PAID
+
+
+class SubscriptionStatus(StrEnum):
+    """Estado de la recarga mensual que mantiene activa la cuenta del profesional."""
+
+    NONE = "none"
+    """Nunca se ha suscrito (o la cuenta aun no tiene cliente en la pasarela)."""
+
+    PENDING = "pending"
+    """Checkout completado pero el primer cobro no esta confirmado (SEPA tarda dias)."""
+
+    ACTIVE = "active"
+    """Al dia con la recarga: puede comprar contactos."""
+
+    PAST_DUE = "past_due"
+    """Fallo el cobro de la recarga: puede ver solicitudes pero no comprar."""
+
+    CANCELED = "canceled"
+    """Suscripcion cancelada. El saldo se conserva pero no se puede gastar."""
+
+
+class CreditEntryKind(StrEnum):
+    """Movimientos del libro de saldo. El signo lo decide el tipo, no el importe."""
+
+    TOPUP = "topup"
+    """Recarga mensual cobrada y confirmada por la pasarela."""
+
+    SPEND = "spend"
+    """Saldo aplicado a la compra de un contacto."""
+
+    SPEND_REVERSAL = "spend_reversal"
+    """Devolucion del saldo de una reserva que caduco o fallo sin completarse."""
+
+    ADJUSTMENT_CREDIT = "adjustment_credit"
+    """Abono manual del admin (p. ej. compensar un lead problematico)."""
+
+    ADJUSTMENT_DEBIT = "adjustment_debit"
+    """Cargo manual del admin."""
+
+    @property
+    def is_credit(self) -> bool:
+        return self in {
+            CreditEntryKind.TOPUP,
+            CreditEntryKind.SPEND_REVERSAL,
+            CreditEntryKind.ADJUSTMENT_CREDIT,
+        }

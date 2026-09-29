@@ -16,22 +16,28 @@ from app.domain.models import (
     Category,
     ClientContact,
     ConsentRecord,
+    CreditEntry,
     Lead,
     LeadLocation,
     LeadPhoto,
     Professional,
+    ProfessionalAccount,
     Purchase,
     PurchaseReview,
+    SubscriptionPrice,
     User,
 )
 from app.domain.value_objects import Coordinates, Email, Money, PhoneNumber, PostalCode
 from app.infrastructure.adapters.db.models import (
     CategoryRow,
+    CreditEntryRow,
     LeadPurchaseRow,
     LeadRow,
     PostalCodeRow,
+    ProfessionalAccountRow,
     ProfessionalRow,
     PurchaseReviewRow,
+    SubscriptionPriceRow,
     UserRow,
 )
 
@@ -225,6 +231,9 @@ def purchase_to_domain(row: LeadPurchaseRow) -> Purchase:
         stripe_checkout_session_id=row.stripe_checkout_session_id,
         stripe_payment_intent_id=row.stripe_payment_intent_id,
         paid_at=row.paid_at,
+        credit_applied=(
+            Money(row.credit_applied_cents, row.currency) if row.credit_applied_cents else None
+        ),
     )
 
 
@@ -239,7 +248,51 @@ def apply_purchase(row: LeadPurchaseRow, purchase: Purchase) -> LeadPurchaseRow:
     row.stripe_checkout_session_id = purchase.stripe_checkout_session_id
     row.stripe_payment_intent_id = purchase.stripe_payment_intent_id
     row.paid_at = purchase.paid_at
+    row.credit_applied_cents = purchase.credit_cents
     return row
+
+
+# ------------------------------ Recarga y saldo ---------------------------
+
+
+def account_to_domain(row: ProfessionalAccountRow) -> ProfessionalAccount:
+    return ProfessionalAccount(
+        professional_id=row.professional_id,
+        balance=Money(row.balance_cents, row.currency),
+        created_at=row.created_at,
+        subscription_status=row.subscription_status,
+        stripe_customer_id=row.stripe_customer_id,
+        stripe_subscription_id=row.stripe_subscription_id,
+        current_period_end=row.current_period_end,
+        status_synced_at=row.status_synced_at,
+    )
+
+
+def apply_account(
+    row: ProfessionalAccountRow, account: ProfessionalAccount
+) -> ProfessionalAccountRow:
+    row.created_at = account.created_at
+    row.subscription_status = account.subscription_status
+    row.stripe_customer_id = account.stripe_customer_id
+    row.stripe_subscription_id = account.stripe_subscription_id
+    row.current_period_end = account.current_period_end
+    row.status_synced_at = account.status_synced_at
+    row.balance_cents = account.balance.amount_cents
+    row.currency = account.balance.currency
+    return row
+
+
+def credit_entry_to_domain(row: CreditEntryRow) -> CreditEntry:
+    return CreditEntry(
+        id=row.id,
+        professional_id=row.professional_id,
+        kind=row.kind,
+        amount=Money(row.amount_cents, row.currency),
+        source_ref=row.source_ref,
+        created_at=row.created_at,
+        note=row.note,
+        created_by_user_id=row.created_by_user_id,
+    )
 
 
 def purchase_review_to_domain(row: PurchaseReviewRow) -> PurchaseReview:
@@ -269,4 +322,14 @@ def postal_code_to_domain(row: PostalCodeRow) -> PostalCodeInfo:
         city=row.city,
         province=row.province,
         coordinates=to_coordinates(row.location),
+    )
+
+
+def subscription_price_to_domain(row: SubscriptionPriceRow) -> SubscriptionPrice:
+    return SubscriptionPrice(
+        id=row.id,
+        amount=Money(row.amount_cents, row.currency),
+        stripe_price_id=row.stripe_price_id,
+        created_at=row.created_at,
+        created_by_user_id=row.created_by_user_id,
     )

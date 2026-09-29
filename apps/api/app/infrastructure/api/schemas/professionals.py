@@ -6,6 +6,7 @@ from uuid import UUID
 
 from pydantic import Field
 
+from app.infrastructure.api.schemas.billing import AccountOut
 from app.infrastructure.api.schemas.common import ApiModel
 from app.infrastructure.api.schemas.leads import CategoryOut
 
@@ -35,3 +36,5 @@ class MeOut(ApiModel):
     role: str
     display_name: str | None = None
     professional: ProfessionalOut | None = None
+    account: AccountOut | None = None
+    """Estado de la recarga; None si aun no tiene perfil profesional."""

@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 
+import { AccountStatusBanner } from "@/components/features/AccountStatusBanner";
 import { LeadCard } from "@/components/features/LeadCard";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -35,6 +36,8 @@ export function ProjectExplorer() {
           })}
         </p>
       </header>
+
+      <AccountStatusBanner account={auth.me?.account ?? null} />
 
       <Card className="grid gap-4 sm:grid-cols-2">
         <SelectField

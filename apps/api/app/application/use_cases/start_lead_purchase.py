@@ -10,12 +10,18 @@ lead de 3 plazas y habria que reembolsar a los que sobran. Con la reserva:
   4. Solo entonces pedimos la sesion de checkout.
 
 El TTL evita que un checkout abandonado bloquee el lead para siempre.
+
+Solo compra quien esta al dia con la recarga mensual. El saldo de la recarga se
+gasta dentro de la misma transaccion, con la cuenta bloqueada DESPUES del lead
+(siempre en ese orden, para no interbloquear con otra compra). Si el saldo cubre
+el precio entero la compra queda pagada sin pasar por la pasarela: ese dinero ya
+lo confirmo el webhook cuando se cobro la recarga.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from uuid import UUID
 
 from app.application.dto import StartPurchaseResult
@@ -26,16 +32,20 @@ from app.application.ports import (
     IdGeneratorPort,
     LeadRepositoryPort,
     PaymentPort,
+    ProfessionalAccountRepositoryPort,
     ProfessionalRepositoryPort,
     PurchaseRepositoryPort,
     UnitOfWork,
 )
+from app.application.use_cases.account_access import require_active, require_active_account
+from app.application.use_cases.credit_ledger import CreditLedgerService
 from app.domain.exceptions import (
     CategoryNotFoundError,
     LeadNotFoundError,
     ProfessionalNotFoundError,
 )
-from app.domain.models import Purchase, PurchaseStatus
+from app.domain.models import CreditEntryKind, Purchase, PurchaseStatus
+from app.domain.value_objects import Money
 
 
 @dataclass(slots=True)
@@ -44,6 +54,8 @@ class StartLeadPurchase:
     purchases: PurchaseRepositoryPort
     professionals: ProfessionalRepositoryPort
     categories: CategoryRepositoryPort
+    accounts: ProfessionalAccountRepositoryPort
+    credit: CreditLedgerService
     payments: PaymentPort
     clock: ClockPort
     ids: IdGeneratorPort
@@ -62,6 +74,10 @@ class StartLeadPurchase:
 
         now = self.clock.now()
         reserved_until = now + timedelta(minutes=self.reservation_ttl_minutes)
+
+        # Comprobacion temprana, sin bloqueo: evita tomar el lock del lead para
+        # alguien que de todos modos no puede comprar. Se repite bajo bloqueo.
+        await require_active_account(self.accounts, professional.id, now)
 
         # --- Fase 1: reservar la plaza dentro de la transaccion -------------
         async with self.uow:
@@ -91,6 +107,10 @@ class StartLeadPurchase:
                 ),
             )
 
+            # Orden de bloqueo fijo: lead y despues cuenta.
+            account = require_active(await self.accounts.get_for_update(professional.id), now)
+            credit = account.credit_to_apply(price)
+
             purchase = Purchase(
                 id=self.ids.new_id(),
                 lead_id=lead.id,
@@ -99,8 +119,35 @@ class StartLeadPurchase:
                 status=PurchaseStatus.RESERVED,
                 created_at=now,
                 reserved_until=reserved_until,
+                credit_applied=credit if credit.amount_cents > 0 else None,
             )
             purchase = await self.purchases.add(purchase)
+
+            if purchase.credit_applied is not None:
+                await self.credit.record(
+                    account,
+                    kind=CreditEntryKind.SPEND,
+                    amount=purchase.credit_applied,
+                    source_ref=str(purchase.id),
+                    now=now,
+                )
+
+            if purchase.is_covered_by_credit:
+                purchase.mark_paid(now=now)
+                lead.register_paid_purchase()
+                await self.purchases.update(purchase)
+                await self.leads.update(lead)
+
+        if purchase.is_covered_by_credit:
+            return StartPurchaseResult(
+                purchase_id=purchase.id,
+                checkout_url=None,
+                checkout_session_id=None,
+                amount=price,
+                expires_at=None,
+                credit_applied=price,
+                amount_due=purchase.amount_due,
+            )
 
         # --- Fase 2: crear la sesion de pago (llamada de red, fuera de la tx) -
         # Se hace despues del commit para no mantener el bloqueo de fila abierto
@@ -111,7 +158,7 @@ class StartLeadPurchase:
                     purchase_id=purchase.id,
                     lead_id=lead.id,
                     professional_id=professional.id,
-                    amount=price,
+                    amount=purchase.amount_due,
                     product_name=f"{category.name(locale)} - {lead.location.city}",
                     product_description=lead.title,
                     customer_email=None,
@@ -127,10 +174,10 @@ class StartLeadPurchase:
                 )
             )
         except Exception:
-            # Si la pasarela no responde, liberamos la plaza en el acto: un fallo de
-            # nuestra infraestructura no debe bloquear una de las 3 plazas del lead
-            # durante todo el TTL de reserva.
-            await self._release(purchase)
+            # Si la pasarela no responde, liberamos la plaza (y el saldo aplicado) en
+            # el acto: un fallo de nuestra infraestructura no debe bloquear una de las
+            # plazas del lead durante todo el TTL de reserva.
+            await self._release(purchase, now=now)
             raise
 
         async with self.uow:
@@ -143,10 +190,13 @@ class StartLeadPurchase:
             checkout_session_id=session.id,
             amount=price,
             expires_at=reserved_until,
+            credit_applied=purchase.credit_applied or Money.zero(price.currency),
+            amount_due=purchase.amount_due,
         )
 
-    async def _release(self, purchase: Purchase) -> None:
-        """Marca la reserva como fallida para devolver la plaza al lead."""
+    async def _release(self, purchase: Purchase, *, now: datetime) -> None:
+        """Marca la reserva como fallida para devolver la plaza y el saldo."""
         purchase.mark_failed()
         async with self.uow:
             await self.purchases.update(purchase)
+            await self.credit.return_reserved_credit(purchase, now=now)

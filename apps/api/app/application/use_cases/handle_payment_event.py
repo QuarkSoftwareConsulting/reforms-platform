@@ -6,6 +6,9 @@ Dos garantias imprescindibles:
   cerrojo: si el `event_id` ya existe, salimos sin repetir efectos.
 * **Atomicidad**: marcar la compra como pagada e incrementar el contador del lead
   ocurre en la misma transaccion, con la fila del lead bloqueada.
+
+Los eventos de la recarga mensual pasan por el mismo registro de idempotencia y
+despues se delegan en `ApplySubscriptionEvent`.
 """
 
 from __future__ import annotations
@@ -22,8 +25,10 @@ from app.application.ports import (
     PurchaseRepositoryPort,
     UnitOfWork,
 )
+from app.application.use_cases.apply_subscription_event import ApplySubscriptionEvent
+from app.application.use_cases.credit_ledger import CreditLedgerService
 from app.domain.exceptions import LeadNotFoundError, PurchaseNotFoundError
-from app.domain.models import Purchase
+from app.domain.models import ProfessionalAccount, Purchase, PurchaseStatus
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,6 +38,7 @@ class PaymentEventOutcome:
     handled: bool
     duplicate: bool = False
     purchase: Purchase | None = None
+    account: ProfessionalAccount | None = None
 
 
 @dataclass(slots=True)
@@ -43,6 +49,8 @@ class HandlePaymentEvent:
     payments: PaymentPort
     clock: ClockPort
     uow: UnitOfWork
+    credit: CreditLedgerService
+    subscriptions: ApplySubscriptionEvent
 
     async def execute(self, *, payload: bytes, signature: str) -> PaymentEventOutcome:
         event = self.payments.parse_webhook_event(payload, signature)
@@ -62,6 +70,15 @@ class HandlePaymentEvent:
                     duplicate=True,
                 )
 
+            if event.type.concerns_subscription:
+                account = await self.subscriptions.execute(event)
+                return PaymentEventOutcome(
+                    event_id=event.id,
+                    event_type=event.raw_type,
+                    handled=True,
+                    account=account,
+                )
+
             purchase = await self._resolve_purchase(event)
             if purchase is None:
                 raise PurchaseNotFoundError(
@@ -71,11 +88,9 @@ class HandlePaymentEvent:
             if event.type is PaymentEventType.CHECKOUT_COMPLETED:
                 await self._confirm(purchase, event)
             elif event.type is PaymentEventType.CHECKOUT_EXPIRED:
-                purchase.mark_expired()
-                await self.purchases.update(purchase)
+                await self._release(purchase, expired=True)
             elif event.type is PaymentEventType.PAYMENT_FAILED:
-                purchase.mark_failed()
-                await self.purchases.update(purchase)
+                await self._release(purchase, expired=False)
             elif event.type is PaymentEventType.REFUNDED:
                 purchase.mark_refunded()
                 await self.purchases.update(purchase)
@@ -95,6 +110,21 @@ class HandlePaymentEvent:
         if event.checkout_session_id is not None:
             return await self.purchases.get_by_checkout_session(event.checkout_session_id)
         return None
+
+    async def _release(self, purchase: Purchase, *, expired: bool) -> None:
+        """Libera la plaza y devuelve el saldo aplicado, solo si seguia reservada.
+
+        Un evento de caducidad o fallo que llega sobre una compra ya cerrada no debe
+        devolver saldo: la plaza (y el saldo) ya se liberaron o la compra se pago.
+        """
+        was_reserved = purchase.status is PurchaseStatus.RESERVED
+        if expired:
+            purchase.mark_expired()
+        else:
+            purchase.mark_failed()
+        await self.purchases.update(purchase)
+        if was_reserved:
+            await self.credit.return_reserved_credit(purchase, now=self.clock.now())
 
     async def _confirm(self, purchase: Purchase, event: PaymentEvent) -> None:
         if purchase.unlocks_contact:

@@ -13,13 +13,19 @@ si tocas el backend, las reglas de `apps/api/AGENTS.md` tienen prioridad sobre l
 ## 1. Qué es este producto
 
 Marketplace **pay-per-lead** de oficios. El cliente publica gratis lo que necesita; el
-profesional paga por desbloquear su contacto. **El precio de cada contacto lo decide el
-admin**: la categoría solo aporta un precio sugerido (§4.9). **Cada solicitud se vende a un
-máximo de 3 profesionales.** Esa regla, y la protección de los datos personales del cliente, son
-el producto — no un detalle de implementación.
+profesional paga por desbloquear su contacto. **Para comprar necesita la recarga mensual al
+día** (sin ella puede ver solicitudes, pero no comprarlas); su importe lo fija el admin y
+se abona como saldo para pagar contactos (§4.10). **El precio de cada contacto lo decide el admin**: la categoría solo
+aporta un precio sugerido (§4.9). **Cada solicitud se vende a un máximo de 3
+profesionales.** Esa regla, y la protección de los datos personales del cliente, son el
+producto — no un detalle de implementación.
 
 Monorepo: `apps/api` (FastAPI hexagonal, Python 3.13 + uv) y `apps/web` (Next.js 15,
 TypeScript + pnpm). Estado y alcance de la fase actual: ver `README.md`.
+
+**Trabajo en curso (Etapa 1):** [`docs/plan-etapa-1.md`](./docs/plan-etapa-1.md) recoge las
+reglas acordadas con el cliente, qué fase está hecha y qué falta. Léelo antes de tocar
+pagos, acceso o validación de profesionales, y actualízalo al cerrar una fase.
 
 ---
 
@@ -56,8 +62,8 @@ npx -y firebase-tools emulators:start --only auth \
 | Objetivo | Comando |
 |---|---|
 | Todo el lint (ruff + mypy strict + eslint + tsc) | `pnpm lint` |
-| Todos los tests (308 back + 61 front) | `pnpm test` |
-| Backend rápido, **sin Docker** (190 tests) | `cd apps/api && uv run pytest -m "not integration"` |
+| Todos los tests (403 back + 72 front) | `pnpm test` |
+| Backend rápido, **sin Docker** (324 tests) | `cd apps/api && uv run pytest -m "not integration"` |
 | Backend completo (requiere `pnpm infra:up`) | `pnpm api:test` |
 | Un solo test de backend | `cd apps/api && uv run pytest tests/unit/domain/test_lead.py -k capping` |
 | Frontend en watch | `pnpm --filter web test:watch` |
@@ -102,10 +108,12 @@ crea la compra en `reserved` con TTL de 30 min, y solo después pide la sesión 
 vez por un lead de 3 plazas y habría que reembolsar a los que sobran.
 → No muevas la validación del cap al webhook. No quites el `FOR UPDATE`.
 
-**4.2 · Solo el webhook desbloquea el contacto.**
+**4.2 · Solo dinero confirmado por el webhook desbloquea el contacto.**
 Volver de la pasarela al frontend no desbloquea nada. La confirmación llega firmada por
-Stripe a `POST /api/v1/webhooks/stripe`.
+Stripe a `POST /api/v1/webhooks/stripe`. Una compra pagada **con saldo** pasa a `paid` sin
+checkout porque ese dinero ya lo confirmó el webhook al cobrar la recarga (`invoice.paid`).
 → Nunca marques una compra como pagada desde una petición del navegador.
+→ Nunca abones saldo ni actives una cuenta fuera del webhook (ni al volver del checkout).
 
 **4.3 · El webhook es idempotente.**
 `processed_payment_events` (clave primaria + `ON CONFLICT DO NOTHING`) es el cerrojo.
@@ -147,6 +155,26 @@ y se cobra el importe congelado dentro del bloqueo de fila de `StartLeadPurchase
 → Cambiar un precio no reescribe compras existentes: cada `Purchase` guarda su importe.
 → Cambiar el sugerido de un oficio no toca los leads con precio propio.
 → El precio solo se cambia por los endpoints `/admin/...`, con `AdminDep`.
+
+**4.10 · Sin recarga mensual al día no se compra; el saldo se gasta una sola vez.**
+`ProfessionalAccount` guarda el estado de la suscripción y el saldo. Una cuenta inactiva
+**puede ver** solicitudes (listado y detalle, sin datos de contacto), pero
+`StartLeadPurchase` la rechaza con `402 SUBSCRIPTION_REQUIRED`
+(`account_access.require_active_account`). Así lo fijó el cliente (documento, F02).
+→ No bloquees el listado ni el detalle por la recarga: ya se decidió y se descartó.
+El saldo se gasta dentro del mismo bloqueo que la plaza, con la cuenta en `FOR UPDATE`
+**después** del lead (siempre ese orden, para no interbloquear). Cada movimiento va a
+`credit_entries`, append-only, con `UNIQUE (kind, source_ref)` como segundo cerrojo tras
+`processed_payment_events`.
+→ Solo `invoice.paid` activa una cuenta. Con SEPA, Stripe marca la suscripción `active`
+mientras el adeudo se procesa: `sync_subscription` no la activa por eso.
+→ Todo movimiento de saldo pasa por `CreditLedgerService` (compra, caducidad, webhook, job,
+ajuste del admin). Si una reserva con saldo caduca o falla, se devuelve con `SPEND_REVERSAL`.
+→ Una compra reembolsada no devuelve saldo sola (§4.6): lo decide el admin con un ajuste.
+→ El importe lo fija el admin (`PUT /admin/subscription-price`), que crea un precio nuevo en
+Stripe y una fila en `subscription_prices` (append-only; vige la más reciente). Solo afecta
+a las suscripciones nuevas: quien ya paga conserva su importe. Hasta que el admin lo fije,
+rige `STRIPE_TOPUP_PRICE_ID` + `SUBSCRIPTION_TOPUP_CENTS`.
 
 ---
 

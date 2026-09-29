@@ -10,6 +10,7 @@ import asyncio
 import json
 import logging
 import time
+from datetime import UTC, datetime
 from typing import Any, cast
 from uuid import UUID
 
@@ -18,11 +19,15 @@ import stripe
 from app.application.ports import (
     CheckoutRequest,
     CheckoutSession,
+    CustomerRequest,
     PaymentEvent,
     PaymentEventType,
     PaymentPort,
+    SubscriptionCheckoutRequest,
 )
 from app.domain.exceptions import AuthenticationError, DomainError, PaymentGatewayError
+from app.domain.models import SubscriptionStatus
+from app.domain.value_objects import Money
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +40,36 @@ EVENT_TYPE_MAP = {
     "payment_intent.payment_failed": PaymentEventType.PAYMENT_FAILED,
     "charge.refunded": PaymentEventType.REFUNDED,
 }
+
+# Eventos de la recarga mensual. `checkout.session.completed` tambien llega para
+# las suscripciones: se distingue por `mode` en `_classify`.
+SUBSCRIPTION_EVENT_TYPE_MAP = {
+    "invoice.paid": PaymentEventType.INVOICE_PAID,
+    "invoice.payment_failed": PaymentEventType.INVOICE_PAYMENT_FAILED,
+    "customer.subscription.created": PaymentEventType.SUBSCRIPTION_UPDATED,
+    "customer.subscription.updated": PaymentEventType.SUBSCRIPTION_UPDATED,
+    "customer.subscription.deleted": PaymentEventType.SUBSCRIPTION_UPDATED,
+}
+
+# Eventos de compra cuyo objeto no es la sesion de checkout: sin `purchase_id` en
+# los metadatos no son de una compra de contacto (p. ej. el cobro de la recarga).
+PURCHASE_EVENTS_NEEDING_METADATA = {"payment_intent.payment_failed", "charge.refunded"}
+
+# Estados de suscripcion de Stripe traducidos a los del negocio.
+SUBSCRIPTION_STATUS_MAP = {
+    "incomplete": SubscriptionStatus.PENDING,
+    "active": SubscriptionStatus.ACTIVE,
+    "trialing": SubscriptionStatus.ACTIVE,
+    "past_due": SubscriptionStatus.PAST_DUE,
+    "unpaid": SubscriptionStatus.PAST_DUE,
+    "paused": SubscriptionStatus.PAST_DUE,
+    "canceled": SubscriptionStatus.CANCELED,
+    "incomplete_expired": SubscriptionStatus.CANCELED,
+}
+
+# Medios de pago de la recarga: tarjeta (activacion inmediata) y domiciliacion
+# SEPA (el primer cobro tarda unos dias en confirmarse).
+SUBSCRIPTION_PAYMENT_METHODS = ["card", "sepa_debit"]
 
 # Stripe solo acepta estos codigos de idioma en el checkout.
 SUPPORTED_LOCALES = {"es", "en"}
@@ -124,7 +159,6 @@ class StripePaymentGateway(PaymentPort):
         except ValueError as exc:
             raise AuthenticationError("Payload de webhook malformado") from exc
 
-        event_type = EVENT_TYPE_MAP.get(event.type, PaymentEventType.IGNORED)
         # `event.data.object` es un StripeObject, no un dict: sin convertirlo,
         # llamar a `.get()` lanza AttributeError. `to_dict()` es superficial (deja
         # `metadata` como StripeObject) y `_to_dict_recursive` es privado, asi que
@@ -140,6 +174,14 @@ class StripePaymentGateway(PaymentPort):
             except ValueError:
                 logger.warning("purchase_id no es un UUID valido: %r", raw_purchase_id)
 
+        event_type = _classify(event.type, obj, purchase_id)
+        is_subscription = event_type.concerns_subscription
+        subscription_id = _subscription_id(obj) if is_subscription else None
+        raw_status = obj.get("status") if obj.get("object") == "subscription" else None
+        subscription_status = SUBSCRIPTION_STATUS_MAP.get(str(raw_status)) if raw_status else None
+        if event.type == "customer.subscription.deleted":
+            subscription_status = SubscriptionStatus.CANCELED
+
         return PaymentEvent(
             id=event.id,
             type=event_type,
@@ -147,11 +189,21 @@ class StripePaymentGateway(PaymentPort):
             purchase_id=purchase_id,
             checkout_session_id=obj.get("id") if obj.get("object") == "checkout.session" else None,
             payment_intent_id=_as_id(obj.get("payment_intent")),
-            amount_cents=obj.get("amount_total") or obj.get("amount"),
+            amount_cents=(
+                obj.get("amount_paid")
+                if obj.get("object") == "invoice"
+                else obj.get("amount_total") or obj.get("amount")
+            ),
             currency=(obj.get("currency") or "").upper() or None,
             # Solo se guarda lo minimo para auditar: el payload completo de Stripe
             # puede contener datos del pagador que no necesitamos conservar.
             payload={"id": event.id, "type": event.type},
+            customer_id=_as_id(obj.get("customer")) if is_subscription else None,
+            subscription_id=subscription_id,
+            invoice_id=obj.get("id") if obj.get("object") == "invoice" else None,
+            subscription_status=subscription_status,
+            period_end=_period_end(obj) if is_subscription else None,
+            occurred_at=_from_epoch(getattr(event, "created", None)),
         )
 
     async def expire_checkout_session(self, session_id: str) -> None:
@@ -162,6 +214,161 @@ class StripePaymentGateway(PaymentPort):
             # Ya estaba pagada, expirada o la pasarela no responde. La plaza ya se
             # libero en nuestra BD, asi que esto es best-effort.
             logger.info("No se pudo expirar la sesion %s: %s", session_id, exc)
+
+    async def create_customer(self, request: CustomerRequest) -> str:
+        client = self._require_client()
+        params: dict[str, Any] = {
+            "email": request.email,
+            "name": request.name,
+            "metadata": {"professional_id": str(request.professional_id)},
+        }
+        try:
+            customer = await asyncio.to_thread(client.customers.create, params=cast(Any, params))
+        except stripe.StripeError as exc:
+            logger.error("stripe_cliente_fallido: %s", exc, exc_info=True)
+            raise PaymentGatewayError() from exc
+        return str(customer.id)
+
+    async def create_subscription_checkout(
+        self, request: SubscriptionCheckoutRequest
+    ) -> CheckoutSession:
+        client = self._require_client()
+        locale = request.locale if request.locale in SUPPORTED_LOCALES else "auto"
+        metadata = {"professional_id": str(request.professional_id)}
+        params: dict[str, Any] = {
+            "mode": "subscription",
+            "customer": request.customer_id,
+            "line_items": [{"price": request.price_id, "quantity": 1}],
+            "payment_method_types": SUBSCRIPTION_PAYMENT_METHODS,
+            "success_url": request.success_url,
+            "cancel_url": request.cancel_url,
+            "locale": locale,
+            "metadata": metadata,
+            # Tambien en la suscripcion, para poder rastrear sus eventos en el panel.
+            "subscription_data": {"metadata": metadata},
+        }
+        try:
+            session = await asyncio.to_thread(
+                client.checkout.sessions.create, params=cast(Any, params)
+            )
+        except stripe.StripeError as exc:
+            logger.error("stripe_checkout_recarga_fallido: %s", exc, exc_info=True)
+            raise PaymentGatewayError() from exc
+        if not session.url:
+            logger.error("stripe_checkout_sin_url: session=%s", session.id)
+            raise PaymentGatewayError()
+        return CheckoutSession(id=session.id, url=session.url, expires_at_epoch=session.expires_at)
+
+    async def create_recurring_price(self, *, amount: Money, product_name: str) -> str:
+        client = self._require_client()
+        params: dict[str, Any] = {
+            "currency": amount.currency.lower(),
+            "unit_amount": amount.amount_cents,
+            "recurring": {"interval": "month"},
+            # El importe de la mensualidad ya incluye el IVA.
+            "tax_behavior": "inclusive",
+            "product_data": {"name": product_name},
+        }
+        try:
+            price = await asyncio.to_thread(client.prices.create, params=cast(Any, params))
+        except stripe.StripeError as exc:
+            logger.error("stripe_precio_fallido: %s", exc, exc_info=True)
+            raise PaymentGatewayError() from exc
+        return str(price.id)
+
+    async def create_billing_portal_session(
+        self, *, customer_id: str, return_url: str, locale: str = "es"
+    ) -> str:
+        client = self._require_client()
+        params: dict[str, Any] = {
+            "customer": customer_id,
+            "return_url": return_url,
+            "locale": locale if locale in SUPPORTED_LOCALES else "auto",
+        }
+        try:
+            session = await asyncio.to_thread(
+                client.billing_portal.sessions.create, params=cast(Any, params)
+            )
+        except stripe.StripeError as exc:
+            logger.error("stripe_portal_fallido: %s", exc, exc_info=True)
+            raise PaymentGatewayError() from exc
+        return str(session.url)
+
+
+def _classify(raw_type: str, obj: dict[str, Any], purchase_id: UUID | None) -> PaymentEventType:
+    """Decide que significa el evento para el negocio."""
+    if obj.get("object") == "checkout.session" and obj.get("mode") == "subscription":
+        # La caducidad o el fallo de un checkout de recarga no cambian nada: la
+        # cuenta solo se activa con `invoice.paid`.
+        if raw_type == "checkout.session.completed":
+            return PaymentEventType.SUBSCRIPTION_CHECKOUT_COMPLETED
+        return PaymentEventType.IGNORED
+
+    if raw_type in SUBSCRIPTION_EVENT_TYPE_MAP:
+        # Una factura suelta (no de la recarga) no afecta a la cuenta.
+        if obj.get("object") == "invoice" and _subscription_id(obj) is None:
+            return PaymentEventType.IGNORED
+        return SUBSCRIPTION_EVENT_TYPE_MAP[raw_type]
+
+    if raw_type in PURCHASE_EVENTS_NEEDING_METADATA and purchase_id is None:
+        # Sin esto, un adeudo fallido de la recarga se interpretaria como el fallo
+        # de una compra inexistente y el webhook responderia 404 para siempre.
+        return PaymentEventType.IGNORED
+
+    return EVENT_TYPE_MAP.get(raw_type, PaymentEventType.IGNORED)
+
+
+def _subscription_id(obj: dict[str, Any]) -> str | None:
+    """Id de la suscripcion en cualquiera de las formas que usa la API de Stripe.
+
+    Las versiones recientes movieron `invoice.subscription` a
+    `invoice.parent.subscription_details.subscription`; se aceptan ambas.
+    """
+    if obj.get("object") == "subscription":
+        return _as_id(obj.get("id"))
+    direct = _as_id(obj.get("subscription"))
+    if direct:
+        return direct
+    parent = obj.get("parent") or {}
+    details = parent.get("subscription_details") or {} if isinstance(parent, dict) else {}
+    return _as_id(details.get("subscription")) if isinstance(details, dict) else None
+
+
+def _period_end(obj: dict[str, Any]) -> datetime | None:
+    """Fin del periodo pagado.
+
+    En la factura es el de su linea (el `period_end` de la propia factura apunta al
+    periodo anterior). En la suscripcion, las versiones recientes lo llevan en cada
+    item en vez de en la raiz.
+    """
+    kind = obj.get("object")
+    if kind == "invoice":
+        lines = (obj.get("lines") or {}).get("data") or []
+        ends = [
+            line.get("period", {}).get("end")
+            for line in lines
+            if isinstance(line, dict) and isinstance(line.get("period"), dict)
+        ]
+        valid = [end for end in ends if isinstance(end, int)]
+        return _from_epoch(max(valid)) if valid else None
+    if kind == "subscription":
+        root = obj.get("current_period_end")
+        if isinstance(root, int):
+            return _from_epoch(root)
+        items = (obj.get("items") or {}).get("data") or []
+        item_ends: list[int] = [
+            end
+            for item in items
+            if isinstance(item, dict) and isinstance(end := item.get("current_period_end"), int)
+        ]
+        return _from_epoch(max(item_ends)) if item_ends else None
+    return None
+
+
+def _from_epoch(value: object) -> datetime | None:
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return datetime.fromtimestamp(value, tz=UTC)
 
 
 def _as_id(value: object) -> str | None:
