@@ -15,7 +15,11 @@ import type { LeadPublic } from "@/types/api";
  * Tarjeta de contacto del explorador.
  *
  * Recibe un `LeadPublic`, cuyo tipo no incluye datos de contacto: es
- * estructuralmente imposible que esta tarjeta filtre la PII del cliente.
+ * estructuralmente imposible que esta tarjeta filtre la PII del cliente. Del
+ * cliente solo se ve el nombre de pila, y solo si su consentimiento lo cubre.
+ *
+ * Un lead agotado sigue en el listado como "Cerrado", sin enlace de compra; quien
+ * ya lo compro conserva el enlace a su contacto.
  *
  * El orden de los bloques lo fija el sistema de diseno y no es decorativo: el
  * precio del contacto tiene que verse siempre antes de llegar al boton.
@@ -25,7 +29,7 @@ export function LeadCard({ lead }: { lead: LeadPublic }) {
   const t = useTranslations("projects");
   const tLead = useTranslations("lead");
   const cover = lead.photo_urls[0];
-  const closed = lead.remaining_slots === 0 && !lead.already_purchased;
+  const closed = lead.is_closed && !lead.already_purchased;
   const href = `${path(locale, "projects")}/${lead.id}`;
 
   return (
@@ -39,6 +43,8 @@ export function LeadCard({ lead }: { lead: LeadPublic }) {
         <Tag tone={closed ? "neutral" : "trade"}>{lead.category.name}</Tag>
         {lead.already_purchased ? (
           <Tag tone="accent">{t("purchased")}</Tag>
+        ) : closed ? (
+          <Tag tone="neutral">{t("closed")}</Tag>
         ) : (
           <Seal>{t("slotsLeft", { count: lead.remaining_slots })}</Seal>
         )}
@@ -63,7 +69,13 @@ export function LeadCard({ lead }: { lead: LeadPublic }) {
             {lead.description}
           </p>
         )}
+        {lead.client_first_name && (
+          <p className="text-[14.5px] text-ink">
+            {t("clientFirstName", { name: lead.client_first_name })}
+          </p>
+        )}
         <p className="text-help text-muted">
+          {lead.postal_code && <>{lead.postal_code} </>}
           {lead.city}
           {lead.distance_km !== null && (
             <> · {t("distanceFrom", { distance: formatDistance(lead.distance_km, locale) })}</>
@@ -71,6 +83,7 @@ export function LeadCard({ lead }: { lead: LeadPublic }) {
           {" · "}
           {tLead("publishedAgo", { when: formatRelative(lead.created_at, locale) })}
         </p>
+        <p className="text-help text-muted">{t("buyers", { count: lead.purchases_count })}</p>
       </div>
 
       <div className="flex items-end justify-between gap-3 border-t border-divider pt-3.5">
@@ -81,6 +94,7 @@ export function LeadCard({ lead }: { lead: LeadPublic }) {
           <span className="block text-card-title font-bold text-brand">
             {formatMoney(lead.price, locale)}
           </span>
+          <span className="block text-[11px] text-muted">{t("vatIncluded")}</span>
         </span>
       </div>
 

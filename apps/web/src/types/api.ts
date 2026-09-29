@@ -22,6 +22,13 @@ export interface Category {
   suggested_lead_price: Money;
 }
 
+/** Desglose de un precio con IVA incluido. */
+export interface VatBreakdown {
+  net: Money;
+  vat: Money;
+  rate_percent: number;
+}
+
 export interface LeadPublic {
   id: string;
   title: string;
@@ -29,15 +36,26 @@ export interface LeadPublic {
   city: string;
   province: string;
   postal_code_prefix: string;
+  /** CP completo; `null` si el consentimiento del cliente no cubre mostrarlo. */
+  postal_code: string | null;
+  /** Nombre de pila; `null` si el consentimiento del cliente no cubre mostrarlo. */
+  client_first_name: string | null;
   category: Category;
   photo_urls: string[];
   created_at: string;
   remaining_slots: number;
+  /** Profesionales que ya compraron el contacto. */
+  purchases_count: number;
+  max_purchases: number;
+  /** Agotado: se muestra como "Cerrado" y no admite compras. */
+  is_closed: boolean;
   distance_km: number | null;
   masked_phone: string;
   masked_email: string | null;
   already_purchased: boolean;
+  /** Con IVA incluido. */
   price: Money;
+  price_breakdown: VatBreakdown;
 }
 
 export interface LeadList {

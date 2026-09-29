@@ -45,7 +45,7 @@ async def test_publishes_lead_and_resolves_location_from_postal_code(
     assert lead.location.city == "Madrid"
     assert lead.location.province == "Madrid"
     assert lead.location.coordinates.latitude == pytest.approx(40.4168)
-    assert lead.max_purchases == 3
+    assert lead.max_purchases == 5
     assert lead.purchases_count == 0
     assert world.uow.commits == 1
 
@@ -59,7 +59,9 @@ async def test_records_auditable_consent(world: World, carpentry: Category) -> N
     assert lead.consent.user_agent == "Mozilla/5.0"
     assert lead.consent.accepted_at == world.clock.now()
     # El cliente autoriza a un numero concreto de destinatarios, no a "los que sean".
-    assert lead.consent.max_recipients == 3
+    assert lead.consent.max_recipients == 5
+    # La politica vigente informa de que el nombre de pila y el CP se ven antes de pagar.
+    assert lead.consent.allows_public_preview is True
 
 
 async def test_rejects_publication_without_consent(world: World, carpentry: Category) -> None:

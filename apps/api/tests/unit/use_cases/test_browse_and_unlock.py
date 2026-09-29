@@ -1,5 +1,6 @@
 """Tests del explorador, el detalle y el historial: la PII nunca se filtra."""
 
+from datetime import timedelta
 from uuid import uuid4
 
 import pytest
@@ -13,7 +14,7 @@ from app.domain.exceptions import (
 from app.domain.models import Category, Professional
 from app.domain.value_objects import Coordinates, PostalCode
 from tests.conftest import World
-from tests.factories import BARCELONA, MADRID, make_lead, make_lead_location
+from tests.factories import BARCELONA, MADRID, NOW, make_lead, make_lead_location
 from tests.fakes.payments import VALID_SIGNATURE, FakePaymentGateway
 
 ALCALA = Coordinates(40.4818, -3.3644)  # ~30 km de Madrid
@@ -102,18 +103,28 @@ class TestExplorer:
         assert item.price.amount_cents == 500
         assert item.category.slug == "carpinteria"
 
-    async def test_disabled_and_exhausted_leads_are_hidden(
+    async def test_disabled_leads_are_hidden_and_exhausted_ones_listed_as_closed(
         self, world: World, carpentry: Category, madrid_carpenter: Professional
     ) -> None:
         from app.domain.models import LeadStatus
 
         add_lead(world, carpentry, status=LeadStatus.DISABLED)
-        add_lead(world, carpentry, status=LeadStatus.EXHAUSTED, purchases_count=3)
-        visible = add_lead(world, carpentry)
+        # El agotado es el mas reciente y aun asi va detras del abierto.
+        closed = add_lead(
+            world,
+            carpentry,
+            status=LeadStatus.EXHAUSTED,
+            max_purchases=5,
+            purchases_count=5,
+            created_at=NOW + timedelta(hours=1),
+        )
+        open_lead = add_lead(world, carpentry)
 
         result = await world.list_leads.execute(professional_id=madrid_carpenter.id)
-        assert [i.lead.id for i in result.items] == [visible.id]
-        assert result.total == 1
+        assert [i.lead.id for i in result.items] == [open_lead.id, closed.id]
+        assert result.total == 2
+        assert [i.lead.is_closed for i in result.items] == [False, True]
+        assert result.items[1].lead.remaining_slots == 0
 
     async def test_flags_leads_already_purchased(
         self, world: World, carpentry: Category, madrid_carpenter: Professional

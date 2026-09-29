@@ -24,6 +24,8 @@ const LEAD: LeadPublic = {
   city: "Madrid",
   province: "Madrid",
   postal_code_prefix: "28",
+  postal_code: "28001",
+  client_first_name: "Ana",
   category: {
     id: "cat-1",
     slug: "carpinteria",
@@ -33,11 +35,19 @@ const LEAD: LeadPublic = {
   photo_urls: ["https://cdn.test/a.jpg"],
   created_at: new Date(Date.now() - 3 * 3600_000).toISOString(),
   remaining_slots: 2,
+  purchases_count: 3,
+  max_purchases: 5,
+  is_closed: false,
   distance_km: 12.4,
   masked_phone: "*********44",
   masked_email: "a****@example.com",
   already_purchased: false,
   price: { amount_cents: 500, currency: "EUR", formatted: "5.00 €" },
+  price_breakdown: {
+    net: { amount_cents: 413, currency: "EUR", formatted: "4.13 €" },
+    vat: { amount_cents: 87, currency: "EUR", formatted: "0.87 €" },
+    rate_percent: 21,
+  },
 };
 
 describe("LeadCard", () => {
@@ -78,6 +88,53 @@ describe("LeadCard", () => {
     renderWithIntl(<LeadCard lead={{ ...LEAD, photo_urls: [] }} />);
     expect(screen.queryByTestId("img")).toBeNull();
     expect(screen.getByText(LEAD.title)).toBeDefined();
+  });
+
+  it("shows the client's first name and postcode but never the surname", () => {
+    const { container } = renderWithIntl(<LeadCard lead={LEAD} />);
+
+    expect(screen.getByText("Cliente: Ana")).toBeDefined();
+    expect(screen.getByText(/28001 Madrid/)).toBeDefined();
+    expect(container.innerHTML).not.toContain("Lopez");
+  });
+
+  it("hides the first name when the client's consent does not cover it", () => {
+    renderWithIntl(<LeadCard lead={{ ...LEAD, client_first_name: null, postal_code: null }} />);
+    expect(screen.queryByText(/Cliente:/)).toBeNull();
+    expect(screen.queryByText(/28001/)).toBeNull();
+  });
+
+  it("tells how many professionals already bought it", () => {
+    renderWithIntl(<LeadCard lead={LEAD} />);
+    expect(screen.getByText("3 profesionales ya lo compraron")).toBeDefined();
+  });
+
+  it("states that the price includes VAT", () => {
+    renderWithIntl(<LeadCard lead={LEAD} />);
+    expect(screen.getByText(messages.projects.vatIncluded)).toBeDefined();
+  });
+
+  it("shows exhausted leads as closed, without a link to buy", () => {
+    const closed = { ...LEAD, is_closed: true, remaining_slots: 0, purchases_count: 5 };
+    renderWithIntl(<LeadCard lead={closed} />);
+    expect(screen.getByText(messages.projects.closed)).toBeDefined();
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  it("keeps the link for whoever already bought a closed lead", () => {
+    renderWithIntl(
+      <LeadCard
+        lead={{
+          ...LEAD,
+          is_closed: true,
+          remaining_slots: 0,
+          purchases_count: 5,
+          already_purchased: true,
+        }}
+      />,
+    );
+    expect(screen.queryByText(messages.projects.closed)).toBeNull();
+    expect(screen.getByRole("link")).toBeDefined();
   });
 
   it("omits distance when it is unknown", () => {

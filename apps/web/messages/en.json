@@ -125,7 +125,7 @@
     "phoneHint": "This is the key detail. Only professionals who buy your contact will see it.",
     "emailLabel": "Email",
     "emailHint": "We'll send you a copy of your request.",
-    "consentLabel": "I have read and accept the data processing policy. I authorise Voy a Reformar to process my data to validate the request and to share it with up to {maxProfessionals} professionals who buy the contact, under GDPR (EU) 2016/679 and LOPDGDD 3/2018.",
+    "consentLabel": "I have read and accept the data processing policy. I authorise Voy a Reformar to process my data to validate the request, to show my first name and postcode to registered professionals and to share my contact details with up to {maxProfessionals} professionals who buy the contact, under GDPR (EU) 2016/679 and LOPDGDD 3/2018.",
     "policyShow": "See the data policy summary",
     "policyHide": "Hide the summary",
     "policy": {
@@ -143,7 +143,7 @@
       },
       "recipients": {
         "term": "Recipients",
-        "body": "At most {maxProfessionals} professionals who buy your contact. Nobody else receives your name or phone."
+        "body": "Registered professionals see your first name, your postcode and what you need. Your full name, phone and email are only shared with at most {maxProfessionals} professionals who buy your contact."
       },
       "retention": {
         "term": "Retention",
@@ -169,6 +169,10 @@
     "filterAll": "All my trades",
     "filterRadius": "Search radius",
     "slotsLeft": "{count, plural, =0 {No slots left} one {1 slot left} other {# slots left}}",
+    "closed": "Closed",
+    "buyers": "{count, plural, =0 {Nobody has bought it yet} one {1 professional already bought it} other {# professionals already bought it}}",
+    "vatIncluded": "VAT included",
+    "clientFirstName": "Client: {name}",
     "purchased": "Already bought",
     "viewDetail": "See the contact",
     "contactPrice": "Contact",
@@ -177,8 +181,15 @@
   "lead": {
     "publishedAgo": "Posted {when}",
     "contactLocked": "Contact locked",
-    "contactLockedBody": "Unlock the client's name and phone for {price}. This request accepts {slots} more professionals.",
+    "contactLockedBody": "Unlock the client's full name and phone for {price}. This request accepts {slots} more professionals.",
     "contactPrice": "Contact price",
+    "vatIncluded": "VAT included",
+    "vatBreakdown": "Net {net} + VAT ({rate}%) {vat}",
+    "client": "Client",
+    "postalCode": "Postcode",
+    "buyers": "{count, plural, =0 {Nobody has bought it yet} one {1 of {max} professionals already bought it} other {# of {max} professionals already bought it}}",
+    "closedTitle": "Request closed",
+    "closedBody": "{max} professionals have already bought it, the maximum allowed. It accepts no more purchases.",
     "unlock": "Buy contact for {price}",
     "unlocking": "Redirecting to payment...",
     "contactUnlocked": "Contact unlocked",

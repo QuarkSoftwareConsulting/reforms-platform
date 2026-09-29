@@ -28,6 +28,13 @@ MIN_DESCRIPTION_LENGTH = 20
 MAX_DESCRIPTION_LENGTH = 4000
 MAX_TITLE_LENGTH = 140
 MAX_PHOTOS = 8
+DEFAULT_MAX_PURCHASES = 5
+"""Plazas por lead acordadas con el cliente (Etapa 1). Los leads anteriores conservan
+las suyas: su consentimiento se dio para ceder los datos a un maximo de 3."""
+
+EXPLORER_STATUSES = frozenset({LeadStatus.PUBLISHED, LeadStatus.EXHAUSTED})
+"""Lo que ve el explorador. Los agotados se muestran como "Cerrado" (asi lo pidio el
+cliente); los retirados por el admin no se muestran."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,6 +56,11 @@ class ClientContact:
         if not self.name.strip():
             raise ValidationError("El nombre del cliente es obligatorio")
 
+    @property
+    def first_name(self) -> str:
+        """Nombre de pila: la primera palabra del nombre, sin apellidos."""
+        return self.name.split()[0]
+
 
 @dataclass(frozen=True, slots=True)
 class LeadLocation:
@@ -69,6 +81,10 @@ class ConsentRecord:
     max_recipients: int
     channel: str | None = None
     campaign_reference: str | None = None
+    allows_public_preview: bool = False
+    """El cliente acepto que su nombre de pila y su codigo postal se muestren antes de
+    la compra. Los consentimientos anteriores a esa politica no lo cubren, asi que
+    sus leads siguen mostrando solo el prefijo del CP y ningun nombre."""
 
     def __post_init__(self) -> None:
         if not self.policy_version.strip():
@@ -90,7 +106,7 @@ class Lead:
     created_at: datetime
     status: LeadStatus = LeadStatus.PUBLISHED
     source: LeadSource = LeadSource.ORGANIC
-    max_purchases: int = 3
+    max_purchases: int = DEFAULT_MAX_PURCHASES
     purchases_count: int = 0
     published_at: datetime | None = None
     photos: list[LeadPhoto] = field(default_factory=list)
@@ -129,6 +145,11 @@ class Lead:
     def is_open(self) -> bool:
         """True si el lead admite al menos una compra mas."""
         return self.status is LeadStatus.PUBLISHED and self.purchases_count < self.max_purchases
+
+    @property
+    def is_closed(self) -> bool:
+        """Agotado: sigue visible en el explorador como "Cerrado", sin compra posible."""
+        return self.status is LeadStatus.EXHAUSTED
 
     @property
     def remaining_slots(self) -> int:
@@ -211,7 +232,12 @@ class Lead:
     # ----------------------------- Proyecciones --------------------------
 
     def public_view(self) -> LeadPublicView:
-        """Lo que ve cualquier profesional antes de pagar: cero PII."""
+        """Lo que ve cualquier profesional antes de pagar.
+
+        Nunca el apellido, el telefono ni el email. El nombre de pila y el CP
+        completo solo si el consentimiento del cliente cubre mostrarlos.
+        """
+        disclosed = self.consent is not None and self.consent.allows_public_preview
         return LeadPublicView(
             id=self.id,
             category_id=self.category_id,
@@ -220,10 +246,15 @@ class Lead:
             city=self.location.city,
             province=self.location.province,
             postal_code_prefix=self.location.postal_code.value[:2],
+            postal_code=self.location.postal_code.value if disclosed else None,
+            client_first_name=self.contact.first_name if disclosed else None,
             coordinates=self.location.coordinates,
             photo_keys=[p.storage_key for p in sorted(self.photos, key=lambda p: p.sort_order)],
             created_at=self.created_at,
             remaining_slots=self.remaining_slots,
+            purchases_count=self.purchases_count,
+            max_purchases=self.max_purchases,
+            is_closed=self.is_closed,
             masked_phone=self.contact.phone.masked,
             masked_email=self.contact.email.masked if self.contact.email else None,
         )
@@ -237,11 +268,12 @@ class Lead:
 
 @dataclass(frozen=True, slots=True)
 class LeadPublicView:
-    """Proyeccion sin datos personales.
+    """Proyeccion sin datos de contacto.
 
     Existe como tipo propio para que sea imposible devolver un `Lead` completo por
     error desde un endpoint del explorador: los serializadores publicos solo
-    aceptan esta clase.
+    aceptan esta clase. No tiene campos para el nombre completo, el telefono ni el
+    email; el nombre de pila es lo unico del cliente que se ve antes de pagar.
     """
 
     id: UUID
@@ -251,9 +283,14 @@ class LeadPublicView:
     city: str
     province: str
     postal_code_prefix: str
+    postal_code: str | None
+    client_first_name: str | None
     coordinates: Coordinates
     photo_keys: list[str]
     created_at: datetime
     remaining_slots: int
+    purchases_count: int
+    max_purchases: int
+    is_closed: bool
     masked_phone: str
     masked_email: str | None

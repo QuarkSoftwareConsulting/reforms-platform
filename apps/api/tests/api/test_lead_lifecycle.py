@@ -246,9 +246,29 @@ class TestExplorerHidesPii:
         assert item["postal_code_prefix"] == "28"
         assert item["distance_km"] == pytest.approx(0, abs=1)
         assert item["price"]["amount_cents"] == 500
-        assert item["remaining_slots"] == 3
+        # El precio se publica con IVA incluido y su desglose al 21 %.
+        assert item["price_breakdown"]["net"]["amount_cents"] == 413
+        assert item["price_breakdown"]["vat"]["amount_cents"] == 87
+        assert item["price_breakdown"]["rate_percent"] == 21
+        assert item["remaining_slots"] == 5
+        assert item["purchases_count"] == 0
+        assert item["max_purchases"] == 5
+        assert item["is_closed"] is False
         assert item["masked_phone"].endswith("44")
         assert item["already_purchased"] is False
+
+    async def test_listing_shows_first_name_and_postal_code_but_no_surname(
+        self, api: AsyncClient, carpentry_category: Category, pro_auth: dict[str, str]
+    ) -> None:
+        await publish_lead(api, carpentry_category)
+        await create_profile(api, carpentry_category, pro_auth)
+
+        response = await api.get("/leads", headers=pro_auth)
+        item = response.json()["items"][0]
+
+        assert item["client_first_name"] == "Ana"
+        assert item["postal_code"] == LEAD_PAYLOAD["postal_code"]
+        assert "Lopez" not in response.text
 
     async def test_detail_hides_contact_before_paying(
         self, api: AsyncClient, carpentry_category: Category, pro_auth: dict[str, str]
@@ -547,7 +567,7 @@ class TestWebhookSecurity:
         assert second.json()["duplicate"] is True
 
         detail = (await api.get(f"/leads/{created['id']}", headers=pro_auth)).json()
-        assert detail["lead"]["remaining_slots"] == 2, "solo se debe contar una venta"
+        assert detail["lead"]["remaining_slots"] == 4, "solo se debe contar una venta"
 
     async def test_irrelevant_event_is_acknowledged_but_not_handled(self, api: AsyncClient) -> None:
         response = await api.post(
@@ -631,16 +651,16 @@ class TestCatalogAndProfile:
 
 
 class TestLeadCapOverHttp:
-    async def test_fourth_professional_gets_cap_reached(
+    async def test_sixth_professional_gets_cap_reached(
         self,
         api: AsyncClient,
         carpentry_category: Category,
         fake_tokens: FakeTokenVerifier,
     ) -> None:
-        """Tres compras agotan el lead; la cuarta recibe 409 LEAD_CAP_REACHED."""
+        """Cinco compras agotan el lead; la sexta recibe 409 LEAD_CAP_REACHED."""
         created = await publish_lead(api, carpentry_category)
 
-        for index in range(4):
+        for index in range(6):
             token = f"token-pro-{index}"
             fake_tokens.register(
                 token,
@@ -652,9 +672,16 @@ class TestLeadCapOverHttp:
             await create_profile(api, carpentry_category, headers)
 
             response = await api.post(f"/leads/{created['id']}/purchase", headers=headers)
-            if index < 3:
+            if index < 5:
                 assert response.status_code == 201, response.text
                 await pay(api, response.json()["purchase_id"], event_id=f"evt_{index}")
             else:
                 assert response.status_code == 409
                 assert response.json()["code"] == "LEAD_CAP_REACHED"
+
+        # El que se quedo sin plaza sigue viendo el lead, pero como cerrado.
+        items = (await api.get("/leads", headers=headers)).json()["items"]
+        closed = next(item for item in items if item["id"] == created["id"])
+        assert closed["is_closed"] is True
+        assert closed["remaining_slots"] == 0
+        assert closed["purchases_count"] == 5

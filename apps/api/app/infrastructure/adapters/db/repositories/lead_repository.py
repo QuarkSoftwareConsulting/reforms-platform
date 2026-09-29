@@ -16,7 +16,7 @@ from app.application.ports import (
     LeadSearchRow,
 )
 from app.domain.exceptions import LeadNotFoundError
-from app.domain.models import Lead, LeadSource, LeadStatus, PurchaseStatus
+from app.domain.models import EXPLORER_STATUSES, Lead, LeadSource, LeadStatus, PurchaseStatus
 from app.infrastructure.adapters.db.mappers import apply_lead, lead_to_domain, to_geography
 from app.infrastructure.adapters.db.models import (
     LeadConsentRow,
@@ -57,6 +57,7 @@ class SqlAlchemyLeadRepository(LeadRepositoryPort):
                     accepted_at=lead.consent.accepted_at,
                     external_channel=lead.consent.channel,
                     external_campaign_reference=lead.consent.campaign_reference,
+                    allows_public_preview=lead.consent.allows_public_preview,
                 )
             ]
             if lead.consent is not None
@@ -116,7 +117,7 @@ class SqlAlchemyLeadRepository(LeadRepositoryPort):
     # ------------------------------ Busqueda -----------------------------
 
     def _base_query(self, filters: LeadSearchFilters) -> Select[tuple[LeadRow]]:
-        stmt = select(LeadRow).where(LeadRow.status == LeadStatus.PUBLISHED)
+        stmt = select(LeadRow).where(LeadRow.status.in_(EXPLORER_STATUSES))
 
         if filters.category_ids:
             stmt = stmt.where(LeadRow.category_id.in_(filters.category_ids))
@@ -145,7 +146,8 @@ class SqlAlchemyLeadRepository(LeadRepositoryPort):
         stmt = (
             self._base_query(filters)
             .options(selectinload(LeadRow.photos), selectinload(LeadRow.consents))
-            .order_by(LeadRow.created_at.desc())
+            # Los cerrados se ven, pero despues de los que aun se pueden comprar.
+            .order_by((LeadRow.status == LeadStatus.EXHAUSTED).asc(), LeadRow.created_at.desc())
             .limit(filters.limit)
             .offset(filters.offset)
         )

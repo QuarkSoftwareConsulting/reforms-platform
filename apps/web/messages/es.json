@@ -125,7 +125,7 @@
     "phoneHint": "Es el dato principal. Solo lo verán los profesionales que compren tu contacto.",
     "emailLabel": "Email",
     "emailHint": "Te enviamos una copia de tu solicitud.",
-    "consentLabel": "He leído y acepto la política de tratamiento de datos. Autorizo a Voy a Reformar a tratar mis datos para validar la solicitud y a cederlos a un máximo de {maxProfessionals} profesionales que compren el contacto, conforme al RGPD (UE) 2016/679 y la LOPDGDD 3/2018.",
+    "consentLabel": "He leído y acepto la política de tratamiento de datos. Autorizo a Voy a Reformar a tratar mis datos para validar la solicitud, a mostrar mi nombre de pila y mi código postal a los profesionales registrados y a ceder mis datos de contacto a un máximo de {maxProfessionals} profesionales que compren el contacto, conforme al RGPD (UE) 2016/679 y la LOPDGDD 3/2018.",
     "policyShow": "Ver resumen de la política de datos",
     "policyHide": "Ocultar el resumen",
     "policy": {
@@ -143,7 +143,7 @@
       },
       "recipients": {
         "term": "Destinatarios",
-        "body": "Un máximo de {maxProfessionals} profesionales que compren tu contacto. Nadie más recibe tu nombre ni tu teléfono."
+        "body": "Los profesionales registrados ven tu nombre de pila, tu código postal y lo que necesitas. Tu nombre completo, tu teléfono y tu email solo los reciben, como máximo, {maxProfessionals} profesionales que compren tu contacto."
       },
       "retention": {
         "term": "Conservación",
@@ -169,6 +169,10 @@
     "filterAll": "Todos mis oficios",
     "filterRadius": "Radio de búsqueda",
     "slotsLeft": "{count, plural, =0 {Sin plazas} one {Queda 1 plaza} other {Quedan # plazas}}",
+    "closed": "Cerrado",
+    "buyers": "{count, plural, =0 {Nadie lo ha comprado todavía} one {1 profesional ya lo compró} other {# profesionales ya lo compraron}}",
+    "vatIncluded": "IVA incluido",
+    "clientFirstName": "Cliente: {name}",
     "purchased": "Ya comprado",
     "viewDetail": "Ver el contacto",
     "contactPrice": "Contacto",
@@ -177,8 +181,15 @@
   "lead": {
     "publishedAgo": "Publicada {when}",
     "contactLocked": "Contacto bloqueado",
-    "contactLockedBody": "Desbloquea el nombre y el teléfono del cliente por {price}. Esta solicitud admite {slots} profesionales más.",
+    "contactLockedBody": "Desbloquea el nombre completo y el teléfono del cliente por {price}. Esta solicitud admite {slots} profesionales más.",
     "contactPrice": "Precio del contacto",
+    "vatIncluded": "IVA incluido",
+    "vatBreakdown": "Base imponible {net} + IVA ({rate} %) {vat}",
+    "client": "Cliente",
+    "postalCode": "Código postal",
+    "buyers": "{count, plural, =0 {Nadie lo ha comprado todavía} one {1 de {max} profesionales ya lo compró} other {# de {max} profesionales ya lo compraron}}",
+    "closedTitle": "Solicitud cerrada",
+    "closedBody": "Ya la han comprado {max} profesionales, el máximo permitido. No admite más compras.",
     "unlock": "Comprar contacto por {price}",
     "unlocking": "Redirigiendo al pago...",
     "contactUnlocked": "Contacto desbloqueado",

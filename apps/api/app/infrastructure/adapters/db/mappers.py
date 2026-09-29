@@ -157,6 +157,7 @@ def lead_to_domain(row: LeadRow) -> Lead:
             max_recipients=latest.max_recipients,
             channel=latest.external_channel,
             campaign_reference=latest.external_campaign_reference,
+            allows_public_preview=latest.allows_public_preview,
         )
 
     return Lead(

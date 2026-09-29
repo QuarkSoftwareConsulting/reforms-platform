@@ -1,6 +1,6 @@
 ---
 name: verificar-flujo-compra
-description: Verifica de punta a punta el flujo de compra de un contacto en Reforma Hub contra los servicios reales en local (Postgres+PostGIS, emulador de Firebase Auth, adaptador real de Stripe). Usar antes de dar por terminado cualquier cambio que toque leads, compras, pagos, webhooks, el cap de 3 profesionales, la autenticacion o la exposicion de datos de contacto del cliente; tambien antes de abrir un PR o cuando el usuario pida comprobar que "el flujo sigue funcionando".
+description: Verifica de punta a punta el flujo de compra de un contacto en Reforma Hub contra los servicios reales en local (Postgres+PostGIS, emulador de Firebase Auth, adaptador real de Stripe). Usar antes de dar por terminado cualquier cambio que toque leads, compras, pagos, webhooks, el cap de 5 profesionales, la autenticacion o la exposicion de datos de contacto del cliente; tambien antes de abrir un PR o cuando el usuario pida comprobar que "el flujo sigue funcionando".
 ---
 
 # Verificar el flujo de compra end-to-end
@@ -36,7 +36,7 @@ bloquean la terminal. Espera a que `/health` devuelva `database: true` antes de 
 ## 2 · Ejecutar
 
 ```bash
-pnpm verify:flow                # 28 comprobaciones
+pnpm verify:flow                # 37 comprobaciones (2 se omiten sin clave de Stripe)
 pnpm verify:flow -- --verbose   # muestra cada peticion y respuesta
 pnpm verify:flow -- --keep      # conserva los datos de prueba para inspeccionarlos
 ```
@@ -52,13 +52,13 @@ tantas veces como quieras.
 | 1 | El cliente publica sin cuenta; sin consentimiento se rechaza (`CONSENT_REQUIRED`) |
 | 2 | `lead_consents` guarda politica, IP y user-agent **tomados del servidor** |
 | 3 | El backend verifica un ID token real de Firebase |
-| 4 | El explorador **no** expone nombre, telefono ni email; el detalle sigue bloqueado |
+| 4 | El explorador **no** expone nombre completo, telefono ni email; si muestra nombre de pila, CP e IVA desglosado; el detalle sigue bloqueado |
 | 5 | Si la pasarela falla: 503 y la plaza se libera al instante |
 | 6 | Firma forjada → 401. Solo el webhook firmado desbloquea |
 | 7 | Reenviar el mismo evento no incrementa el contador dos veces |
 | 8 | Quien pago ve el contacto completo y consume una plaza |
 | 9 | La compra de un profesional **no** desbloquea para otro |
-| 10 | A las 3 ventas el lead se agota: el cuarto recibe `409 LEAD_CAP_REACHED` |
+| 10 | A las 5 ventas el lead se agota: el sexto recibe `409 LEAD_CAP_REACHED` y lo ve como cerrado |
 | 11 | Solo el admin fija precios; el override manda sobre el sugerido y se puede borrar |
 
 ## 4 · Interpretar el resultado

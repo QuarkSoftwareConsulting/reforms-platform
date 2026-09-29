@@ -6,7 +6,8 @@ cualquier persona o sesión de agente retome el trabajo sin reconstruir la conve
 
 - Fuente original: documento del cliente "Etapa 1" (flujos F01–F03 con sus respuestas).
 - Última actualización: 2026-09-28.
-- Fase 1: rama `suscriptions`, con commit y sin push. Fase 2: rama `feat/reglas-lead`.
+- Fase 1: rama `suscriptions`, con commit y sin push. Fase 2: rama `feat/reglas-lead`
+  (sale de `suscriptions`), implementada y **sin commit todavía**.
 
 ---
 
@@ -50,8 +51,14 @@ código (o volver a hablarlo con el cliente).
   ya implementado) y puede cambiar el sugerido de cada oficio.
 - **Decidido (2026-09-28): 5 € por defecto**, en lugar de los 18 € por contacto del
   documento del cliente. Los 18 € siguen siendo el importe inicial de la recarga.
-- Hoy los datos iniciales (`apps/api/data/categories.csv`) sugieren de 3 € a 12 € según el
-  oficio; hay que llevarlos a 5 € (Fase 2).
+- Los datos iniciales (`apps/api/data/categories.csv`) sugieren 5 € en todos los oficios.
+- Los precios se publican con el IVA incluido (21 %) y se muestra el desglose.
+
+### Plazas por lead
+
+- **5 profesionales por lead** como máximo. Los leads creados antes conservan 3, porque su
+  cliente consintió ceder los datos a un máximo de 3.
+- Un lead agotado sigue visible como "Cerrado", sin botón de compra.
 
 ---
 
@@ -94,15 +101,35 @@ Pendiente dentro de la Fase 1:
       y bloquear compras hasta regularizar. **No implementado.**
 - [ ] Formulario de ajuste manual de saldo en el panel de admin (hoy solo por API).
 
-### Fase 2 — Reglas del lead · ⏳ pendiente
+### Fase 2 — Reglas del lead · ✅ implementada, pendiente de commit y PR
 
-- 5 plazas por lead en lugar de 3 (`Lead.max_purchases`, settings, textos, `verify:flow`).
-- Precio por defecto de 5 € (ver §1): poner a 500 céntimos el sugerido de todos los oficios
-  en `categories.csv`. Mostrar "IVA incluido" y el desglose al 21 %.
-- Leads agotados visibles como "Cerrado", sin botón de compra.
-- Datos visibles antes de pagar: **nombre de pila** del cliente, categoría, servicio,
-  descripción, plazo, tipo de inmueble, código postal y profesionales que ya compraron.
-  Cambia el invariante §4.4 de `AGENTS.md` y la política de privacidad.
+Hecho:
+- **5 plazas por lead** (`DEFAULT_MAX_PURCHASES`, `LEAD_MAX_PURCHASES=5`). Los leads
+  existentes conservan sus 3: el consentimiento de su cliente (`max_recipients`) se dio
+  para un máximo de 3 destinatarios.
+- **Precio sugerido de 5 €** en todos los oficios (`categories.csv`). Ojo: `pnpm api:seed`
+  sobrescribe el sugerido de los oficios existentes con el del CSV.
+- **IVA incluido** con desglose al 21 % (`vat_breakdown` en el dominio; `price_breakdown`
+  en el API). La base se redondea al céntimo y la cuota es la diferencia.
+- **Leads agotados visibles como "Cerrado"**, después de los abiertos y sin compra. Quien
+  ya lo compró conserva el acceso a su contacto.
+- **Antes de pagar se ven** el nombre de pila, el CP completo y cuántos profesionales ya
+  compraron ("2 de 5"). Nombre y CP solo si el consentimiento lo cubre
+  (`lead_consents.allows_public_preview`, migración `b21c3dcaecb5`); los leads anteriores
+  siguen sin nombre y con el prefijo del CP.
+- Política de privacidad y casilla del formulario actualizadas; versión `2026-09-v2`.
+  Invariante §4.4 de `AGENTS.md` reescrito.
+
+Pendiente o fuera de esta fase:
+- [ ] Commit y PR (esperar a que el usuario lo pida).
+- [ ] Subir `LEAD_MAX_PURCHASES=5` y `PRIVACY_POLICY_VERSION=2026-09-v2` en el entorno de
+      Cloud Run (el `.env` local ya está actualizado).
+- [ ] Servicio, plazo y tipo de inmueble: el lead todavía no tiene esos datos; llegan con
+      el formulario nuevo de la Fase 3 y entonces se añaden a la vista previa.
+- [ ] "Profesionales que ya compraron": hoy se muestra el **número**. Confirmar con el
+      cliente si quiere también los **nombres** comerciales (es dato de otros
+      profesionales).
+- [ ] Texto legal completo de la política (hoy solo existe el resumen del formulario).
 
 ### Fase 3 — Catálogo, cobertura y formulario del cliente (F01) · ⏳ pendiente
 
@@ -139,16 +166,17 @@ Pendiente dentro de la Fase 1:
 
 ## 3. Pendientes con el cliente
 
-1. **Fiscalidad del saldo prepagado**, con su asesor: IVA al cobrar la recarga (anticipo o
+1. **"Profesionales que ya compraron"**: ¿el número (implementado) o también sus nombres?
+2. **Fiscalidad del saldo prepagado**, con su asesor: IVA al cobrar la recarga (anticipo o
    bono univalente), sin factura nueva al gastar saldo. Facturación compatible con
    Verifactu (aplazado a 2027 según la última información; confirmar la fecha).
    Condiciones: saldo no reembolsable en efectivo e intransferible.
-2. **Qué pasa con el saldo si cancela la recarga:** hoy se conserva, pero no se puede
+3. **Qué pasa con el saldo si cancela la recarga:** hoy se conserva, pero no se puede
    gastar hasta reactivarla. La propuesta es dejarlo usar hasta el final del periodo
    pagado.
-3. **Texto de la landing** que sustituye "Sin cuota mensual ni permanencia" (ya retirado;
+4. **Texto de la landing** que sustituye "Sin cuota mensual ni permanencia" (ya retirado;
    el texto nuevo es una propuesta).
-4. **Proveedores** de SMS, WhatsApp y email.
+5. **Proveedores** de SMS, WhatsApp y email.
 
 ## 4. Decisiones descartadas (no reabrir sin hablarlo)
 

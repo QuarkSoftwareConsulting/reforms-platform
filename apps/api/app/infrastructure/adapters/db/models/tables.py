@@ -157,7 +157,7 @@ class LeadRow(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     source: Mapped[LeadSource] = mapped_column(
         lead_source_enum, nullable=False, default=LeadSource.ORGANIC
     )
-    max_purchases: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
+    max_purchases: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
     purchases_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -222,10 +222,15 @@ class LeadConsentRow(Base, UUIDPrimaryKeyMixin):
     policy_version: Mapped[str] = mapped_column(String(40), nullable=False)
     ip_address: Mapped[str | None] = mapped_column(String(45))
     user_agent: Mapped[str | None] = mapped_column(String(500))
-    max_recipients: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
+    max_recipients: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
     accepted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     external_channel: Mapped[str | None] = mapped_column(String(120))
     external_campaign_reference: Mapped[str | None] = mapped_column(String(200))
+    # Los consentimientos anteriores a la politica 2026-09-v2 no cubren mostrar el
+    # nombre de pila y el CP antes de la compra: por eso el valor por defecto es false.
+    allows_public_preview: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
 
     lead: Mapped[LeadRow] = relationship(back_populates="consents")
 

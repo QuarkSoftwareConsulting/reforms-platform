@@ -32,6 +32,8 @@ from app.domain.models import (
     Purchase,
     PurchaseReview,
     User,
+    VatBreakdown,
+    vat_breakdown,
 )
 from app.domain.value_objects import Money
 from app.infrastructure.api.schemas.admin import (
@@ -60,6 +62,7 @@ from app.infrastructure.api.schemas.leads import (
     LeadPublicOut,
     PresignPhotoOut,
     PurchaseOut,
+    VatBreakdownOut,
 )
 from app.infrastructure.api.schemas.professionals import ProfessionalOut
 from app.infrastructure.api.schemas.purchases import PurchasedLeadOut
@@ -102,15 +105,29 @@ def lead_public_out(
         city=view.city,
         province=view.province,
         postal_code_prefix=view.postal_code_prefix,
+        postal_code=view.postal_code,
+        client_first_name=view.client_first_name,
         category=category_out(category, locale),
         photo_urls=[storage.public_url(key) for key in view.photo_keys],
         created_at=view.created_at,
         remaining_slots=view.remaining_slots,
+        purchases_count=view.purchases_count,
+        max_purchases=view.max_purchases,
+        is_closed=view.is_closed,
         distance_km=distance_km,
         masked_phone=view.masked_phone,
         masked_email=view.masked_email,
         already_purchased=already_purchased,
         price=money_out(price),
+        price_breakdown=vat_breakdown_out(vat_breakdown(price)),
+    )
+
+
+def vat_breakdown_out(breakdown: VatBreakdown) -> VatBreakdownOut:
+    return VatBreakdownOut(
+        net=money_out(breakdown.net),
+        vat=money_out(breakdown.vat),
+        rate_percent=breakdown.rate_percent,
     )
 
 

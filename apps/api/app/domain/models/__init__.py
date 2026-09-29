@@ -17,6 +17,8 @@ from app.domain.models.enums import (
     UserRole,
 )
 from app.domain.models.lead import (
+    DEFAULT_MAX_PURCHASES,
+    EXPLORER_STATUSES,
     ClientContact,
     ConsentRecord,
     Lead,
@@ -24,16 +26,25 @@ from app.domain.models.lead import (
     LeadPhoto,
     LeadPublicView,
 )
-from app.domain.models.pricing import MAX_SALE_PRICE_CENTS, assert_sellable_price
+from app.domain.models.pricing import (
+    MAX_SALE_PRICE_CENTS,
+    VAT_RATE_PERCENT,
+    VatBreakdown,
+    assert_sellable_price,
+    vat_breakdown,
+)
 from app.domain.models.professional import Professional, User
 from app.domain.models.purchase import Purchase
 from app.domain.models.purchase_review import PurchaseReview
 
 __all__ = [
+    "DEFAULT_MAX_PURCHASES",
+    "EXPLORER_STATUSES",
     "MAX_SALE_PRICE_CENTS",
     "MAX_SUBSCRIPTION_CENTS",
     "MIN_CHARGE_CENTS",
     "RENEWAL_GRACE",
+    "VAT_RATE_PERCENT",
     "Category",
     "ClientContact",
     "ConsentRecord",
@@ -54,6 +65,8 @@ __all__ = [
     "SubscriptionStatus",
     "User",
     "UserRole",
+    "VatBreakdown",
     "assert_sellable_price",
     "assert_valid_subscription_amount",
+    "vat_breakdown",
 ]
