@@ -26,7 +26,8 @@
     "subscription": "My monthly fee"
   },
   "footer": {
-    "tagline": "Your ideas. The best professionals."
+    "tagline": "Your ideas. The best professionals.",
+    "geonames": "Postcodes: data from <source>GeoNames</source>, adapted, licensed under <license>CC BY 4.0</license>."
   },
   "home": {
     "title": "Phone-verified renovation contacts across Spain",
@@ -533,7 +534,19 @@
       "rejectedRefunded": "Registration rejected. {amount} was refunded and the top-up cancelled.",
       "rejectedNothingToRefund": "Registration rejected. There was no charge to refund."
     },
-    "debt": "Debt"
+    "debt": "Debt",
+    "adjustment": {
+      "open": "Adjust balance",
+      "direction": "Adjustment type",
+      "credit": "Add balance",
+      "debit": "Deduct balance",
+      "amount": "Amount (€)",
+      "note": "Reason",
+      "noteHint": "It is recorded in the professional's balance history.",
+      "submit": "Apply adjustment",
+      "done": "Adjustment applied. Balance: {balance}.",
+      "doneWithDebt": "Adjustment applied. Balance: {balance} · Outstanding debt: {debt}."
+    }
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",
@@ -615,6 +628,8 @@
     "mediaType": "Only JPG, PNG, WEBP or HEIC photos are accepted.",
     "mediaTooLarge": "The photo is larger than 10 MB.",
     "documentType": "Upload the document as a PDF or an image.",
-    "documentTooLarge": "The document is larger than 10 MB."
+    "documentTooLarge": "The document is larger than 10 MB.",
+    "adjustmentAmount": "Enter an amount above 0 and up to €1000.",
+    "adjustmentNote": "Explain the reason for the adjustment (3 to 500 characters)."
   }
 }

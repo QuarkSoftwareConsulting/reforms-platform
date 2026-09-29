@@ -178,6 +178,42 @@ class TestAdminCredit:
         metrics = (await api.get("/admin/metrics", headers=admin_auth)).json()
         assert metrics["active_accounts"] == 1
 
+    async def test_an_adjustment_settles_the_debt_first_and_reports_what_is_left(
+        self,
+        api: AsyncClient,
+        carpentry_category: Category,
+        pro_auth: dict[str, str],
+        admin_auth: dict[str, str],
+        fake_gateway: FakePaymentGateway,
+    ) -> None:
+        from app.application.ports import ChargeOwner
+
+        profile = await create_profile(api, carpentry_category, pro_auth, subscribed=False)
+        started = await api.post("/me/subscription/checkout", headers=pro_auth)
+        customer_id = started.json()["checkout_url"].split("customer=")[1]
+        fake_gateway.charge_owners["ch_x"] = ChargeOwner(customer_id=customer_id, purchase_id=None)
+        await api.post(
+            "/webhooks/stripe",
+            content=FakePaymentGateway.dispute_event_payload(
+                event_id="evt_dp_admin",
+                event_type=PaymentEventType.CHARGE_DISPUTED,
+                charge_id="ch_x",
+                amount_cents=500,
+            ),
+            headers={"Stripe-Signature": VALID_SIGNATURE},
+        )
+
+        response = await api.post(
+            f"/admin/professionals/{profile['id']}/credit-adjustments",
+            json={"amount_cents": 300, "note": "Regularizacion parcial"},
+            headers=admin_auth,
+        )
+
+        assert response.status_code == 201, response.text
+        body = response.json()
+        assert body["balance"]["amount_cents"] == 0
+        assert body["debt"]["amount_cents"] == 200
+
     async def test_adjustment_for_unknown_professional_is_404(
         self, api: AsyncClient, admin_auth: dict[str, str]
     ) -> None:

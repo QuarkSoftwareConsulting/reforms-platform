@@ -24,6 +24,7 @@ from app.application.use_cases.list_categories import ListCategories
 from app.application.use_cases.list_leads import ListLeads
 from app.application.use_cases.list_my_purchases import ListMyPurchases
 from app.application.use_cases.phone_verification import (
+    OriginLimit,
     PhoneVerificationStart,
     StartPhoneVerification,
 )
@@ -80,6 +81,7 @@ __all__ = [
     "ListMyPurchases",
     "MarkPurchaseForReview",
     "OpenBillingPortal",
+    "OriginLimit",
     "PaymentEventOutcome",
     "PhoneVerificationStart",
     "RejectProfessional",

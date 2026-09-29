@@ -62,8 +62,8 @@ npx -y firebase-tools emulators:start --only auth \
 | Objetivo | Comando |
 |---|---|
 | Todo el lint (ruff + mypy strict + eslint + tsc) | `pnpm lint` |
-| Todos los tests (599 back + 115 front) | `pnpm test` |
-| Backend rápido, **sin Docker** (502 tests) | `cd apps/api && uv run pytest -m "not integration"` |
+| Todos los tests (618 back + 126 front) | `pnpm test` |
+| Backend rápido, **sin Docker** (519 tests) | `cd apps/api && uv run pytest -m "not integration"` |
 | Backend completo (requiere `pnpm infra:up`) | `pnpm api:test` |
 | Un solo test de backend | `cd apps/api && uv run pytest tests/unit/domain/test_lead.py -k capping` |
 | Frontend en watch | `pnpm --filter web test:watch` |
@@ -142,6 +142,9 @@ El dominio rechaza construir un `Lead` con `source=ORGANIC` y `consent=None`.
 `lead_consents` guarda versión de política, IP y user-agent **tomados del servidor**, nunca
 del cuerpo de la petición.
 → No aceptes IP ni user-agent como campos de entrada del API.
+→ La IP sale de `client_ip(request, TRUSTED_PROXY_HOPS)`, contando desde la **derecha** de
+`X-Forwarded-For`: las entradas de la izquierda las escribe el cliente. Si se pone un
+balanceador delante de Cloud Run, sube `TRUSTED_PROXY_HOPS` a 2.
 
 **4.6 · Una compra reembolsada sigue ocupando plaza.**
 El dato personal ya se cedió al profesional. Para retirar un lead problemático se
@@ -208,6 +211,10 @@ genera, caduca y limita los códigos, así que no guardamos ninguno. Con
 → El código se confirma **lo último**, después de validar todo lo demás: se consume al
 confirmarlo y un error en otro campo no debe obligar a pedir otro SMS.
 → `console` escribe el código en el log: `Settings` lo prohíbe fuera de development y test.
+→ Además del límite por teléfono del proveedor, hay un tope por IP y hora
+(`PHONE_VERIFICATION_PER_IP_HOURLY`) contra el "SMS pumping", contado en Postgres
+(`rate_limit_counters`) para que lo compartan todas las instancias. Un número inválido no
+gasta cupo; un fallo del proveedor, sí.
 
 **4.13 · Compra solo quien tiene el alta aprobada; un rechazo reembolsa y cancela.**
 `Professional.verification_status`: `incomplete` → `pending` (el profesional envía el alta)

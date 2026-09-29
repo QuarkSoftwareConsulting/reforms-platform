@@ -18,7 +18,7 @@ from app.infrastructure.api.dependencies import (
     CurrentProfessionalDep,
     LocaleDep,
 )
-from app.infrastructure.api.middlewares.request_context import client_ip
+from app.infrastructure.api.middlewares.request_context import client_ip, rate_limit_origin
 from app.infrastructure.api.schemas.leads import (
     CreateLeadIn,
     CreateLeadOut,
@@ -67,7 +67,7 @@ async def create_lead(
             consent=ConsentInput(
                 accepted=payload.consent.accepted,
                 policy_version=payload.consent.policy_version or settings.privacy_policy_version,
-                ip_address=client_ip(request),
+                ip_address=client_ip(request, settings.trusted_proxy_hops),
                 user_agent=request.headers.get("user-agent"),
             ),
         ),
@@ -82,14 +82,18 @@ async def create_lead(
     summary="Enviar el SMS que verifica el movil del cliente",
 )
 async def start_phone_verification(
-    payload: PhoneVerificationIn, container: ContainerDep
+    payload: PhoneVerificationIn, request: Request, container: ContainerDep
 ) -> PhoneVerificationOut:
     """Endpoint publico, como la publicacion: el cliente no tiene cuenta.
 
     Con `required=False` el entorno no verifica por SMS y el formulario publica sin
-    codigo. El limite de envios por telefono lo aplica el proveedor.
+    codigo. El limite de envios por telefono lo aplica el proveedor; el limite por IP
+    (contra el "SMS pumping") lo aplica el caso de uso, con la IP tomada del servidor.
     """
-    result = await container.start_phone_verification.execute(payload.phone)
+    ip = client_ip(request, container.infra.settings.trusted_proxy_hops)
+    result = await container.start_phone_verification.execute(
+        payload.phone, origin=rate_limit_origin(ip)
+    )
     return PhoneVerificationOut(required=result.required)
 
 

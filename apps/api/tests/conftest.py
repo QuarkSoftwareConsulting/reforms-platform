@@ -7,6 +7,7 @@ uso que corren en produccion, sin Postgres, Stripe ni Firebase.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import timedelta
 from uuid import UUID
 
 import pytest
@@ -36,6 +37,7 @@ from app.application.use_cases import (
     ListMyPurchases,
     MarkPurchaseForReview,
     OpenBillingPortal,
+    OriginLimit,
     RejectProfessional,
     ReleaseExpiredReservations,
     RemoveProfessionalDocument,
@@ -78,6 +80,7 @@ from tests.fakes import (
     InMemoryProfessionalRepository,
     InMemoryPurchaseRepository,
     InMemoryPurchaseReviewRepository,
+    InMemoryRateLimiter,
     InMemorySubscriptionPriceRepository,
     InMemoryUnitOfWork,
     InMemoryUserRepository,
@@ -87,6 +90,7 @@ from tests.fakes import (
 WEB_URL = "https://reformahub.test"
 TOPUP = Money(1800, "EUR")
 DEFAULT_TOPUP_PRICE_ID = "price_config_topup"
+SMS_PER_ORIGIN = 3
 
 POSTAL_CODES = [
     PostalCodeInfo(PostalCode("28001"), "Madrid", "Madrid", MADRID),
@@ -119,6 +123,7 @@ class World:
     storage: FakeStorage
     tokens: FakeTokenVerifier
     phone_verifier: FakePhoneVerifier = field(default_factory=FakePhoneVerifier)
+    rate_limiter: InMemoryRateLimiter = field(default_factory=InMemoryRateLimiter)
     private_storage: FakeStorage = field(
         default_factory=lambda: FakeStorage(base_url="https://private.test/reforma-hub")
     )
@@ -188,7 +193,16 @@ class World:
             uow=self.uow,
             phone_verifier=self.phone_verifier,
         )
-        self.start_phone_verification = StartPhoneVerification(verifier=self.phone_verifier)
+        self.start_phone_verification = StartPhoneVerification(
+            verifier=self.phone_verifier,
+            origin_limit=OriginLimit(
+                limiter=self.rate_limiter,
+                clock=self.clock,
+                uow=self.uow,
+                limit=SMS_PER_ORIGIN,
+                window=timedelta(hours=1),
+            ),
+        )
         self.list_leads = ListLeads(
             leads=self.leads, categories=self.categories, professionals=self.professionals
         )

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 import time
 import uuid
 from collections.abc import Awaitable, Callable
@@ -43,12 +44,38 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         return response
 
 
-def client_ip(request: Request) -> str | None:
-    """IP real del cliente, respetando el proxy inverso.
+def client_ip(request: Request, trusted_proxy_hops: int = 1) -> str | None:
+    """IP real del cliente, detras de `trusted_proxy_hops` proxies propios.
 
-    Se necesita para el registro auditable de consentimiento RGPD.
+    Cada proxy anade a `X-Forwarded-For` la IP de quien le llama, asi que la del
+    cliente es la que esta a `trusted_proxy_hops` posiciones desde la DERECHA. Las de
+    la izquierda las puede escribir el propio cliente: tomar la primera dejaria
+    falsear la IP del consentimiento (RGPD) y saltarse el limite de SMS.
     """
     forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
+    if trusted_proxy_hops > 0 and forwarded:
+        hops = [part.strip() for part in forwarded.split(",") if part.strip()]
+        if len(hops) >= trusted_proxy_hops:
+            return hops[-trusted_proxy_hops]
     return request.client.host if request.client else None
+
+
+UNKNOWN_ORIGIN = "unknown"
+
+
+def rate_limit_origin(ip: str | None) -> str:
+    """Origen para limitar: la IP, o su red /64 en IPv6.
+
+    Un solo cliente IPv6 suele tener un /64 entero: limitar por direccion exacta
+    le daria millones de cupos. Lo que no se entiende comparte un unico cupo: si un
+    origen ilegible no se limitara, bastaria con mandarlo para saltarse el limite.
+    """
+    if ip is None:
+        return UNKNOWN_ORIGIN
+    try:
+        address = ipaddress.ip_address(ip)
+    except ValueError:
+        return UNKNOWN_ORIGIN
+    if address.version == 6:
+        return str(ipaddress.ip_network(f"{address}/64", strict=False))
+    return str(address)
