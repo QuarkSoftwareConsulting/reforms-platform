@@ -6,6 +6,7 @@ from uuid import uuid4
 import pytest
 
 from app.domain.exceptions import (
+    CreditDebtOutstandingError,
     InsufficientCreditError,
     PurchaseNotPayableError,
     SubscriptionAlreadyExistsError,
@@ -141,8 +142,54 @@ class TestBalance:
 
     def test_balance_after_does_not_mutate(self) -> None:
         account = make_account(balance_cents=1000)
-        assert account.balance_after(entry(account, CreditEntryKind.SPEND, 400)).amount_cents == 600
+        balance, debt = account.balance_after(entry(account, CreditEntryKind.SPEND, 400))
+        assert (balance.amount_cents, debt.amount_cents) == (600, 0)
         assert account.balance.amount_cents == 1000
+
+
+class TestChargeback:
+    """Recarga devuelta por el banco: el importe se retira aunque ya se gastara."""
+
+    def test_takes_the_balance_first_and_the_rest_becomes_debt(self) -> None:
+        account = make_account(balance_cents=500)
+        account.apply(entry(account, CreditEntryKind.CHARGEBACK, 1800))
+        assert account.balance == Money(0, "EUR")
+        assert account.debt == Money(1300, "EUR")
+
+    def test_with_enough_balance_there_is_no_debt(self) -> None:
+        account = make_account(balance_cents=3600)
+        account.apply(entry(account, CreditEntryKind.CHARGEBACK, 1800))
+        assert account.balance == Money(1800, "EUR")
+        assert account.debt == Money(0, "EUR")
+
+    def test_any_credit_settles_the_debt_first(self) -> None:
+        account = make_account(balance_cents=0, debt_cents=1300)
+        account.apply(entry(account, CreditEntryKind.TOPUP, 1800))
+        assert account.debt == Money(0, "EUR")
+        assert account.balance == Money(500, "EUR")
+
+    def test_a_partial_credit_only_reduces_the_debt(self) -> None:
+        account = make_account(balance_cents=0, debt_cents=1300)
+        account.apply(entry(account, CreditEntryKind.ADJUSTMENT_CREDIT, 1000))
+        assert account.debt == Money(300, "EUR")
+        assert account.balance == Money(0, "EUR")
+
+    def test_other_debits_still_cannot_exceed_the_balance(self) -> None:
+        account = make_account(balance_cents=0, debt_cents=1300)
+        with pytest.raises(InsufficientCreditError):
+            account.apply(entry(account, CreditEntryKind.ADJUSTMENT_DEBIT, 1))
+        assert account.debt == Money(1300, "EUR")
+
+    def test_cannot_buy_with_debt_even_with_the_top_up_up_to_date(self) -> None:
+        account = make_account(debt_cents=1)
+        assert account.is_active(NOW)
+        with pytest.raises(CreditDebtOutstandingError):
+            account.assert_can_purchase(NOW)
+
+    def test_settled_debt_allows_buying_again(self) -> None:
+        account = make_account(balance_cents=0, debt_cents=1800)
+        account.apply(entry(account, CreditEntryKind.TOPUP, 1800))
+        account.assert_can_purchase(NOW)
 
 
 class TestCreditToApply:

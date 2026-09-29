@@ -121,7 +121,7 @@ subida al bucket en un archivo inválido.
 ## Tests
 
 ```bash
-pnpm test              # vitest, 113 tests
+pnpm test              # vitest, 115 tests
 pnpm test:watch
 pnpm lint              # eslint + tsc --noEmit
 ```

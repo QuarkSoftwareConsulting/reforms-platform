@@ -15,6 +15,7 @@ from app.application.ports import PostalCodeInfo
 from app.application.use_cases import (
     AddProfessionalDocument,
     AdjustProfessionalCredit,
+    ApplyChargeback,
     ApplySubscriptionEvent,
     ApproveProfessional,
     ChangeLeadAvailability,
@@ -221,6 +222,9 @@ class World:
             credit=self.credit,
             subscriptions=ApplySubscriptionEvent(
                 accounts=self.accounts, credit=self.credit, clock=self.clock
+            ),
+            chargebacks=ApplyChargeback(
+                accounts=self.accounts, ledger=self.ledger, credit=self.credit, clock=self.clock
             ),
         )
         self.my_purchases = ListMyPurchases(

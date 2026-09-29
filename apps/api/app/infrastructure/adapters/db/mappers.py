@@ -369,6 +369,7 @@ def account_to_domain(row: ProfessionalAccountRow) -> ProfessionalAccount:
         stripe_subscription_id=row.stripe_subscription_id,
         current_period_end=row.current_period_end,
         status_synced_at=row.status_synced_at,
+        debt_cents=row.debt_cents,
     )
 
 
@@ -382,6 +383,7 @@ def apply_account(
     row.current_period_end = account.current_period_end
     row.status_synced_at = account.status_synced_at
     row.balance_cents = account.balance.amount_cents
+    row.debt_cents = account.debt_cents
     row.currency = account.balance.currency
     return row
 

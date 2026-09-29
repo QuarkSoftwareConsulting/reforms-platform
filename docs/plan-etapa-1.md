@@ -22,6 +22,14 @@ cualquier persona o sesión de agente retome el trabajo sin reconstruir la conve
   la pasan al reorientarse a `develop`. En local, las cuatro fases pasan `pnpm lint`,
   `pnpm test` y `pnpm verify:flow`.
 
+  **Estado (2026-09-29):** los PR #16–#19 se integraron en cadena en `suscriptions`, que va a
+  `develop` en el PR #20. Encima, también contra `suscriptions`:
+
+  | Cambio | Rama | PR |
+  |---|---|---|
+  | Revisión de la Etapa 1 (5 puntos: vista previa, rechazo, concurrencia) | `fix/revision-etapa-1` | #21 |
+  | Devolución de recargas por el banco (SEPA / disputa) | `feat/devolucion-sepa` | sobre #21 |
+
 ---
 
 ## 1. Reglas de negocio vigentes
@@ -110,8 +118,12 @@ Pendiente dentro de la Fase 1:
 - [x] Push y PR abierto (ver la tabla del principio).
 - [ ] Configurar en Stripe: el portal de cliente (cancelación **al final del periodo**) y
       los eventos del webhook listados en el README.
-- [ ] Devolución de adeudos SEPA por el banco (`charge.dispute.created`): restar el saldo
-      y bloquear compras hasta regularizar. **No implementado.**
+- [x] Devolución de adeudos SEPA por el banco (`charge.dispute.*`): se retira el saldo y lo
+      ya gastado queda como **deuda** (`debt_cents`); con deuda no se compra y la siguiente
+      recarga la salda primero. Disputa ganada: se devuelve. Migración `af5e07db6017`.
+      Decidido el 2026-09-29. Sin verificar contra Stripe real.
+- [ ] Qué hacer con la **disputa de una compra de contacto** (no de la recarga): hoy no toca
+      el saldo y queda en Stripe para que el admin decida. Confirmar con el cliente.
 - [ ] Formulario de ajuste manual de saldo en el panel de admin (hoy solo por API).
 
 ### Fase 2 — Reglas del lead · ✅ implementada, en PR

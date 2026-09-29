@@ -649,6 +649,12 @@ class InMemoryCreditLedgerRepository(CreditLedgerRepositoryPort):
         ]
         return min(topups, key=lambda e: e.created_at) if topups else None
 
+    async def find(self, kind: CreditEntryKind, source_ref: str) -> CreditEntry | None:
+        await _round_trip()
+        return next(
+            (e for e in self.entries if e.kind is kind and e.source_ref == source_ref), None
+        )
+
     async def topup_totals(self) -> dict[str, int]:
         await _round_trip()
         totals: dict[str, int] = {}
@@ -659,7 +665,7 @@ class InMemoryCreditLedgerRepository(CreditLedgerRepositoryPort):
         return totals
 
     def balance_of(self, professional_id: UUID) -> int:
-        """Saldo recalculado desde el libro, para contrastarlo con el cacheado."""
+        """Saldo neto (saldo menos deuda) recalculado desde el libro."""
         return sum(e.signed_cents for e in self.entries if e.professional_id == professional_id)
 
 

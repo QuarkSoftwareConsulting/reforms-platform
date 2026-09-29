@@ -220,6 +220,7 @@ class GetProfessionalAccount:
             current_period_end=account.current_period_end,
             can_manage_billing=account.stripe_customer_id is not None,
             entries=entries,
+            debt=account.debt,
         )
 
 

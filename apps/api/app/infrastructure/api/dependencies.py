@@ -27,6 +27,7 @@ from app.application.ports import (
 from app.application.use_cases import (
     AddProfessionalDocument,
     AdjustProfessionalCredit,
+    ApplyChargeback,
     ApplySubscriptionEvent,
     ApproveProfessional,
     ChangeLeadAvailability,
@@ -345,6 +346,12 @@ class RequestContainer:
             credit=self.credit,
             subscriptions=ApplySubscriptionEvent(
                 accounts=self.accounts, credit=self.credit, clock=self.infra.clock
+            ),
+            chargebacks=ApplyChargeback(
+                accounts=self.accounts,
+                ledger=self.ledger,
+                credit=self.credit,
+                clock=self.infra.clock,
             ),
         )
 

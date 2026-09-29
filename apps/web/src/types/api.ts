@@ -145,7 +145,10 @@ export type CreditEntryKind =
   | "spend"
   | "spend_reversal"
   | "adjustment_credit"
-  | "adjustment_debit";
+  | "adjustment_debit"
+  | "verification_refund"
+  | "chargeback"
+  | "chargeback_reversal";
 
 export interface CreditEntry {
   kind: CreditEntryKind;
@@ -163,6 +166,8 @@ export interface Account {
   current_period_end: string | null;
   can_manage_billing: boolean;
   entries: CreditEntry[];
+  /** Recarga devuelta por el banco ya gastada: con deuda no se compra aunque `is_active`. */
+  debt?: Money | null;
 }
 
 export interface PurchasedLead {
@@ -346,6 +351,7 @@ export interface AdminAccount {
   status: SubscriptionStatus;
   is_active: boolean;
   balance: Money;
+  debt?: Money | null;
   current_period_end: string | null;
 }
 

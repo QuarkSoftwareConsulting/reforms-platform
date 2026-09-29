@@ -536,11 +536,15 @@ class ProfessionalAccountRow(Base, TimestampMixin):
     current_period_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     status_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     balance_cents: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Recarga devuelta por el banco que ya se habia gastado. Nunca a la vez que saldo.
+    debt_cents: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="EUR")
 
     __table_args__ = (
         # Ultima barrera contra gastar saldo que no existe, aunque el dominio falle.
         CheckConstraint("balance_cents >= 0", name="balance_non_negative"),
+        CheckConstraint("debt_cents >= 0", name="debt_non_negative"),
+        CheckConstraint("balance_cents = 0 OR debt_cents = 0", name="balance_or_debt"),
     )
 
 

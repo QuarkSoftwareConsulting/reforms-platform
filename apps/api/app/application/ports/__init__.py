@@ -1,6 +1,7 @@
 from app.application.ports.clock_port import ClockPort
 from app.application.ports.id_generator_port import IdGeneratorPort
 from app.application.ports.payment_port import (
+    ChargeOwner,
     CheckoutRequest,
     CheckoutSession,
     CustomerRequest,
@@ -37,6 +38,7 @@ __all__ = [
     "AdminLeadFilters",
     "AuthenticatedIdentity",
     "CategoryRepositoryPort",
+    "ChargeOwner",
     "CheckoutRequest",
     "CheckoutSession",
     "ClockPort",
