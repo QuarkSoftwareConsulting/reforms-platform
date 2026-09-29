@@ -554,3 +554,123 @@ class TestInvoiceRefundRetries:
         )
         with pytest.raises(PaymentGatewayError):
             await gateway_with(http).refund_invoice(invoice_id="in_first", idempotency_key="k")
+
+
+def dispute_object(status: str = "needs_response", **overrides: object) -> dict[str, object]:
+    data: dict[str, object] = {
+        "id": "dp_test_1",
+        "object": "dispute",
+        "amount": 1800,
+        "currency": "eur",
+        "charge": "ch_test_1",
+        "payment_intent": "pi_test_1",
+        "status": status,
+        "reason": "general",
+        "metadata": {},
+    }
+    data.update(overrides)
+    return data
+
+
+class TestDisputeEvents:
+    """Adeudo SEPA devuelto o disputa de tarjeta, con el objeto real del SDK."""
+
+    @pytest.mark.parametrize(
+        ("raw_type", "status", "expected"),
+        [
+            ("charge.dispute.created", "needs_response", PaymentEventType.CHARGE_DISPUTED),
+            # SEPA: la devolucion llega ya perdida, no se puede contestar.
+            ("charge.dispute.created", "lost", PaymentEventType.CHARGE_DISPUTED),
+            # Consulta sin retirada de fondos: no toca el saldo.
+            ("charge.dispute.created", "warning_needs_response", PaymentEventType.IGNORED),
+            ("charge.dispute.funds_withdrawn", "needs_response", PaymentEventType.CHARGE_DISPUTED),
+            ("charge.dispute.funds_reinstated", "won", PaymentEventType.DISPUTE_WON),
+            ("charge.dispute.closed", "won", PaymentEventType.DISPUTE_WON),
+            ("charge.dispute.closed", "lost", PaymentEventType.IGNORED),
+            ("charge.dispute.closed", "warning_closed", PaymentEventType.IGNORED),
+        ],
+    )
+    def test_classification(
+        self,
+        gateway: StripePaymentGateway,
+        raw_type: str,
+        status: str,
+        expected: PaymentEventType,
+    ) -> None:
+        payload = signed_event(raw_type, dispute_object(status))
+        assert gateway.parse_webhook_event(payload.encode(), sign(payload)).type is expected
+
+    def test_carries_the_dispute_the_charge_and_the_amount(
+        self, gateway: StripePaymentGateway
+    ) -> None:
+        payload = signed_event("charge.dispute.created", dispute_object())
+        event = gateway.parse_webhook_event(payload.encode(), sign(payload))
+
+        assert event.dispute_id == "dp_test_1"
+        assert event.charge_id == "ch_test_1"
+        assert event.amount_cents == 1800
+        assert event.currency == "EUR"
+        assert event.purchase_id is None
+
+
+class TestDescribeCharge:
+    async def test_a_top_up_charge_belongs_to_the_customer(self) -> None:
+        http = ScriptedHttpClient(
+            {
+                ("GET", "/v1/charges/ch_topup"): (
+                    200,
+                    {
+                        "id": "ch_topup",
+                        "object": "charge",
+                        "customer": "cus_test_1",
+                        "metadata": {},
+                        "payment_intent": {
+                            "id": "pi_topup",
+                            "object": "payment_intent",
+                            "metadata": {},
+                        },
+                    },
+                )
+            }
+        )
+        owner = await gateway_with(http).describe_charge("ch_topup")
+        assert owner.customer_id == "cus_test_1"
+        assert owner.purchase_id is None
+
+    async def test_a_contact_purchase_is_recognised_by_its_metadata(self) -> None:
+        purchase_id = uuid4()
+        http = ScriptedHttpClient(
+            {
+                ("GET", "/v1/charges/ch_lead"): (
+                    200,
+                    {
+                        "id": "ch_lead",
+                        "object": "charge",
+                        "customer": None,
+                        "metadata": {},
+                        "payment_intent": {
+                            "id": "pi_lead",
+                            "object": "payment_intent",
+                            "metadata": {"purchase_id": str(purchase_id)},
+                        },
+                    },
+                )
+            }
+        )
+        owner = await gateway_with(http).describe_charge("ch_lead")
+        assert owner.purchase_id == purchase_id
+        assert owner.customer_id is None
+
+    async def test_a_gateway_error_is_translated(self) -> None:
+        from app.domain.exceptions import PaymentGatewayError
+
+        http = ScriptedHttpClient(
+            {
+                ("GET", "/v1/charges/ch_x"): (
+                    404,
+                    {"error": {"type": "invalid_request_error", "message": "No such charge"}},
+                )
+            }
+        )
+        with pytest.raises(PaymentGatewayError):
+            await gateway_with(http).describe_charge("ch_x")

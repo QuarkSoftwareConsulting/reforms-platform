@@ -473,7 +473,7 @@ export function AdminPanel() {
               <p className="text-sm text-secondary">
                 {t("account")}:{" "}
                 {professional.account
-                  ? `${tSubscription(`status.${professional.account.status}`)} · ${t("balance")} ${formatMoney(professional.account.balance, locale)}`
+                  ? `${tSubscription(`status.${professional.account.status}`)} · ${t("balance")} ${formatMoney(professional.account.balance, locale)}${professional.account.debt ? ` · ${t("debt")} ${formatMoney(professional.account.debt, locale)}` : ""}`
                   : t("noAccount")}
               </p>
             </Card>

@@ -17,6 +17,7 @@ from uuid import UUID
 import stripe
 
 from app.application.ports import (
+    ChargeOwner,
     CheckoutRequest,
     CheckoutSession,
     CustomerRequest,
@@ -49,6 +50,17 @@ SUBSCRIPTION_EVENT_TYPE_MAP = {
     "customer.subscription.created": PaymentEventType.SUBSCRIPTION_UPDATED,
     "customer.subscription.updated": PaymentEventType.SUBSCRIPTION_UPDATED,
     "customer.subscription.deleted": PaymentEventType.SUBSCRIPTION_UPDATED,
+}
+
+# Devoluciones de un cobro por el banco: adeudo SEPA devuelto o disputa de tarjeta.
+# `created` y `funds_withdrawn` significan lo mismo para el saldo (el libro los
+# deduplica por disputa); `created` en estado `warning_*` es una consulta sin
+# retirada de fondos y no cuenta. Ganarla devuelve los fondos.
+DISPUTE_EVENT_TYPES = {
+    "charge.dispute.created",
+    "charge.dispute.funds_withdrawn",
+    "charge.dispute.funds_reinstated",
+    "charge.dispute.closed",
 }
 
 # Eventos de compra cuyo objeto no es la sesion de checkout: sin `purchase_id` en
@@ -204,6 +216,8 @@ class StripePaymentGateway(PaymentPort):
             subscription_status=subscription_status,
             period_end=_period_end(obj) if is_subscription else None,
             occurred_at=_from_epoch(getattr(event, "created", None)),
+            dispute_id=obj.get("id") if obj.get("object") == "dispute" else None,
+            charge_id=_as_id(obj.get("charge")) if obj.get("object") == "dispute" else None,
         )
 
     async def expire_checkout_session(self, session_id: str) -> None:
@@ -324,6 +338,31 @@ class StripePaymentGateway(PaymentPort):
             logger.error("stripe_reembolso_fallido: %s", exc, exc_info=True)
             raise PaymentGatewayError() from exc
 
+    async def describe_charge(self, charge_id: str) -> ChargeOwner:
+        client = self._require_client()
+        try:
+            charge = await asyncio.to_thread(
+                client.v1.charges.retrieve, charge_id, params={"expand": ["payment_intent"]}
+            )
+        except stripe.StripeError as exc:
+            logger.error("stripe_cargo_no_encontrado: %s", exc, exc_info=True)
+            raise PaymentGatewayError() from exc
+        # La compra de un contacto lleva `purchase_id` en los metadatos del
+        # PaymentIntent (se fija al crear el checkout); la recarga no.
+        intent = getattr(charge, "payment_intent", None)
+        raw_purchase_id = _metadata_value(charge, "purchase_id") or (
+            _metadata_value(intent, "purchase_id") if intent is not None else None
+        )
+        purchase_id: UUID | None = None
+        if raw_purchase_id:
+            try:
+                purchase_id = UUID(raw_purchase_id)
+            except ValueError:
+                logger.warning("purchase_id no es un UUID valido: %r", raw_purchase_id)
+        return ChargeOwner(
+            customer_id=_as_id(getattr(charge, "customer", None)), purchase_id=purchase_id
+        )
+
     async def cancel_subscription(self, subscription_id: str) -> None:
         client = self._require_client()
         try:
@@ -341,6 +380,20 @@ class StripePaymentGateway(PaymentPort):
         except stripe.StripeError as exc:
             logger.error("stripe_cancelacion_fallida: %s", exc, exc_info=True)
             raise PaymentGatewayError() from exc
+
+
+def _metadata_value(obj: Any, key: str) -> str | None:
+    """Lee un metadato de un StripeObject (o de un id sin expandir, que no tiene).
+
+    Un StripeObject no es un dict: `.get()` lanza AttributeError. `to_dict()` es
+    la conversion publica del SDK.
+    """
+    metadata = getattr(obj, "metadata", None)
+    if metadata is None:
+        return None
+    values = metadata.to_dict() if hasattr(metadata, "to_dict") else metadata
+    value = values.get(key) if isinstance(values, dict) else None
+    return str(value) if value else None
 
 
 def _paid_invoice_payment(invoice: Any) -> dict[str, str] | None:
@@ -368,6 +421,9 @@ def _classify(raw_type: str, obj: dict[str, Any], purchase_id: UUID | None) -> P
             return PaymentEventType.SUBSCRIPTION_CHECKOUT_COMPLETED
         return PaymentEventType.IGNORED
 
+    if raw_type in DISPUTE_EVENT_TYPES:
+        return _classify_dispute(raw_type, str(obj.get("status") or ""))
+
     if raw_type in SUBSCRIPTION_EVENT_TYPE_MAP:
         # Una factura suelta (no de la recarga) no afecta a la cuenta.
         if obj.get("object") == "invoice" and _subscription_id(obj) is None:
@@ -380,6 +436,19 @@ def _classify(raw_type: str, obj: dict[str, Any], purchase_id: UUID | None) -> P
         return PaymentEventType.IGNORED
 
     return EVENT_TYPE_MAP.get(raw_type, PaymentEventType.IGNORED)
+
+
+def _classify_dispute(raw_type: str, status: str) -> PaymentEventType:
+    if raw_type == "charge.dispute.funds_withdrawn":
+        return PaymentEventType.CHARGE_DISPUTED
+    if raw_type == "charge.dispute.created":
+        if status.startswith("warning_"):
+            return PaymentEventType.IGNORED
+        return PaymentEventType.CHARGE_DISPUTED
+    if raw_type == "charge.dispute.funds_reinstated":
+        return PaymentEventType.DISPUTE_WON
+    # `closed`: solo cuenta si se gano; perdida, el saldo ya se retiro al abrirse.
+    return PaymentEventType.DISPUTE_WON if status == "won" else PaymentEventType.IGNORED
 
 
 def _subscription_id(obj: dict[str, Any]) -> str | None:

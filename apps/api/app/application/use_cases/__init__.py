@@ -11,6 +11,7 @@ from app.application.use_cases.admin_pricing import (
     SetCategorySuggestedPrice,
     SetLeadPrice,
 )
+from app.application.use_cases.apply_chargeback import ApplyChargeback
 from app.application.use_cases.apply_subscription_event import ApplySubscriptionEvent
 from app.application.use_cases.create_lead import CreateLead
 from app.application.use_cases.credit_ledger import CreditLedgerService
@@ -58,6 +59,7 @@ from app.application.use_cases.sync_professional_profile import (
 __all__ = [
     "AddProfessionalDocument",
     "AdjustProfessionalCredit",
+    "ApplyChargeback",
     "ApplySubscriptionEvent",
     "ApproveProfessional",
     "ChangeLeadAvailability",

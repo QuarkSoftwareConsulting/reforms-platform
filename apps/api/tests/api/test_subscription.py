@@ -228,3 +228,71 @@ class TestAdminSubscriptionPrice:
             "/admin/subscription-price", json={"amount_cents": 10}, headers=admin_auth
         )
         assert response.status_code == 422
+
+
+class TestReturnedTopUp:
+    async def test_a_spent_top_up_returned_by_the_bank_is_owed_and_blocks_buying(
+        self,
+        api: AsyncClient,
+        carpentry_category: Category,
+        pro_auth: dict[str, str],
+        fake_gateway: FakePaymentGateway,
+    ) -> None:
+        from app.application.ports import ChargeOwner
+
+        created = await publish_lead(api, carpentry_category)
+        await create_profile(api, carpentry_category, pro_auth, subscribed=False)
+        started = await api.post("/me/subscription/checkout", headers=pro_auth)
+        customer_id = started.json()["checkout_url"].split("customer=")[1]
+        await api.post(
+            "/webhooks/stripe",
+            content=FakePaymentGateway.subscription_event_payload(
+                event_id="evt_inv_sepa",
+                event_type=PaymentEventType.INVOICE_PAID,
+                customer_id=customer_id,
+                invoice_id="in_sepa",
+                amount_cents=1800,
+            ),
+            headers={"Stripe-Signature": VALID_SIGNATURE},
+        )
+        fake_gateway.charge_owners["ch_sepa"] = ChargeOwner(
+            customer_id=customer_id, purchase_id=None
+        )
+
+        response = await api.post(
+            "/webhooks/stripe",
+            content=FakePaymentGateway.dispute_event_payload(
+                event_id="evt_dp_sepa",
+                event_type=PaymentEventType.CHARGE_DISPUTED,
+                charge_id="ch_sepa",
+                amount_cents=1800,
+            ),
+            headers={"Stripe-Signature": VALID_SIGNATURE},
+        )
+        assert response.status_code == 200, response.text
+
+        # Sin gastar nada: el saldo vuelve a 0 y no hay deuda, pero se ve el movimiento.
+        state = await account(api, pro_auth)
+        assert state["balance"]["amount_cents"] == 0
+        assert state["debt"] is None
+        assert sorted(entry["kind"] for entry in state["entries"]) == ["chargeback", "topup"]
+
+        # Una segunda devolucion (otra disputa) ya no tiene saldo: queda como deuda.
+        await api.post(
+            "/webhooks/stripe",
+            content=FakePaymentGateway.dispute_event_payload(
+                event_id="evt_dp_sepa_2",
+                event_type=PaymentEventType.CHARGE_DISPUTED,
+                dispute_id="dp_2",
+                charge_id="ch_sepa",
+                amount_cents=500,
+            ),
+            headers={"Stripe-Signature": VALID_SIGNATURE},
+        )
+        state = await account(api, pro_auth)
+        assert state["debt"]["amount_cents"] == 500
+        assert state["is_active"] is True
+
+        purchase = await api.post(f"/leads/{created['id']}/purchase", headers=pro_auth)
+        assert purchase.status_code == 402, purchase.text
+        assert purchase.json()["code"] == "CREDIT_DEBT_OUTSTANDING"

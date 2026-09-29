@@ -185,16 +185,19 @@ importe desde el panel, y eso crea el precio en Stripe. Para arrancar sin interv
 admin, crea en Stripe un precio recurrente mensual (EUR, IVA incluido) y ponlo en
 `STRIPE_TOPUP_PRICE_ID` junto a su importe en `SUBSCRIPTION_TOPUP_CENTS`. El webhook debe escuchar,
 además de los eventos de checkout, `invoice.paid`, `invoice.payment_failed` y
-`customer.subscription.created|updated|deleted`. Activa el Customer Portal en el panel de
+`customer.subscription.created|updated|deleted` y, para las devoluciones de un cobro por el
+banco, `charge.dispute.created|funds_withdrawn|funds_reinstated|closed`. Activa el Customer Portal en el panel de
 Stripe para `POST /me/subscription/portal`. En local:
 
 ```bash
 stripe listen --forward-to localhost:8010/api/v1/webhooks/stripe \
-  --events checkout.session.completed,checkout.session.expired,invoice.paid,invoice.payment_failed,customer.subscription.created,customer.subscription.updated,customer.subscription.deleted,payment_intent.payment_failed,charge.refunded
+  --events checkout.session.completed,checkout.session.expired,invoice.paid,invoice.payment_failed,customer.subscription.created,customer.subscription.updated,customer.subscription.deleted,payment_intent.payment_failed,charge.refunded,charge.dispute.created,charge.dispute.funds_withdrawn,charge.dispute.funds_reinstated,charge.dispute.closed
 ```
 
 `invoice.paid` activa la cuenta y abona el importe como saldo; el saldo se gasta en
-contactos y, si no alcanza, el resto se cobra con Checkout.
+contactos y, si no alcanza, el resto se cobra con Checkout. Si el banco devuelve una
+recarga (adeudo SEPA devuelto o disputa), se retira el saldo y lo ya gastado queda como deuda:
+no se compra hasta que la siguiente recarga la salde.
 
 ---
 

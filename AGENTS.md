@@ -62,8 +62,8 @@ npx -y firebase-tools emulators:start --only auth \
 | Objetivo | Comando |
 |---|---|
 | Todo el lint (ruff + mypy strict + eslint + tsc) | `pnpm lint` |
-| Todos los tests (568 back + 113 front) | `pnpm test` |
-| Backend rápido, **sin Docker** (475 tests) | `cd apps/api && uv run pytest -m "not integration"` |
+| Todos los tests (599 back + 115 front) | `pnpm test` |
+| Backend rápido, **sin Docker** (502 tests) | `cd apps/api && uv run pytest -m "not integration"` |
 | Backend completo (requiere `pnpm infra:up`) | `pnpm api:test` |
 | Un solo test de backend | `cd apps/api && uv run pytest tests/unit/domain/test_lead.py -k capping` |
 | Frontend en watch | `pnpm --filter web test:watch` |
@@ -181,6 +181,12 @@ mientras el adeudo se procesa: `sync_subscription` no la activa por eso.
 → Todo movimiento de saldo pasa por `CreditLedgerService` (compra, caducidad, webhook, job,
 ajuste del admin). Si una reserva con saldo caduca o falla, se devuelve con `SPEND_REVERSAL`.
 → Una compra reembolsada no devuelve saldo sola (§4.6): lo decide el admin con un ajuste.
+→ Una recarga devuelta por el banco (`charge.dispute.*`, adeudo SEPA o disputa) se retira
+con `CHARGEBACK` aunque ya se gastara: lo que falte va a `debt_cents`, nunca a un saldo
+negativo. Con deuda no se compra (`402 CREDIT_DEBT_OUTSTANDING`) y cualquier abono la salda
+primero. Si se gana la disputa, `CHARGEBACK_REVERSAL` devuelve lo retirado. La disputa no
+dice de quién es el cargo: `describe_charge` lo pregunta a Stripe **antes** de abrir la
+transacción. La disputa de una compra de contacto no toca el saldo.
 → El importe lo fija el admin (`PUT /admin/subscription-price`), que crea un precio nuevo en
 Stripe y una fila en `subscription_prices` (append-only; vige la más reciente). Solo afecta
 a las suscripciones nuevas: quien ya paga conserva su importe. Hasta que el admin lo fije,

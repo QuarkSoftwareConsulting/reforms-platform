@@ -96,13 +96,27 @@ class CreditEntryKind(StrEnum):
     VERIFICATION_REFUND = "verification_refund"
     """Retirada del saldo del primer cobro, reembolsado al rechazar la validacion."""
 
+    CHARGEBACK = "chargeback"
+    """Retirada de una recarga que el banco devolvio (adeudo SEPA devuelto o disputa).
+
+    Es el unico cargo que puede superar el saldo: el dinero ya salio de nuestra cuenta
+    aunque el profesional haya gastado el saldo, y lo que falte queda como deuda."""
+
+    CHARGEBACK_REVERSAL = "chargeback_reversal"
+    """La pasarela nos devolvio el importe de una devolucion (disputa ganada)."""
+
     @property
     def is_credit(self) -> bool:
         return self in {
             CreditEntryKind.TOPUP,
             CreditEntryKind.SPEND_REVERSAL,
             CreditEntryKind.ADJUSTMENT_CREDIT,
+            CreditEntryKind.CHARGEBACK_REVERSAL,
         }
+
+    @property
+    def may_create_debt(self) -> bool:
+        return self is CreditEntryKind.CHARGEBACK
 
 
 class PropertyType(StrEnum):

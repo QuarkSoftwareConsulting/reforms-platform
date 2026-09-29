@@ -84,6 +84,18 @@ export function PurchaseButton({ detail }: { detail: LeadDetail }) {
             {t("completeRegistration")}
           </Link>
         </>
+      ) : plan.kind === "debt" ? (
+        <>
+          <Alert tone="warning">
+            {t("debtBlocksPurchase", { debt: formatMoney(plan.debt, locale) })}
+          </Alert>
+          <Link
+            href={path(locale, "subscription")}
+            className="flex min-h-[56px] w-full items-center justify-center rounded-control bg-accent px-8 text-[17px] font-semibold text-ink hover:bg-accent-hover"
+          >
+            {t("reviewAccount")}
+          </Link>
+        </>
       ) : plan.kind === "inactive" ? (
         <>
           <Alert tone="warning">{t("needsSubscription")}</Alert>

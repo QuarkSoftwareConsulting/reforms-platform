@@ -10,12 +10,16 @@ export const MIN_CHARGE_CENTS = 50;
 
 export type PurchasePlan =
   | { kind: "inactive" }
+  | { kind: "debt"; debt: Money }
   | { kind: "credit" }
   | { kind: "mixed"; credit: Money; due: Money }
   | { kind: "checkout" };
 
 export function purchasePlan(account: Account | null, price: Money): PurchasePlan {
   if (!account?.is_active) return { kind: "inactive" };
+  // Una recarga devuelta por el banco que ya se gasto: el API rechaza la compra
+  // hasta que la siguiente recarga salde la deuda.
+  if (account.debt && account.debt.amount_cents > 0) return { kind: "debt", debt: account.debt };
   if (account.balance.currency !== price.currency || account.balance.amount_cents === 0) {
     return { kind: "checkout" };
   }
