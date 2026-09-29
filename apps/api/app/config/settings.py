@@ -43,6 +43,13 @@ class Settings(BaseSettings):
     # Verificacion del movil del cliente por SMS antes de publicar. "disabled" hasta
     # que haya proveedor; "console" escribe el codigo en el log (solo desarrollo).
     phone_verification_backend: Literal["disabled", "console"] = "disabled"
+    # Tope de SMS por IP y hora, contra el "SMS pumping". Holgado para una oficina o
+    # una red movil con NAT compartido; el proveedor limita ademas por telefono.
+    phone_verification_per_ip_hourly: int = Field(default=10, ge=1, le=1000)
+    # Proxies propios que anaden su IP a X-Forwarded-For. Cloud Run sin balanceador
+    # anade uno; con un balanceador delante serian dos. La IP del cliente es la que
+    # esta a esa distancia desde la derecha: las de la izquierda las escribe el cliente.
+    trusted_proxy_hops: int = Field(default=1, ge=0, le=5)
     enforce_category_match: bool = True
 
     # ------------------------------- Stripe ------------------------------

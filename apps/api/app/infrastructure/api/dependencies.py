@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, Request, status
@@ -48,6 +49,7 @@ from app.application.use_cases import (
     ListMyPurchases,
     MarkPurchaseForReview,
     OpenBillingPortal,
+    OriginLimit,
     RejectProfessional,
     ReleaseExpiredReservations,
     RemoveProfessionalDocument,
@@ -78,6 +80,7 @@ from app.infrastructure.adapters.db.repositories import (
     SqlAlchemyProfessionalRepository,
     SqlAlchemyPurchaseRepository,
     SqlAlchemyPurchaseReviewRepository,
+    SqlAlchemyRateLimiter,
     SqlAlchemySubscriptionPriceRepository,
     SqlAlchemyUserRepository,
 )
@@ -243,7 +246,16 @@ class RequestContainer:
 
     @property
     def start_phone_verification(self) -> StartPhoneVerification:
-        return StartPhoneVerification(verifier=self.infra.phone_verifier)
+        return StartPhoneVerification(
+            verifier=self.infra.phone_verifier,
+            origin_limit=OriginLimit(
+                limiter=SqlAlchemyRateLimiter(self.session),
+                clock=self.infra.clock,
+                uow=self.uow,
+                limit=self.infra.settings.phone_verification_per_ip_hourly,
+                window=timedelta(hours=1),
+            ),
+        )
 
     @property
     def list_leads(self) -> ListLeads:

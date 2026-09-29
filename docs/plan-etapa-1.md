@@ -29,6 +29,7 @@ cualquier persona o sesión de agente retome el trabajo sin reconstruir la conve
   |---|---|---|
   | Revisión de la Etapa 1 (5 puntos: vista previa, rechazo, concurrencia) | `fix/revision-etapa-1` | #21 |
   | Devolución de recargas por el banco (SEPA / disputa) | `feat/devolucion-sepa` | #22 (sobre #21) |
+  | Ajuste de saldo en el admin, GeoNames y límite de SMS por IP | `feat/pendientes-etapa-1` | #23 (sobre #22) |
 
 ---
 
@@ -124,7 +125,8 @@ Pendiente dentro de la Fase 1:
       Decidido el 2026-09-29. Sin verificar contra Stripe real.
 - [ ] Qué hacer con la **disputa de una compra de contacto** (no de la recarga): hoy no toca
       el saldo y queda en Stripe para que el admin decida. Confirmar con el cliente.
-- [ ] Formulario de ajuste manual de saldo en el panel de admin (hoy solo por API).
+- [x] Formulario de ajuste manual de saldo en el panel de admin (abonar o cargar, con motivo;
+      un abono salda antes la deuda).
 
 ### Fase 2 — Reglas del lead · ✅ implementada, en PR
 
@@ -193,9 +195,11 @@ Pendiente:
 - [x] Commit en `feat/formulario-cliente`.
 - [x] Push y PR abierto (ver la tabla del principio).
 - [ ] **Proveedor de SMS** (§3): adaptador real del puerto y `PHONE_VERIFICATION_BACKEND`.
-      Con un proveedor real hará falta también un **límite por IP** en
-      `/leads/phone-verification`, contra el abuso de envíos pagados ("SMS pumping").
-- [ ] **Atribución de GeoNames** (CC BY 4.0) en la página legal o el pie de la web.
+- [x] **Límite por IP** en `/leads/phone-verification` contra el "SMS pumping": 10 por hora
+      y IP (IPv6 por /64), en Postgres. La IP se toma desde la derecha de `X-Forwarded-For`
+      (`TRUSTED_PROXY_HOPS=1` en Cloud Run), lo que corrige también la IP del
+      consentimiento, que antes se podía falsear. Migración `44efc3f478b8`.
+- [x] **Atribución de GeoNames** (CC BY 4.0) en el pie de la web.
 - [x] Filtro por servicio en el explorador: llegó con la Fase 4.
 - [ ] Revisión visual del formulario en el navegador (no se pudo hacer en esta sesión).
 

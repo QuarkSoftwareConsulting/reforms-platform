@@ -26,7 +26,8 @@
     "subscription": "Mi mensualidad"
   },
   "footer": {
-    "tagline": "Tus ideas. Los mejores profesionales."
+    "tagline": "Tus ideas. Los mejores profesionales.",
+    "geonames": "Códigos postales: datos de <source>GeoNames</source>, adaptados, con licencia <license>CC BY 4.0</license>."
   },
   "home": {
     "title": "Contactos de reforma verificados por teléfono en toda España",
@@ -533,7 +534,19 @@
       "rejectedRefunded": "Alta rechazada. Se reembolsaron {amount} y se canceló la recarga.",
       "rejectedNothingToRefund": "Alta rechazada. No había ningún cobro que reembolsar."
     },
-    "debt": "Deuda"
+    "debt": "Deuda",
+    "adjustment": {
+      "open": "Ajustar saldo",
+      "direction": "Tipo de ajuste",
+      "credit": "Abonar saldo",
+      "debit": "Cargar saldo",
+      "amount": "Importe (€)",
+      "note": "Motivo",
+      "noteHint": "Queda registrado en los movimientos del profesional.",
+      "submit": "Aplicar ajuste",
+      "done": "Ajuste aplicado. Saldo: {balance}.",
+      "doneWithDebt": "Ajuste aplicado. Saldo: {balance} · Deuda pendiente: {debt}."
+    }
   },
   "errors": {
     "generic": "Algo no ha ido bien. Vuelve a intentarlo.",
@@ -615,6 +628,8 @@
     "mediaType": "Solo se admiten fotos JPG, PNG, WEBP o HEIC.",
     "mediaTooLarge": "La foto supera los 10 MB.",
     "documentType": "Sube el documento en PDF o como imagen.",
-    "documentTooLarge": "El documento supera los 10 MB."
+    "documentTooLarge": "El documento supera los 10 MB.",
+    "adjustmentAmount": "Indica un importe mayor que 0 y de hasta 1000 €.",
+    "adjustmentNote": "Explica el motivo del ajuste (entre 3 y 500 caracteres)."
   }
 }
