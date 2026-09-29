@@ -7,11 +7,20 @@ cualquier persona o sesión de agente retome el trabajo sin reconstruir la conve
 - Fuente original: documento del cliente "Etapa 1" (flujos F01–F03 con sus respuestas),
   transcrito en [`etapa-1-cliente.md`](./etapa-1-cliente.md).
 - Última actualización: 2026-09-29.
-- Ramas, todas sin push y cada una sale de la anterior:
-  - Fase 1 `suscriptions` (commit `8d534f5`)
-  - Fase 2 `feat/reglas-lead` (commit `239e975`)
-  - Fase 3 `feat/formulario-cliente` (commit `b237723`)
-  - Fase 4 `feat/validacion-profesional` (con commit)
+- Una rama y un PR por fase, **apilados**: cada rama sale de la anterior y su PR se
+  integra en ella. Se revisan e integran en orden; al integrar uno, el siguiente se
+  reorienta a `develop`.
+
+  | Fase | Rama | Base del PR |
+  |---|---|---|
+  | 1 · Recarga mensual y saldo | `suscriptions` | `develop` |
+  | 2 · Reglas del lead | `feat/reglas-lead` | `suscriptions` |
+  | 3 · Formulario del cliente | `feat/formulario-cliente` | `feat/reglas-lead` |
+  | 4 · Alta y validación del profesional | `feat/validacion-profesional` | `feat/formulario-cliente` |
+
+  La CI (`.github/workflows/ci.yml`) solo corre en PR contra `develop` o `main`: los PR 2–4
+  la pasan al reorientarse a `develop`. En local, las cuatro fases pasan `pnpm lint`,
+  `pnpm test` y `pnpm verify:flow`.
 
 ---
 
@@ -71,7 +80,7 @@ código (o volver a hablarlo con el cliente).
 Una rama y un PR por fase. Ninguna fase se da por cerrada sin `pnpm lint && pnpm test` en
 verde y, si toca leads, pagos o auth, `pnpm verify:flow`.
 
-### Fase 1 — Recarga mensual y saldo · ✅ implementada y con commit, pendiente de push y PR
+### Fase 1 — Recarga mensual y saldo · ✅ implementada, en PR
 
 Hecho:
 - Dominio: `ProfessionalAccount` (estado de la suscripción + saldo), libro append-only
@@ -98,14 +107,14 @@ Sin verificar contra Stripe real (falta una clave de test en `apps/api/.env`):
 
 Pendiente dentro de la Fase 1:
 - [x] Commit en `suscriptions`.
-- [ ] Push y PR (esperar a que el usuario lo pida).
+- [x] Push y PR abierto (ver la tabla del principio).
 - [ ] Configurar en Stripe: el portal de cliente (cancelación **al final del periodo**) y
       los eventos del webhook listados en el README.
 - [ ] Devolución de adeudos SEPA por el banco (`charge.dispute.created`): restar el saldo
       y bloquear compras hasta regularizar. **No implementado.**
 - [ ] Formulario de ajuste manual de saldo en el panel de admin (hoy solo por API).
 
-### Fase 2 — Reglas del lead · ✅ implementada y con commit, pendiente de push y PR
+### Fase 2 — Reglas del lead · ✅ implementada, en PR
 
 Hecho:
 - **5 plazas por lead** (`DEFAULT_MAX_PURCHASES`, `LEAD_MAX_PURCHASES=5`). Los leads
@@ -126,7 +135,7 @@ Hecho:
 
 Pendiente o fuera de esta fase:
 - [x] Commit en `feat/reglas-lead`.
-- [ ] Push y PR (esperar a que el usuario lo pida).
+- [x] Push y PR abierto (ver la tabla del principio).
 - [ ] Subir `LEAD_MAX_PURCHASES=5` y `PRIVACY_POLICY_VERSION=2026-09-v2` en el entorno de
       Cloud Run (el `.env` local ya está actualizado).
 - [x] Servicio, plazo y tipo de inmueble: llegaron con la Fase 3 y ya se ven antes de pagar.
@@ -135,7 +144,7 @@ Pendiente o fuera de esta fase:
       profesionales).
 - [ ] Texto legal completo de la política (hoy solo existe el resumen del formulario).
 
-### Fase 3 — Catálogo, cobertura y formulario del cliente (F01) · ✅ implementada y con commit, pendiente de push y PR
+### Fase 3 — Catálogo, cobertura y formulario del cliente (F01) · ✅ implementada, en PR
 
 Hecho:
 - **Catálogo de dos niveles**, categoría → servicio, con las 10 categorías y 86 servicios
@@ -170,7 +179,7 @@ Interpretaciones que conviene confirmar con el cliente:
 
 Pendiente:
 - [x] Commit en `feat/formulario-cliente`.
-- [ ] Push y PR (esperar a que el usuario lo pida).
+- [x] Push y PR abierto (ver la tabla del principio).
 - [ ] **Proveedor de SMS** (§3): adaptador real del puerto y `PHONE_VERIFICATION_BACKEND`.
       Con un proveedor real hará falta también un **límite por IP** en
       `/leads/phone-verification`, contra el abuso de envíos pagados ("SMS pumping").
@@ -178,7 +187,7 @@ Pendiente:
 - [x] Filtro por servicio en el explorador: llegó con la Fase 4.
 - [ ] Revisión visual del formulario en el navegador (no se pudo hacer en esta sesión).
 
-### Fase 4 — Registro y validación del profesional (F02) · ✅ implementada y con commit, pendiente de push y PR
+### Fase 4 — Registro y validación del profesional (F02) · ✅ implementada, en PR
 
 Hecho:
 - **Alta del profesional:**
@@ -226,7 +235,7 @@ Sin verificar contra Stripe real (falta una clave de test):
 
 Pendiente:
 - [x] Commit en `feat/validacion-profesional`.
-- [ ] Push y PR (esperar a que el usuario lo pida).
+- [x] Push y PR abierto (ver la tabla del principio).
 - [ ] Crear el bucket privado en GCS (`GCS_PRIVATE_BUCKET`) para Cloud Run: sin él el API
       no arranca con `STORAGE_BACKEND=gcs`.
 - [ ] Revisión visual del perfil y de la cola del admin en el navegador.
@@ -258,6 +267,9 @@ Pendiente:
 5. **Proveedores** de SMS (ya hay puerto y adaptador de desarrollo), WhatsApp y email.
 6. **Confirmar las interpretaciones de la Fase 3** (anidación de servicios, opciones de
    programación y de tipo de inmueble).
+7. **Confirmar las decisiones de la Fase 4**: perfiles existentes pasan a "incompletos",
+   bloqueo de los datos al enviar el alta (sin estado "devuelta para corregir"), rechazo
+   definitivo que solo reembolsa el primer cobro, y fotos opcionales.
 
 ## 4. Decisiones descartadas (no reabrir sin hablarlo)
 
