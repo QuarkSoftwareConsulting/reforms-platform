@@ -566,6 +566,7 @@
     "PROFESSIONAL_NOT_APPROVED": "Your registration is not approved yet: you can buy contacts once we validate it.",
     "PROFESSIONAL_REJECTED": "Your registration was rejected. If you think this is a mistake, write to us.",
     "INVALID_VERIFICATION_TRANSITION": "That registration is no longer waiting for review.",
+    "REJECTION_AWAITING_PAYMENT": "This professional's first monthly fee payment is still processing (it can take several days with direct debit). You can reject the registration once it clears or fails.",
     "VERIFICATION_LOCKED": "You already sent your registration for review: those details can no longer change.",
     "INVALID_TAX_ID": "The NIF, NIE or CIF is not valid: check the control letter or digit."
   },

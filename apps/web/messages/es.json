@@ -566,6 +566,7 @@
     "PROFESSIONAL_NOT_APPROVED": "Tu alta todavía no está aprobada: podrás comprar contactos cuando la validemos.",
     "PROFESSIONAL_REJECTED": "Tu alta fue rechazada. Si crees que es un error, escríbenos.",
     "INVALID_VERIFICATION_TRANSITION": "Esa alta ya no está pendiente de revisión.",
+    "REJECTION_AWAITING_PAYMENT": "El primer cobro de la mensualidad de este profesional aún se está procesando (puede tardar varios días con domiciliación). Podrás rechazar el alta cuando se confirme o falle.",
     "VERIFICATION_LOCKED": "Ya enviaste tu alta a revisión: esos datos no se pueden cambiar.",
     "INVALID_TAX_ID": "El NIF, NIE o CIF no es válido: revisa la letra o el dígito de control."
   },

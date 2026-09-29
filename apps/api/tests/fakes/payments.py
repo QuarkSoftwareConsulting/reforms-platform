@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from datetime import datetime
 from uuid import UUID
@@ -118,11 +119,15 @@ class FakePaymentGateway(PaymentPort):
         return f"https://billing.test/{customer_id}"
 
     async def refund_invoice(self, *, invoice_id: str, idempotency_key: str) -> None:
+        # Punto de cesion como el viaje de red a Stripe: sin el, rechazar corre de
+        # forma atomica y la carrera con una aprobacion no se puede reproducir.
+        await asyncio.sleep(0)
         if self.fail_on_refund:
             raise PaymentGatewayError("La pasarela no responde")
         self.refunds.setdefault(idempotency_key, invoice_id)
 
     async def cancel_subscription(self, subscription_id: str) -> None:
+        await asyncio.sleep(0)
         self.canceled_subscriptions.add(subscription_id)
 
     # ------------------------- helpers para los tests --------------------

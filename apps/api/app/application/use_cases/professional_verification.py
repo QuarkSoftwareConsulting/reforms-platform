@@ -32,13 +32,23 @@ from app.application.ports import (
     UserRepositoryPort,
 )
 from app.application.use_cases.credit_ledger import CreditLedgerService
-from app.domain.exceptions import ProfessionalNotFoundError, VerificationTransitionError
-from app.domain.models import CreditEntryKind, Professional, VerificationStatus
+from app.domain.exceptions import ProfessionalNotFoundError
+from app.domain.models import CreditEntryKind, Professional
 from app.domain.value_objects import Money
 
 
 async def _load(professionals: ProfessionalRepositoryPort, professional_id: UUID) -> Professional:
     professional = await professionals.get(professional_id)
+    if professional is None:
+        raise ProfessionalNotFoundError()
+    return professional
+
+
+async def _load_for_update(
+    professionals: ProfessionalRepositoryPort, professional_id: UUID
+) -> Professional:
+    """Dentro de la transaccion: aprobar y rechazar a la vez no deben pisarse."""
+    professional = await professionals.get_for_update(professional_id)
     if professional is None:
         raise ProfessionalNotFoundError()
     return professional
@@ -54,9 +64,9 @@ class SubmitForReview:
     uow: UnitOfWork
 
     async def execute(self, *, professional_id: UUID) -> Professional:
-        professional = await _load(self.professionals, professional_id)
-        event = professional.submit_for_review(event_id=self.ids.new_id(), now=self.clock.now())
         async with self.uow:
+            professional = await _load_for_update(self.professionals, professional_id)
+            event = professional.submit_for_review(event_id=self.ids.new_id(), now=self.clock.now())
             await self.professionals.update(professional)
             await self.professionals.add_verification_event(event)
         return professional
@@ -70,11 +80,11 @@ class ApproveProfessional:
     uow: UnitOfWork
 
     async def execute(self, *, professional_id: UUID, admin_user_id: UUID) -> Professional:
-        professional = await _load(self.professionals, professional_id)
-        event = professional.approve(
-            event_id=self.ids.new_id(), now=self.clock.now(), admin_user_id=admin_user_id
-        )
         async with self.uow:
+            professional = await _load_for_update(self.professionals, professional_id)
+            event = professional.approve(
+                event_id=self.ids.new_id(), now=self.clock.now(), admin_user_id=admin_user_id
+            )
             await self.professionals.update(professional)
             await self.professionals.add_verification_event(event)
         return professional
@@ -84,7 +94,7 @@ class ApproveProfessional:
 class RejectProfessional:
     """Rechaza el alta: reembolsa el primer cobro y cancela la recarga.
 
-    La pasarela va PRIMERO y con operaciones idempotentes (clave de idempotencia en
+    La pasarela va antes de guardar y con operaciones idempotentes (clave de idempotencia en
     el reembolso; cancelar dos veces no falla). Si falla, no se guarda nada y el admin
     puede reintentar. Si falla despues, al guardar, el reintento repite la pasarela
     sin efecto y termina de guardar. Al reves (guardar primero) un fallo de la
@@ -107,45 +117,47 @@ class RejectProfessional:
     async def execute(
         self, *, professional_id: UUID, admin_user_id: UUID, reason: str
     ) -> RejectionResult:
-        professional = await _load(self.professionals, professional_id)
-        # Se comprueba antes de tocar la pasarela: rechazar un alta aprobada no
-        # debe reembolsar a nadie.
-        if professional.verification_status is not VerificationStatus.PENDING:
-            raise VerificationTransitionError(
-                f"Solo se rechaza un alta en revision, no una {professional.verification_status}"
-            )
-
-        account = await self.accounts.get(professional_id)
-        first_charge = await self.ledger.first_topup(professional_id)
-
-        subscription_canceled = False
-        if account is not None and account.stripe_subscription_id:
-            await self.payments.cancel_subscription(account.stripe_subscription_id)
-            subscription_canceled = True
-        if first_charge is not None:
-            await self.payments.refund_invoice(
-                invoice_id=first_charge.source_ref,
-                idempotency_key=f"verification-refund-{first_charge.source_ref}",
-            )
-
-        now = self.clock.now()
-        event = professional.reject(
-            event_id=self.ids.new_id(), now=now, admin_user_id=admin_user_id, reason=reason
-        )
-        refunded: Money | None = None
+        # Todo dentro de una transaccion y con el profesional bloqueado MIENTRAS se
+        # llama a la pasarela: una aprobacion simultanea espera y luego ve el alta ya
+        # rechazada, en vez de dejar un aprobado con el cobro devuelto. Si la pasarela
+        # falla, el rollback suelta el bloqueo sin guardar nada.
         async with self.uow:
+            professional = await _load_for_update(self.professionals, professional_id)
+            # Antes de tocar la pasarela: rechazar un alta aprobada, o con un motivo
+            # que el dominio no acepta, no debe reembolsar ni cancelar nada.
+            professional.assert_can_reject(reason)
+            # Profesional antes que cuenta: el mismo orden en todo el sistema.
+            account = await self.accounts.get_for_update(professional_id)
+            if account is not None:
+                account.assert_no_charge_in_flight()
+            first_charge = await self.ledger.first_topup(professional_id)
+
+            subscription_canceled = False
+            if account is not None and account.stripe_subscription_id:
+                await self.payments.cancel_subscription(account.stripe_subscription_id)
+                subscription_canceled = True
+            if first_charge is not None:
+                await self.payments.refund_invoice(
+                    invoice_id=first_charge.source_ref,
+                    idempotency_key=f"verification-refund-{first_charge.source_ref}",
+                )
+
+            now = self.clock.now()
+            event = professional.reject(
+                event_id=self.ids.new_id(), now=now, admin_user_id=admin_user_id, reason=reason
+            )
             await self.professionals.update(professional)
             await self.professionals.add_verification_event(event)
+            refunded: Money | None = None
             if first_charge is not None:
                 refunded = first_charge.amount
-                locked = await self.accounts.get_for_update(professional_id)
-                if locked is not None:
+                if account is not None:
                     # Nunca por encima del saldo: si el admin ya habia retirado parte,
                     # se retira lo que quede (el reembolso de la pasarela es integro).
-                    withdraw = min(first_charge.amount.amount_cents, locked.balance.amount_cents)
+                    withdraw = min(first_charge.amount.amount_cents, account.balance.amount_cents)
                     if withdraw > 0:
                         await self.credit.record(
-                            locked,
+                            account,
                             kind=CreditEntryKind.VERIFICATION_REFUND,
                             amount=Money(withdraw, first_charge.amount.currency),
                             source_ref=first_charge.source_ref,

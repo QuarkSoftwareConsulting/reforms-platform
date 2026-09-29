@@ -25,12 +25,14 @@ from app.domain.models.enums import (
 from app.domain.models.lead import (
     DEFAULT_MAX_PURCHASES,
     EXPLORER_STATUSES,
+    PUBLIC_PREVIEW_POLICY_VERSIONS,
     ClientContact,
     ConsentRecord,
     Lead,
     LeadLocation,
     LeadPhoto,
     LeadPublicView,
+    policy_covers_public_preview,
 )
 from app.domain.models.pricing import (
     MAX_SALE_PRICE_CENTS,
@@ -61,6 +63,7 @@ __all__ = [
     "MAX_SUBSCRIPTION_CENTS",
     "MAX_WORK_PHOTOS",
     "MIN_CHARGE_CENTS",
+    "PUBLIC_PREVIEW_POLICY_VERSIONS",
     "RENEWAL_GRACE",
     "REQUIRED_DOCUMENT",
     "VAT_RATE_PERCENT",
@@ -96,5 +99,6 @@ __all__ = [
     "VerificationStatus",
     "assert_sellable_price",
     "assert_valid_subscription_amount",
+    "policy_covers_public_preview",
     "vat_breakdown",
 ]

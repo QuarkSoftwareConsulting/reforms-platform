@@ -171,6 +171,18 @@ class SqlAlchemyProfessionalRepository(ProfessionalRepositoryPort):
         row = await self._load_row(ProfessionalRow.user_id == user_id)
         return professional_to_domain(row) if row is not None else None
 
+    async def get_for_update(self, professional_id: UUID) -> Professional | None:
+        # El bloqueo va en una consulta propia: Postgres no admite FOR UPDATE junto a
+        # los OUTER JOIN que podria generar la carga de relaciones.
+        locked = await self._session.execute(
+            select(ProfessionalRow.id)
+            .where(ProfessionalRow.id == professional_id)
+            .with_for_update()
+        )
+        if locked.scalar_one_or_none() is None:
+            return None
+        return await self.get(professional_id)
+
     async def _load_row(self, condition: ColumnElement[bool]) -> ProfessionalRow | None:
         """Carga el perfil con sus oficios resueltos.
 

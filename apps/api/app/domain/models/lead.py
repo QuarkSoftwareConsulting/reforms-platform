@@ -32,6 +32,18 @@ DEFAULT_MAX_PURCHASES = 5
 """Plazas por lead acordadas con el cliente (Etapa 1). Los leads anteriores conservan
 las suyas: su consentimiento se dio para ceder los datos a un maximo de 3."""
 
+PUBLIC_PREVIEW_POLICY_VERSIONS = frozenset({"2026-09-v2"})
+"""Versiones de la politica de privacidad que informan de que el nombre de pila y el
+CP completo se muestran antes de la compra. La version la envia el cliente (o la
+teclea el admin), asi que no basta con que el lead sea nuevo: quien acepto una
+politica anterior no consintio la vista previa. Al subir la version, anadela aqui
+si tambien la cubre (`Settings` no arranca si la vigente falta)."""
+
+
+def policy_covers_public_preview(policy_version: str) -> bool:
+    return policy_version.strip() in PUBLIC_PREVIEW_POLICY_VERSIONS
+
+
 EXPLORER_STATUSES = frozenset({LeadStatus.PUBLISHED, LeadStatus.EXHAUSTED})
 """Lo que ve el explorador. Los agotados se muestran como "Cerrado" (asi lo pidio el
 cliente); los retirados por el admin no se muestran."""

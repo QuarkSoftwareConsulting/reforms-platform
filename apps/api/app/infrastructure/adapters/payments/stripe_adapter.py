@@ -311,6 +311,15 @@ class StripePaymentGateway(PaymentPort):
                 params=cast(Any, target),
                 options={"idempotency_key": idempotency_key},
             )
+        except stripe.InvalidRequestError as exc:
+            # La clave de idempotencia solo cubre 24 h: un reintento posterior de un
+            # reembolso que ya se hizo llega como error. Para nosotros es el mismo
+            # reintento seguro que cancelar una suscripcion ya cancelada.
+            if exc.code == "charge_already_refunded":
+                logger.info("stripe_reembolso_ya_hecho: invoice=%s", invoice_id)
+                return
+            logger.error("stripe_reembolso_fallido: %s", exc, exc_info=True)
+            raise PaymentGatewayError() from exc
         except stripe.StripeError as exc:
             logger.error("stripe_reembolso_fallido: %s", exc, exc_info=True)
             raise PaymentGatewayError() from exc

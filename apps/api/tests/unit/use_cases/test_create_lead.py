@@ -40,7 +40,7 @@ def lead_input(category: Category, **overrides: object) -> CreateLeadInput:
         "schedule": ProjectSchedule.WITHIN_WEEKS,
         "consent": ConsentInput(
             accepted=True,
-            policy_version="2026-01-v1",
+            policy_version="2026-09-v2",
             ip_address="83.45.12.9",
             user_agent="Mozilla/5.0",
         ),
@@ -67,7 +67,7 @@ async def test_records_auditable_consent(world: World, carpentry: Category) -> N
     lead = await world.create_lead.execute(lead_input(carpentry), source=LeadSource.ORGANIC)
 
     assert lead.consent is not None
-    assert lead.consent.policy_version == "2026-01-v1"
+    assert lead.consent.policy_version == "2026-09-v2"
     assert lead.consent.ip_address == "83.45.12.9"
     assert lead.consent.user_agent == "Mozilla/5.0"
     assert lead.consent.accepted_at == world.clock.now()
@@ -75,6 +75,24 @@ async def test_records_auditable_consent(world: World, carpentry: Category) -> N
     assert lead.consent.max_recipients == 5
     # La politica vigente informa de que el nombre de pila y el CP se ven antes de pagar.
     assert lead.consent.allows_public_preview is True
+
+
+@pytest.mark.parametrize("source", [LeadSource.ORGANIC, LeadSource.ADMIN])
+async def test_older_policy_does_not_allow_public_preview(
+    world: World, carpentry: Category, source: LeadSource
+) -> None:
+    # Una pestana con el formulario antiguo, o un lead del admin captado con la
+    # politica anterior: el cliente no consintio mostrar nombre y CP antes de pagar.
+    consent = ConsentInput(
+        accepted=True, policy_version="2026-01-v1", channel="Telefono", ip_address=None
+    )
+    lead = await world.create_lead.execute(lead_input(carpentry, consent=consent), source=source)
+
+    assert lead.consent is not None
+    assert lead.consent.allows_public_preview is False
+    preview = lead.public_view()
+    assert preview.client_first_name is None
+    assert preview.postal_code is None
 
 
 async def test_rejects_publication_without_consent(world: World, carpentry: Category) -> None:

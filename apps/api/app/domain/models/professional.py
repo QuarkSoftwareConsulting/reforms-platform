@@ -306,14 +306,28 @@ class Professional:
         self.rejection_reason = None
         return event
 
-    def reject(
-        self, *, event_id: UUID, now: datetime, admin_user_id: UUID, reason: str
-    ) -> VerificationEvent:
+    def assert_can_reject(self, reason: str) -> str:
+        """Todo lo que puede impedir el rechazo, sin cambiar nada. Devuelve el motivo limpio.
+
+        Rechazar reembolsa y cancela en la pasarela antes de guardar: cualquier motivo
+        para no rechazar tiene que saltar ANTES, o el dinero se devolveria a un alta
+        que sigue en revision.
+        """
+        if self.verification_status is not VerificationStatus.PENDING:
+            raise VerificationTransitionError(
+                f"Solo se rechaza un alta en revision, no una {self.verification_status}"
+            )
         reason = reason.strip()
         if not reason:
             raise ValidationError("Indica el motivo del rechazo")
         if len(reason) > MAX_REJECTION_REASON:
             raise ValidationError(f"El motivo no puede superar {MAX_REJECTION_REASON} caracteres")
+        return reason
+
+    def reject(
+        self, *, event_id: UUID, now: datetime, admin_user_id: UUID, reason: str
+    ) -> VerificationEvent:
+        reason = self.assert_can_reject(reason)
         event = self._transition(
             VerificationStatus.REJECTED,
             allowed_from={VerificationStatus.PENDING},

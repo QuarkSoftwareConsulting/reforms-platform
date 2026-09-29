@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta
 from uuid import uuid4
 
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.domain.models import (
     Category,
@@ -170,3 +171,49 @@ async def _another_pending(session: AsyncSession, *, submitted: datetime) -> Pro
         submitted_at=submitted,
     )
     return await SqlAlchemyProfessionalRepository(session).add(professional)
+
+
+async def test_for_update_serializes_verification_decisions(
+    engine: AsyncEngine, session: AsyncSession, madrid_carpenter: Professional, carpentry: Category
+) -> None:
+    """Con Postgres real: la segunda decision sobre el alta espera a la primera.
+
+    Es lo que impide que aprobar y rechazar a la vez dejen un aprobado con el primer
+    cobro devuelto. La segunda sesion, al obtener el bloqueo, lee lo que confirmo la
+    primera.
+    """
+    factory = async_sessionmaker(engine, expire_on_commit=False, autoflush=False)
+    order: list[str] = []
+    seen: list[VerificationStatus] = []
+
+    async def first() -> None:
+        async with factory() as s1:
+            repo = SqlAlchemyProfessionalRepository(s1)
+            locked = await repo.get_for_update(madrid_carpenter.id)
+            assert locked is not None
+            order.append("primera-bloquea")
+            await asyncio.sleep(0.3)
+            locked.verification_status = VerificationStatus.REJECTED
+            await repo.update(locked)
+            order.append("primera-commit")
+            await s1.commit()
+
+    async def second() -> None:
+        await asyncio.sleep(0.05)  # asegura que la primera bloquea antes
+        async with factory() as s2:
+            locked = await SqlAlchemyProfessionalRepository(s2).get_for_update(madrid_carpenter.id)
+            assert locked is not None
+            order.append("segunda-obtiene-bloqueo")
+            seen.append(locked.verification_status)
+            # Las relaciones llegan cargadas aunque el bloqueo vaya en otra consulta.
+            assert locked.category_ids == {carpentry.id}
+            await s2.commit()
+
+    await asyncio.wait_for(asyncio.gather(first(), second()), timeout=10)
+
+    assert order == ["primera-bloquea", "primera-commit", "segunda-obtiene-bloqueo"]
+    assert seen == [VerificationStatus.REJECTED]
+
+
+async def test_for_update_of_an_unknown_professional_is_none(session: AsyncSession) -> None:
+    assert await SqlAlchemyProfessionalRepository(session).get_for_update(uuid4()) is None

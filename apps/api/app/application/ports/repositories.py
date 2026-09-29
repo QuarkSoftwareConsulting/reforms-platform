@@ -201,6 +201,14 @@ class ProfessionalRepositoryPort(ABC):
     async def get_by_user_id(self, user_id: UUID) -> Professional | None: ...
 
     @abstractmethod
+    async def get_for_update(self, professional_id: UUID) -> Professional | None:
+        """Bloquea la fila hasta el final de la transaccion (aprobar/rechazar el alta).
+
+        Si hace falta tambien la cuenta, se bloquea DESPUES del profesional: siempre
+        en ese orden, para no interbloquear.
+        """
+
+    @abstractmethod
     async def update(self, professional: Professional) -> Professional: ...
 
     @abstractmethod

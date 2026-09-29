@@ -8,6 +8,8 @@ from typing import Literal
 from pydantic import Field, computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.domain.models import policy_covers_public_preview
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -88,6 +90,17 @@ class Settings(BaseSettings):
             raise ValueError("El bucket privado de documentos no puede ser el publico")
         if self.storage_backend == "gcs" and self.google_application_credentials:
             raise ValueError("GCS requiere ADC del runtime, sin GOOGLE_APPLICATION_CREDENTIALS")
+        return self
+
+    @model_validator(mode="after")
+    def _validate_privacy_policy(self) -> Settings:
+        # Sin esto, subir la version y olvidar declararla en el dominio apagaria la
+        # vista previa de todos los leads nuevos sin que nadie se entere.
+        if not policy_covers_public_preview(self.privacy_policy_version):
+            raise ValueError(
+                f"PRIVACY_POLICY_VERSION={self.privacy_policy_version} no figura en "
+                "PUBLIC_PREVIEW_POLICY_VERSIONS: declara si cubre la vista previa del lead"
+            )
         return self
 
     @model_validator(mode="after")

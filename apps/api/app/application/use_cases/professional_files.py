@@ -54,7 +54,9 @@ def assert_own_key(key: str, prefix: str) -> None:
 
 
 async def _load(professionals: ProfessionalRepositoryPort, professional_id: UUID) -> Professional:
-    professional = await professionals.get(professional_id)
+    # Con bloqueo, dentro de la transaccion: `update` reescribe el perfil entero y no
+    # debe pisar un cambio de estado del alta hecho a la vez.
+    professional = await professionals.get_for_update(professional_id)
     if professional is None:
         raise ProfessionalNotFoundError()
     return professional
@@ -112,16 +114,16 @@ class AddProfessionalDocument:
     ) -> ProfessionalDocument:
         assert_own_key(storage_key, document_prefix(professional_id))
         filename = filename.strip()[:MAX_FILENAME] or "documento"
-        professional = await _load(self.professionals, professional_id)
-        document = ProfessionalDocument(
-            id=self.ids.new_id(),
-            kind=kind,
-            storage_key=storage_key,
-            filename=filename,
-            uploaded_at=self.clock.now(),
-        )
-        professional.add_document(document)
         async with self.uow:
+            professional = await _load(self.professionals, professional_id)
+            document = ProfessionalDocument(
+                id=self.ids.new_id(),
+                kind=kind,
+                storage_key=storage_key,
+                filename=filename,
+                uploaded_at=self.clock.now(),
+            )
+            professional.add_document(document)
             await self.professionals.update(professional)
         return document
 
@@ -133,9 +135,9 @@ class RemoveProfessionalDocument:
     uow: UnitOfWork
 
     async def execute(self, *, professional_id: UUID, document_id: UUID) -> None:
-        professional = await _load(self.professionals, professional_id)
-        removed = professional.remove_document(document_id)
         async with self.uow:
+            professional = await _load(self.professionals, professional_id)
+            removed = professional.remove_document(document_id)
             await self.professionals.update(professional)
         # Despues de guardar: si el borrado del objeto falla, queda un archivo
         # huerfano en el bucket privado, no un documento sin archivo en el perfil.

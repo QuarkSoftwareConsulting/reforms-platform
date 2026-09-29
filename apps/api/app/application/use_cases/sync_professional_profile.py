@@ -109,41 +109,46 @@ class UpsertProfessionalProfile:
         tax_id = self._parse_tax_id(data.tax_id)
         await self._assert_services(data.category_ids, data.service_ids)
 
-        existing = await self.professionals.get_by_user_id(user_id)
-        professional = existing or Professional(
-            id=self.ids.new_id(),
-            user_id=user_id,
-            business_name=data.business_name,
-            phone=phone,
-            base_postal_code=info.code,
-            base_coordinates=info.coordinates,
-            service_radius_km=data.service_radius_km,
-            created_at=self.clock.now(),
-        )
-        self._assert_own_media(professional.id, data)
-
-        professional.business_name = data.business_name
-        professional.phone = phone
-        professional.base_postal_code = info.code
-        professional.base_coordinates = info.coordinates
-        professional.service_radius_km = data.service_radius_km
-        professional.city = info.city
-        professional.province = info.province
-        professional.category_ids = set(data.category_ids)
-        professional.service_ids = set(data.service_ids)
-        professional.address = data.address
-        professional.profile_photo_key = data.profile_photo_key
-        professional.logo_key = data.logo_key
-        professional.work_photo_keys = list(data.work_photo_keys)
-        professional.set_identity(
-            professional_type=data.professional_type,
-            legal_name=data.legal_name,
-            tax_id=tax_id,
-        )
-        # Revalida los invariantes tras la mutacion (radio, nombre, fotos, CIF).
-        professional.__post_init__()
-
         async with self.uow:
+            existing = await self.professionals.get_by_user_id(user_id)
+            if existing is not None:
+                # Bloqueado: `update` reescribe el perfil entero, estado del alta
+                # incluido. Sin el bloqueo, guardar el perfil mientras el admin aprueba
+                # o rechaza devolveria el alta al estado leido.
+                existing = await self.professionals.get_for_update(existing.id)
+            professional = existing or Professional(
+                id=self.ids.new_id(),
+                user_id=user_id,
+                business_name=data.business_name,
+                phone=phone,
+                base_postal_code=info.code,
+                base_coordinates=info.coordinates,
+                service_radius_km=data.service_radius_km,
+                created_at=self.clock.now(),
+            )
+            self._assert_own_media(professional.id, data)
+
+            professional.business_name = data.business_name
+            professional.phone = phone
+            professional.base_postal_code = info.code
+            professional.base_coordinates = info.coordinates
+            professional.service_radius_km = data.service_radius_km
+            professional.city = info.city
+            professional.province = info.province
+            professional.category_ids = set(data.category_ids)
+            professional.service_ids = set(data.service_ids)
+            professional.address = data.address
+            professional.profile_photo_key = data.profile_photo_key
+            professional.logo_key = data.logo_key
+            professional.work_photo_keys = list(data.work_photo_keys)
+            professional.set_identity(
+                professional_type=data.professional_type,
+                legal_name=data.legal_name,
+                tax_id=tax_id,
+            )
+            # Revalida los invariantes tras la mutacion (radio, nombre, fotos, CIF).
+            professional.__post_init__()
+
             if existing is None:
                 return await self.professionals.add(professional)
             return await self.professionals.update(professional)
