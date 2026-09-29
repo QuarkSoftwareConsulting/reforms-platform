@@ -11,12 +11,12 @@ cualquier persona o sesión de agente retome el trabajo sin reconstruir la conve
   integra en ella. Se revisan e integran en orden; al integrar uno, el siguiente se
   reorienta a `develop`.
 
-  | Fase | Rama | Base del PR |
-  |---|---|---|
-  | 1 · Recarga mensual y saldo | `suscriptions` | `develop` |
-  | 2 · Reglas del lead | `feat/reglas-lead` | `suscriptions` |
-  | 3 · Formulario del cliente | `feat/formulario-cliente` | `feat/reglas-lead` |
-  | 4 · Alta y validación del profesional | `feat/validacion-profesional` | `feat/formulario-cliente` |
+  | Fase | Rama | PR | Base del PR |
+  |---|---|---|---|
+  | 1 · Recarga mensual y saldo | `suscriptions` | #16 | `develop` |
+  | 2 · Reglas del lead | `feat/reglas-lead` | #17 | `suscriptions` |
+  | 3 · Formulario del cliente | `feat/formulario-cliente` | #18 | `feat/reglas-lead` |
+  | 4 · Alta y validación del profesional | `feat/validacion-profesional` | #19 | `feat/formulario-cliente` |
 
   La CI (`.github/workflows/ci.yml`) solo corre en PR contra `develop` o `main`: los PR 2–4
   la pasan al reorientarse a `develop`. En local, las cuatro fases pasan `pnpm lint`,
