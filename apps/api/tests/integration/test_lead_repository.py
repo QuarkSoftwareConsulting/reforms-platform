@@ -69,6 +69,49 @@ class TestPersistence:
         assert loaded.consent.max_recipients == 3
         assert loaded.consent.allows_public_preview is False
 
+    async def test_services_property_type_and_schedule_round_trip(
+        self, session: AsyncSession, carpentry: Category
+    ) -> None:
+        from app.domain.models import ProjectSchedule, PropertyType
+
+        wardrobes, doors = carpentry.services[1], carpentry.services[0]
+        stored = await store_lead(
+            session,
+            carpentry,
+            service_ids=[wardrobes.id, doors.id],
+            property_type=PropertyType.HOUSE,
+            schedule=ProjectSchedule.ASAP,
+        )
+        repo = SqlAlchemyLeadRepository(session)
+
+        loaded = await repo.get(stored.id)
+        assert loaded is not None
+        # Se conserva el orden en que el cliente los eligio.
+        assert loaded.service_ids == [wardrobes.id, doors.id]
+        assert loaded.property_type is PropertyType.HOUSE
+        assert loaded.schedule is ProjectSchedule.ASAP
+
+        # El bloqueo de fila carga las relaciones aparte: tambien los servicios.
+        locked = await repo.get_for_update(stored.id)
+        assert locked is not None
+        assert locked.service_ids == [wardrobes.id, doors.id]
+
+        rows = await repo.search(
+            LeadSearchFilters(category_ids={carpentry.id}, center=MADRID, radius_km=25)
+        )
+        assert rows[0].lead.service_ids == [wardrobes.id, doors.id]
+
+    async def test_lead_without_new_form_fields_still_loads(
+        self, session: AsyncSession, carpentry: Category
+    ) -> None:
+        # Los leads anteriores al formulario de la Etapa 1 no tienen estos datos.
+        stored = await store_lead(session, carpentry)
+        loaded = await SqlAlchemyLeadRepository(session).get(stored.id)
+        assert loaded is not None
+        assert loaded.service_ids == []
+        assert loaded.property_type is None
+        assert loaded.schedule is None
+
     async def test_public_preview_consent_round_trips(
         self, session: AsyncSession, carpentry: Category
     ) -> None:

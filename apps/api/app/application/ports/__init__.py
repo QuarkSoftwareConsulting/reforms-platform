@@ -9,6 +9,7 @@ from app.application.ports.payment_port import (
     PaymentPort,
     SubscriptionCheckoutRequest,
 )
+from app.application.ports.phone_verification_port import PhoneVerificationPort
 from app.application.ports.repositories import (
     AdminLeadFilters,
     CategoryRepositoryPort,
@@ -50,6 +51,7 @@ __all__ = [
     "PaymentEvent",
     "PaymentEventType",
     "PaymentPort",
+    "PhoneVerificationPort",
     "PostalCodeInfo",
     "PostalCodeRepositoryPort",
     "PresignedUpload",

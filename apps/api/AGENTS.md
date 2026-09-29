@@ -120,7 +120,7 @@ uv run alembic check      # debe decir "No new upgrade operations detected"
 ## Tests
 
 ```bash
-uv run pytest -m "not integration"     # 190 tests, sin Docker, < 3 s
+uv run pytest -m "not integration"     # 380 tests, sin Docker, < 3 s
 uv run pytest                          # 251 tests (necesita `pnpm infra:up`)
 uv run pytest tests/unit/domain -x -q  # iteración rápida sobre las reglas
 ```

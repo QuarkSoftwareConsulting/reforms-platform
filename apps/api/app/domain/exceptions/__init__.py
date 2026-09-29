@@ -122,6 +122,18 @@ class UnknownPostalCodeError(ValidationError):
     code = "UNKNOWN_POSTAL_CODE"
 
 
+class InvalidServiceError(ValidationError):
+    """El servicio elegido no pertenece a la categoria de la solicitud."""
+
+    code = "INVALID_SERVICE"
+
+
+class PostalCodeNotCoveredError(ValidationError):
+    """Todavia no damos servicio en ese codigo postal."""
+
+    code = "POSTAL_CODE_NOT_COVERED"
+
+
 class InvalidSalePriceError(ValidationError):
     """El precio de venta indicado no es valido."""
 
@@ -170,6 +182,32 @@ class ProfessionalAccountNotFoundError(NotFoundError):
     code = "ACCOUNT_NOT_FOUND"
 
 
+class PhoneNotMobileError(ValidationError):
+    """Para verificar el telefono por SMS hace falta un movil espanol."""
+
+    code = "PHONE_NOT_MOBILE"
+
+
+class PhoneNotVerifiedError(ValidationError):
+    """El codigo de verificacion del telefono no es correcto o ha caducado."""
+
+    code = "PHONE_NOT_VERIFIED"
+
+
+class TooManyVerificationAttemptsError(DomainError):
+    """Demasiados codigos pedidos para este telefono. Prueba mas tarde."""
+
+    code = "TOO_MANY_VERIFICATION_ATTEMPTS"
+    status = 429
+
+
+class PhoneVerificationUnavailableError(DomainError):
+    """No hemos podido enviar el SMS de verificacion."""
+
+    code = "PHONE_VERIFICATION_UNAVAILABLE"
+    status = 503
+
+
 class PaymentGatewayError(DomainError):
     """No hemos podido iniciar el pago. Intentalo de nuevo en unos minutos."""
 
@@ -194,6 +232,7 @@ __all__ = [
     "DomainError",
     "InsufficientCreditError",
     "InvalidSalePriceError",
+    "InvalidServiceError",
     "LeadAlreadyPurchasedError",
     "LeadCapReachedError",
     "LeadNotFoundError",
@@ -201,6 +240,10 @@ __all__ = [
     "NotFoundError",
     "PaymentGatewayError",
     "PermissionDeniedError",
+    "PhoneNotMobileError",
+    "PhoneNotVerifiedError",
+    "PhoneVerificationUnavailableError",
+    "PostalCodeNotCoveredError",
     "ProfessionalAccountNotFoundError",
     "ProfessionalNotFoundError",
     "ProfessionalProfileIncompleteError",
@@ -208,6 +251,7 @@ __all__ = [
     "PurchaseNotPayableError",
     "SubscriptionAlreadyExistsError",
     "SubscriptionRequiredError",
+    "TooManyVerificationAttemptsError",
     "UnknownPostalCodeError",
     "ValidationError",
 ]

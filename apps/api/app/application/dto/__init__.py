@@ -20,6 +20,8 @@ from app.domain.models import (
     LeadStatus,
     Professional,
     ProfessionalAccount,
+    ProjectSchedule,
+    PropertyType,
     Purchase,
     PurchaseReview,
     SubscriptionStatus,
@@ -49,6 +51,10 @@ class CreateLeadInput:
     client_email: str | None = None
     photo_keys: list[str] = field(default_factory=list)
     consent: ConsentInput | None = None
+    service_ids: list[UUID] = field(default_factory=list)
+    property_type: PropertyType | None = None
+    schedule: ProjectSchedule | None = None
+    phone_verification_code: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

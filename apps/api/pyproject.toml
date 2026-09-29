@@ -95,6 +95,7 @@ testpaths = ["tests"]
 addopts = "-q --strict-markers"
 markers = [
     "integration: requiere Postgres+PostGIS real (docker compose up db-test)",
+    "sms: el API de test verifica el movil por SMS (FakePhoneVerifier)",
 ]
 
 [tool.coverage.run]

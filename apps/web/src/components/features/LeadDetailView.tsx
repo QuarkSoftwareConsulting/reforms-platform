@@ -27,6 +27,7 @@ export function LeadDetailView({ leadId }: { leadId: string }) {
   const locale = useLocale() as AppLocale;
   const t = useTranslations("lead");
   const tProjects = useTranslations("projects");
+  const tProject = useTranslations("project");
   const translateError = useApiError();
   // `?status=cancelled` al volver de un checkout que el profesional abandono.
   const paymentCancelled = useSearchParams().get("status") === "cancelled";
@@ -128,6 +129,36 @@ export function LeadDetailView({ leadId }: { leadId: string }) {
                   {t("postalCode")}
                 </dt>
                 <dd className="font-semibold text-ink">{lead.postal_code}</dd>
+              </div>
+            )}
+            {lead.property_type && (
+              <div>
+                <dt className="text-[11px] uppercase tracking-[0.7px] text-muted">
+                  {tProject("propertyType")}
+                </dt>
+                <dd className="font-semibold text-ink">
+                  {tProject(`propertyTypes.${lead.property_type}`)}
+                </dd>
+              </div>
+            )}
+            {lead.schedule && (
+              <div>
+                <dt className="text-[11px] uppercase tracking-[0.7px] text-muted">
+                  {tProject("schedule")}
+                </dt>
+                <dd className="font-semibold text-ink">
+                  {tProject(`schedules.${lead.schedule}`)}
+                </dd>
+              </div>
+            )}
+            {lead.services.length > 0 && (
+              <div className="sm:col-span-2">
+                <dt className="text-[11px] uppercase tracking-[0.7px] text-muted">
+                  {tProject("services")}
+                </dt>
+                <dd className="font-semibold text-ink">
+                  {lead.services.map((service) => service.name).join(" · ")}
+                </dd>
               </div>
             )}
           </dl>

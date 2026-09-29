@@ -78,7 +78,7 @@ solo `lib/firebase.ts` y ese hook.
 **Cero cadenas de UI incrustadas en componentes.** Todo texto visible sale de
 `messages/es.json` / `messages/en.json`.
 
-- Los dos archivos deben tener **exactamente las mismas claves** (hoy: 284 cada uno).
+- Los dos archivos deben tener **exactamente las mismas claves** (hoy: 381 cada uno).
   Comprobación rápida:
 
   ```bash
@@ -121,7 +121,7 @@ subida al bucket en un archivo inválido.
 ## Tests
 
 ```bash
-pnpm test              # vitest, 61 tests
+pnpm test              # vitest, 90 tests
 pnpm test:watch
 pnpm lint              # eslint + tsc --noEmit
 ```
@@ -162,11 +162,10 @@ Tailwind con el sistema de diseño **«Voy a Reformar»**
   (nunca blanco: no cumple AA), sin degradados y **sin sombra en tarjetas de listado** — la
   elevación se reserva a menús y modales.
 - Primitivos en `components/ui/`: `Button`, `Field`, `Card`/`Panel`/`Tag`/`Seal`/`LiveDot`,
-  `OptionCard`, `ProgressBar`, `Alert`, `Container`. `OptionCard` envuelve un `input` nativo
+  `OptionCard`, `ChipGroup`, `ProgressBar`, `Alert`, `Container`. `OptionCard` envuelve un `input` nativo
   en `sr-only` para conservar rol y etiqueta accesible: no lo sustituyas por un `div` con
-  `onClick`. El *chip de selección* del handoff (§4) todavía no existe como componente
-  porque ningún campo actual lo necesita; su especificación está en el README del handoff
-  para cuando lleguen presupuesto, plazo y tipo de inmueble.
+  `onClick`. `ChipGroup` es el *chip de selección* del handoff (§4), con la misma técnica;
+  lo usan los servicios, el tipo de inmueble y la programación del formulario.
 - Clases condicionales con `cn()` (`helpers/cn.ts`), que resuelve conflictos de Tailwind.
 - La tipografía es Poppins autohospedada con `next/font/google` en el layout de idioma. No
   la sirvas desde `fonts.googleapis.com`: bloquearía el primer render.

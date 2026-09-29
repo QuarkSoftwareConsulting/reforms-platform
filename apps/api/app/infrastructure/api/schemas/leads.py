@@ -12,6 +12,7 @@ from uuid import UUID
 
 from pydantic import Field, field_validator
 
+from app.domain.models import MAX_SERVICES_PER_LEAD, ProjectSchedule, PropertyType
 from app.infrastructure.api.schemas.common import ApiModel, MoneyOut
 
 MIN_DESCRIPTION = 20
@@ -35,6 +36,20 @@ class CreateLeadIn(ApiModel):
     client_email: str | None = Field(default=None, max_length=320)
     photo_keys: list[str] = Field(default_factory=list, max_length=8)
     consent: ConsentIn
+    service_ids: list[UUID] = Field(
+        default_factory=list,
+        max_length=MAX_SERVICES_PER_LEAD,
+        description="Servicios de la categoria que necesita el cliente (opcional)",
+    )
+    property_type: PropertyType = Field(description="Tipo de inmueble")
+    schedule: ProjectSchedule = Field(
+        description='Respuesta a "Cual es la programacion actual de tu proyecto?"'
+    )
+    phone_verification_code: str | None = Field(
+        default=None,
+        max_length=10,
+        description="Codigo del SMS; obligatorio cuando la verificacion esta activa",
+    )
 
     @field_validator("photo_keys")
     @classmethod
@@ -52,6 +67,18 @@ class CategoryOut(ApiModel):
     name: str
     suggested_lead_price: MoneyOut
     """Precio de referencia del oficio. El de un lead concreto va en `price`."""
+
+
+class ServiceOut(ApiModel):
+    id: UUID
+    slug: str
+    name: str
+
+
+class CatalogCategoryOut(CategoryOut):
+    """Categoria con los servicios que hoy se ofrecen en el formulario."""
+
+    services: list[ServiceOut]
 
 
 class VatBreakdownOut(ApiModel):
@@ -78,6 +105,9 @@ class LeadPublicOut(ApiModel):
         default=None, description="Nombre de pila; solo si el consentimiento del cliente lo cubre"
     )
     category: CategoryOut
+    services: list[ServiceOut] = Field(description="Servicios que eligio el cliente")
+    property_type: PropertyType | None = None
+    schedule: ProjectSchedule | None = None
     photo_urls: list[str]
     created_at: datetime
     remaining_slots: int
@@ -131,6 +161,16 @@ class CreateLeadOut(ApiModel):
     city: str
     province: str
     created_at: datetime
+
+
+class PhoneVerificationIn(ApiModel):
+    phone: str = Field(min_length=6, max_length=20)
+
+
+class PhoneVerificationOut(ApiModel):
+    required: bool = Field(
+        description="False si este entorno no verifica por SMS: se publica sin codigo"
+    )
 
 
 class PresignPhotoIn(ApiModel):

@@ -36,7 +36,7 @@ bloquean la terminal. Espera a que `/health` devuelva `database: true` antes de 
 ## 2 · Ejecutar
 
 ```bash
-pnpm verify:flow                # 37 comprobaciones (2 se omiten sin clave de Stripe)
+pnpm verify:flow                # 39 comprobaciones (2 se omiten sin clave de Stripe)
 pnpm verify:flow -- --verbose   # muestra cada peticion y respuesta
 pnpm verify:flow -- --keep      # conserva los datos de prueba para inspeccionarlos
 ```

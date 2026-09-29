@@ -7,11 +7,14 @@ from app.domain.models.billing import (
     SubscriptionPrice,
     assert_valid_subscription_amount,
 )
-from app.domain.models.category import Category
+from app.domain.models.category import MAX_SERVICES_PER_LEAD, Category, Service
+from app.domain.models.coverage import MADRID, ServiceArea
 from app.domain.models.enums import (
     CreditEntryKind,
     LeadSource,
     LeadStatus,
+    ProjectSchedule,
+    PropertyType,
     PurchaseStatus,
     SubscriptionStatus,
     UserRole,
@@ -40,7 +43,9 @@ from app.domain.models.purchase_review import PurchaseReview
 __all__ = [
     "DEFAULT_MAX_PURCHASES",
     "EXPLORER_STATUSES",
+    "MADRID",
     "MAX_SALE_PRICE_CENTS",
+    "MAX_SERVICES_PER_LEAD",
     "MAX_SUBSCRIPTION_CENTS",
     "MIN_CHARGE_CENTS",
     "RENEWAL_GRACE",
@@ -58,9 +63,13 @@ __all__ = [
     "LeadStatus",
     "Professional",
     "ProfessionalAccount",
+    "ProjectSchedule",
+    "PropertyType",
     "Purchase",
     "PurchaseReview",
     "PurchaseStatus",
+    "Service",
+    "ServiceArea",
     "SubscriptionPrice",
     "SubscriptionStatus",
     "User",

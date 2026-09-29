@@ -19,14 +19,20 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from app.application.ports import AuthenticatedIdentity
 from app.config import Settings
-from app.domain.models import Category
+from app.domain.models import Category, Service
 from app.domain.value_objects import Coordinates, Money
 from app.infrastructure.adapters.clock import Uuid4Generator
-from app.infrastructure.adapters.db.models import Base, CategoryRow, PostalCodeRow
+from app.infrastructure.adapters.db.models import Base, CategoryRow, PostalCodeRow, ServiceRow
 from app.infrastructure.api.dependencies import Infrastructure
 from app.main import create_app
 from tests.factories import BARCELONA, MADRID
-from tests.fakes import FakeClock, FakePaymentGateway, FakeStorage, FakeTokenVerifier
+from tests.fakes import (
+    FakeClock,
+    FakePaymentGateway,
+    FakePhoneVerifier,
+    FakeStorage,
+    FakeTokenVerifier,
+)
 
 pytestmark = pytest.mark.integration
 
@@ -39,10 +45,12 @@ TRUNCATE_ORDER = (
     "lead_purchases",
     "lead_consents",
     "lead_photos",
+    "lead_services",
     "leads",
     "professional_categories",
     "professionals",
     "users",
+    "services",
     "categories",
 )
 
@@ -50,6 +58,11 @@ SEED_POSTAL_CODES = (
     ("28001", "Madrid", "Madrid", MADRID),
     ("28801", "Alcala de Henares", "Madrid", Coordinates(40.4818, -3.3644)),
     ("08001", "Barcelona", "Barcelona", BARCELONA),
+)
+
+CARPENTRY_SERVICES = (
+    ("puertas", "Puertas", "Doors"),
+    ("armarios", "Armarios a medida", "Fitted wardrobes"),
 )
 
 PRO_TOKEN = "token-profesional"
@@ -119,13 +132,20 @@ def fake_tokens() -> FakeTokenVerifier:
     )
 
 
+@pytest.fixture
+def fake_phone_verifier() -> FakePhoneVerifier:
+    return FakePhoneVerifier()
+
+
 @pytest_asyncio.fixture
 async def api(
+    request: pytest.FixtureRequest,
     api_engine: AsyncEngine,
     api_settings: Settings,
     fake_gateway: FakePaymentGateway,
     fake_clock: FakeClock,
     fake_tokens: FakeTokenVerifier,
+    fake_phone_verifier: FakePhoneVerifier,
 ) -> AsyncIterator[AsyncClient]:
     session_factory = async_sessionmaker(api_engine, expire_on_commit=False, autoflush=False)
 
@@ -153,6 +173,10 @@ async def api(
         token_verifier=fake_tokens,
         clock=fake_clock,
         ids=Uuid4Generator(),
+        # Como en produccion hoy, sin SMS; los tests marcados con `sms` lo activan.
+        phone_verifier=(
+            fake_phone_verifier if request.node.get_closest_marker("sms") is not None else None
+        ),
     )
 
     transport = ASGITransport(app=app)
@@ -172,8 +196,22 @@ async def carpentry_category(api_engine: AsyncEngine, api: AsyncClient) -> Categ
         currency="EUR",
         active=True,
     )
+    services = [
+        ServiceRow(
+            id=uuid4(),
+            category_id=row.id,
+            slug=slug,
+            name_es=name_es,
+            name_en=name_en,
+            sort_order=index,
+            active=True,
+        )
+        for index, (slug, name_es, name_en) in enumerate(CARPENTRY_SERVICES)
+    ]
     async with factory() as session:
         session.add(row)
+        await session.flush()
+        session.add_all(services)
         await session.commit()
     return Category(
         id=row.id,
@@ -181,6 +219,10 @@ async def carpentry_category(api_engine: AsyncEngine, api: AsyncClient) -> Categ
         name_es=row.name_es,
         name_en=row.name_en,
         suggested_lead_price=Money(row.suggested_lead_price_cents, row.currency),
+        services=[
+            Service(id=s.id, slug=s.slug, name_es=s.name_es, name_en=s.name_en, sort_order=i)
+            for i, s in enumerate(services)
+        ],
     )
 
 

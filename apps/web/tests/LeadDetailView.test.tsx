@@ -50,6 +50,9 @@ const LEAD: LeadPublic = {
     name: "Carpinteria",
     suggested_lead_price: { amount_cents: 500, currency: "EUR", formatted: "5.00 €" },
   },
+  services: [{ id: "svc-1", slug: "armarios", name: "Armarios a medida" }],
+  property_type: "flat",
+  schedule: "asap",
   photo_urls: [],
   created_at: new Date().toISOString(),
   remaining_slots: 3,
@@ -82,6 +85,9 @@ describe("LeadDetailView", () => {
     expect(await screen.findByText("Ana")).toBeDefined();
     expect(screen.getByText("28001")).toBeDefined();
     expect(screen.getByText("2 de 5 profesionales ya lo compraron")).toBeDefined();
+    expect(screen.getByText(messages.project.propertyTypes.flat)).toBeDefined();
+    expect(screen.getByText(messages.project.schedules.asap)).toBeDefined();
+    expect(screen.getByText("Armarios a medida")).toBeDefined();
     const vat = /IVA incluido · Base imponible 4,13\s€ \+ IVA \(21 %\) 0,87\s€/;
     expect(screen.getByText(vat)).toBeDefined();
     expect(screen.getByRole("button", { name: /Comprar contacto/ })).toBeDefined();

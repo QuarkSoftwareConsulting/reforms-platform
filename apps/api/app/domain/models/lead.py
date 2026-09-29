@@ -20,7 +20,7 @@ from app.domain.exceptions import (
     LeadNotPurchasableError,
     ValidationError,
 )
-from app.domain.models.enums import LeadSource, LeadStatus
+from app.domain.models.enums import LeadSource, LeadStatus, ProjectSchedule, PropertyType
 from app.domain.models.pricing import assert_same_currency, assert_sellable_price
 from app.domain.value_objects import Coordinates, Email, Money, PhoneNumber, PostalCode
 
@@ -113,6 +113,11 @@ class Lead:
     consent: ConsentRecord | None = None
     price_override: Money | None = None
     """Precio fijado por el admin para este contacto. `None` = usar el de la categoria."""
+    service_ids: list[UUID] = field(default_factory=list)
+    """Servicios de su categoria que eligio el cliente (opcional, en orden)."""
+    property_type: PropertyType | None = None
+    schedule: ProjectSchedule | None = None
+    """`None` en los leads anteriores al formulario de la Etapa 1."""
 
     def __post_init__(self) -> None:
         self.title = self.title.strip()
@@ -124,6 +129,8 @@ class Lead:
                 f"La descripcion debe tener entre {MIN_DESCRIPTION_LENGTH} y "
                 f"{MAX_DESCRIPTION_LENGTH} caracteres"
             )
+        if len(set(self.service_ids)) != len(self.service_ids):
+            raise ValidationError("Un servicio no puede repetirse en la misma solicitud")
         if len(self.photos) > MAX_PHOTOS:
             raise ValidationError(f"Maximo {MAX_PHOTOS} fotos por solicitud")
         if self.max_purchases < 1:
@@ -249,6 +256,9 @@ class Lead:
             postal_code=self.location.postal_code.value if disclosed else None,
             client_first_name=self.contact.first_name if disclosed else None,
             coordinates=self.location.coordinates,
+            service_ids=list(self.service_ids),
+            property_type=self.property_type,
+            schedule=self.schedule,
             photo_keys=[p.storage_key for p in sorted(self.photos, key=lambda p: p.sort_order)],
             created_at=self.created_at,
             remaining_slots=self.remaining_slots,
@@ -286,6 +296,9 @@ class LeadPublicView:
     postal_code: str | None
     client_first_name: str | None
     coordinates: Coordinates
+    service_ids: list[UUID]
+    property_type: PropertyType | None
+    schedule: ProjectSchedule | None
     photo_keys: list[str]
     created_at: datetime
     remaining_slots: int

@@ -38,6 +38,7 @@ from app.application.use_cases import (
     SetLeadPrice,
     SetSubscriptionPrice,
     StartLeadPurchase,
+    StartPhoneVerification,
     StartSubscription,
     SubscriptionPricing,
     SyncUserFromIdentity,
@@ -57,6 +58,7 @@ from tests.factories import (
 from tests.fakes import (
     FakeClock,
     FakePaymentGateway,
+    FakePhoneVerifier,
     FakeStorage,
     FakeTokenVerifier,
     InMemoryCategoryRepository,
@@ -108,8 +110,12 @@ class World:
     payments: FakePaymentGateway
     storage: FakeStorage
     tokens: FakeTokenVerifier
+    phone_verifier: FakePhoneVerifier = field(default_factory=FakePhoneVerifier)
 
     create_lead: CreateLead = field(init=False)
+    """Sin verificacion por SMS, como hoy en produccion (no hay proveedor)."""
+    create_lead_with_sms: CreateLead = field(init=False)
+    start_phone_verification: StartPhoneVerification = field(init=False)
     list_leads: ListLeads = field(init=False)
     lead_detail: GetLeadDetail = field(init=False)
     start_purchase: StartLeadPurchase = field(init=False)
@@ -154,6 +160,16 @@ class World:
             ids=self.ids,
             uow=self.uow,
         )
+        self.create_lead_with_sms = CreateLead(
+            leads=self.leads,
+            categories=self.categories,
+            postal_codes=self.postal_codes,
+            clock=self.clock,
+            ids=self.ids,
+            uow=self.uow,
+            phone_verifier=self.phone_verifier,
+        )
+        self.start_phone_verification = StartPhoneVerification(verifier=self.phone_verifier)
         self.list_leads = ListLeads(
             leads=self.leads, categories=self.categories, professionals=self.professionals
         )

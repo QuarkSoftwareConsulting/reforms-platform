@@ -114,6 +114,9 @@ describe("phone validation", () => {
 describe("lead form schema", () => {
   const valid = {
     categoryId: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    serviceIds: [],
+    propertyType: "flat",
+    schedule: "asap",
     title: "Reparar armario",
     description: "Se ha descolgado la puerta del armario alto de la cocina y hay que montarla.",
     postalCode: "28001",
@@ -138,6 +141,23 @@ describe("lead form schema", () => {
   it("requires a description long enough to be useful to a professional", () => {
     const result = leadFormSchema.safeParse({ ...valid, description: "arreglar" });
     expect(result.success).toBe(false);
+  });
+
+  it("only accepts postal codes from the Community of Madrid", () => {
+    const result = leadFormSchema.safeParse({ ...valid, postalCode: "08001" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe("postalCodeNotCovered");
+    }
+    expect(leadFormSchema.safeParse({ ...valid, postalCode: "28500" }).success).toBe(true);
+  });
+
+  it("rejects a property type the API does not know", () => {
+    const result = leadFormSchema.safeParse({ ...valid, propertyType: "castillo" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe("propertyTypeRequired");
+    }
   });
 
   it("treats an empty email as absent rather than invalid", () => {

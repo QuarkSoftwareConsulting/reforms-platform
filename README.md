@@ -232,6 +232,19 @@ los schemas del explorador solo aceptan ese tipo. Antes de pagar se ven el nombr
 el CP, solo si el consentimiento del cliente lo cubre. Filtrar datos de contacto por descuido requeriría
 cambiar el tipo, no solo olvidar un `del`.
 
+**Solo la Comunidad de Madrid, con el móvil verificado.** En la Etapa 1 solo se publican
+solicitudes con CP 28xxx (`COVERED_POSTAL_PREFIXES`). El catálogo de CP de Madrid está
+completo (323 códigos) y lo genera `scripts/import_postal_codes.py` a partir de
+[GeoNames](https://www.geonames.org) (CC BY 4.0: hay que citarlo en la web). Antes de
+publicar, el cliente confirma su móvil con un SMS (`PhoneVerificationPort`). Mientras no
+haya proveedor, `PHONE_VERIFICATION_BACKEND=disabled` publica sin código; en local,
+`console` escribe el código en el log del API.
+
+**El catálogo tiene dos niveles.** Categoría (`categories.csv`) → servicios
+(`services.csv`), en el orden del documento del cliente. `pnpm api:seed` es idempotente:
+desactiva, sin borrarlo, lo que sale del catálogo (los leads antiguos lo siguen nombrando)
+y no pisa el precio sugerido que haya cambiado el admin.
+
 **El consentimiento RGPD es un registro auditable.** `lead_consents` guarda versión de
 política, IP y user-agent tomados del servidor (nunca del cuerpo de la petición), y el
 dominio rechaza construir un lead orgánico sin él.

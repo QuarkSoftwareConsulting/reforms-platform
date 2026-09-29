@@ -12,6 +12,7 @@ import {
   leadStepContactSchema,
   leadStepDetailsSchema,
 } from "@/helpers/validators";
+import type { ProjectSchedule, PropertyType } from "@/helpers/leadOptions";
 import { leadsService } from "@/services/leads.service";
 import type { CreatedLead, Locale } from "@/types/api";
 
@@ -20,25 +21,37 @@ export type Step = (typeof STEPS)[number];
 
 export interface LeadFormValues {
   categoryId: string;
+  serviceIds: string[];
   title: string;
   description: string;
+  /** Vacio hasta que el cliente elige; la validacion del paso lo exige. */
+  propertyType: PropertyType | "";
+  schedule: ProjectSchedule | "";
   postalCode: string;
   clientName: string;
   clientPhone: string;
   clientEmail: string;
   consentAccepted: boolean;
+  /** Codigo del SMS de verificacion; solo se pide si el API lo exige. */
+  phoneCode: string;
 }
 
 const EMPTY: LeadFormValues = {
   categoryId: "",
+  serviceIds: [],
   title: "",
   description: "",
+  propertyType: "",
+  schedule: "",
   postalCode: "",
   clientName: "",
   clientPhone: "",
   clientEmail: "",
   consentAccepted: false,
+  phoneCode: "",
 };
+
+const PHONE_CODE = /^\d{6}$/;
 
 const STEP_SCHEMAS: Record<Step, z.ZodTypeAny> = {
   category: leadStepCategorySchema,
@@ -56,7 +69,13 @@ export interface LeadFormState {
   submitError: string | null;
   submitting: boolean;
   created: CreatedLead | null;
+  /** Movil al que se envio el SMS; mientras sea `null` no se pide codigo. */
+  smsSentTo: string | null;
+  resendingCode: boolean;
+  resendCode: () => Promise<void>;
   setField: <K extends keyof LeadFormValues>(field: K, value: LeadFormValues[K]) => void;
+  /** Cambiar de categoria limpia los servicios: eran de la anterior. */
+  setCategory: (categoryId: string) => void;
   goNext: () => boolean;
   goBack: () => void;
   submit: (photoKeys: string[]) => Promise<void>;
@@ -71,7 +90,9 @@ function validateStep(step: Step, values: LeadFormValues): FieldErrors {
   const errors: FieldErrors = {};
   for (const issue of result.error.issues) {
     const field = issue.path[0];
-    if (typeof field === "string") {
+    // Se muestra el primer error de cada campo: el que falla antes es el mas
+    // concreto (un CP inexistente tambien esta "fuera de Madrid").
+    if (typeof field === "string" && !(field in errors)) {
       errors[field as keyof LeadFormValues] = issue.message;
     }
   }
@@ -88,6 +109,10 @@ export function useLeadForm(): LeadFormState {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [created, setCreated] = useState<CreatedLead | null>(null);
+  // `null` = aun no se sabe si este entorno verifica por SMS; lo dice el API.
+  const [smsRequired, setSmsRequired] = useState<boolean | null>(null);
+  const [smsSentTo, setSmsSentTo] = useState<string | null>(null);
+  const [resendingCode, setResendingCode] = useState(false);
 
   const step = STEPS[stepIndex] ?? "category";
 
@@ -105,6 +130,18 @@ export function useLeadForm(): LeadFormState {
     [],
   );
 
+  const setCategory = useCallback((categoryId: string) => {
+    setValues((current) =>
+      current.categoryId === categoryId ? current : { ...current, categoryId, serviceIds: [] },
+    );
+    setErrors((current) => {
+      if (!("categoryId" in current)) return current;
+      const next = { ...current };
+      delete next.categoryId;
+      return next;
+    });
+  }, []);
+
   const goNext = useCallback((): boolean => {
     const stepErrors = validateStep(step, values);
     setErrors(stepErrors);
@@ -118,15 +155,50 @@ export function useLeadForm(): LeadFormState {
     setStepIndex((index) => Math.max(index - 1, 0));
   }, []);
 
+  const resendCode = useCallback(async () => {
+    const phone = values.clientPhone.trim();
+    setResendingCode(true);
+    setSubmitError(null);
+    try {
+      await leadsService.startPhoneVerification(phone);
+      setSmsSentTo(phone);
+    } catch (caught) {
+      setSubmitError(translateError(caught));
+    } finally {
+      setResendingCode(false);
+    }
+  }, [values.clientPhone, translateError]);
+
   const submit = useCallback(
     async (photoKeys: string[]) => {
       const stepErrors = validateStep("contact", values);
       setErrors(stepErrors);
       if (Object.keys(stepErrors).length > 0) return;
+      // Los pasos anteriores ya se validaron al avanzar; esto solo estrecha el tipo.
+      if (!values.propertyType || !values.schedule) return;
 
       setSubmitting(true);
       setSubmitError(null);
+      const phone = values.clientPhone.trim();
       try {
+        // Antes de publicar se verifica el movil (F01). Si el cliente cambia el
+        // telefono tras recibir el SMS, el codigo ya no vale: se manda otro.
+        let verified = smsRequired === false;
+        if (!verified && smsSentTo !== phone) {
+          const { required } = await leadsService.startPhoneVerification(phone);
+          setSmsRequired(required);
+          if (required) {
+            setSmsSentTo(phone);
+            setValues((current) => ({ ...current, phoneCode: "" }));
+            return;
+          }
+          verified = true;
+        }
+        if (!verified && !PHONE_CODE.test(values.phoneCode.trim())) {
+          setErrors({ phoneCode: "phoneCodeFormat" });
+          return;
+        }
+
         const lead = await leadsService.create(
           {
             category_id: values.categoryId,
@@ -137,6 +209,10 @@ export function useLeadForm(): LeadFormState {
             client_phone: values.clientPhone.trim(),
             client_email: values.clientEmail.trim() || null,
             photo_keys: photoKeys,
+            service_ids: values.serviceIds,
+            property_type: values.propertyType,
+            schedule: values.schedule,
+            phone_verification_code: verified ? null : values.phoneCode.trim(),
             consent: { accepted: values.consentAccepted },
           },
           locale,
@@ -148,7 +224,7 @@ export function useLeadForm(): LeadFormState {
         setSubmitting(false);
       }
     },
-    [values, locale, translateError],
+    [values, locale, translateError, smsRequired, smsSentTo],
   );
 
   const reset = useCallback(() => {
@@ -157,6 +233,7 @@ export function useLeadForm(): LeadFormState {
     setErrors({});
     setSubmitError(null);
     setCreated(null);
+    setSmsSentTo(null);
   }, []);
 
   return useMemo(
@@ -168,7 +245,11 @@ export function useLeadForm(): LeadFormState {
       submitError,
       submitting,
       created,
+      smsSentTo,
+      resendingCode,
+      resendCode,
       setField,
+      setCategory,
       goNext,
       goBack,
       submit,
@@ -182,7 +263,11 @@ export function useLeadForm(): LeadFormState {
       submitError,
       submitting,
       created,
+      smsSentTo,
+      resendingCode,
+      resendCode,
       setField,
+      setCategory,
       goNext,
       goBack,
       submit,

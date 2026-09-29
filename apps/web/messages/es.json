@@ -114,7 +114,7 @@
     "descriptionHint": "Mínimo {min} caracteres. Cuantos más detalles, mejores presupuestos.",
     "postalCodeLabel": "Código postal",
     "postalCodePlaceholder": "28001",
-    "postalCodeHint": "En el listado público solo aparecen el municipio y la provincia, nunca la dirección exacta.",
+    "postalCodeHint": "Por ahora solo en la Comunidad de Madrid. Los profesionales ven tu código postal y tu municipio, nunca tu dirección.",
     "photosLabel": "Fotos del trabajo",
     "photosHint": "Hasta {max} fotos (JPG, PNG o WEBP, máximo 10 MB cada una).",
     "photosAdd": "Añadir fotos",
@@ -157,8 +157,35 @@
     "submit": "Publicar solicitud",
     "submitting": "Publicando...",
     "successTitle": "Solicitud recibida",
-    "successBody": "Ya está visible para los profesionales de {city}. Te llamarán directamente al teléfono que nos has dado.",
-    "publishAnother": "Enviar otra solicitud"
+    "successBody": "Ya está visible para los profesionales de {city}. Te contactarán directamente con los datos que nos has dado.",
+    "publishAnother": "Enviar otra solicitud",
+    "propertyTypeLabel": "¿Qué tipo de inmueble es?",
+    "scheduleLabel": "¿Cuál es la programación actual de tu proyecto?",
+    "servicesLabel": "¿Qué necesitas en {category}?",
+    "servicesHint": "Opcional. Marca uno o varios servicios.",
+    "phoneCodeLabel": "Código de verificación",
+    "phoneCodeHint": "Te lo hemos enviado por SMS al {phone}. Escríbelo para publicar tu solicitud.",
+    "phoneCodeResend": "Enviar otro código"
+  },
+  "project": {
+    "propertyTypes": {
+      "flat": "Piso",
+      "house": "Casa o chalet",
+      "commercial": "Local comercial",
+      "office": "Oficina",
+      "community": "Comunidad de vecinos",
+      "industrial": "Nave o industrial",
+      "land": "Terreno o exterior"
+    },
+    "schedules": {
+      "asap": "Lo antes posible",
+      "within_weeks": "En 2-4 semanas",
+      "within_months": "En 1-3 meses",
+      "gathering_quotes": "Solo estoy pidiendo precios"
+    },
+    "propertyType": "Tipo de inmueble",
+    "schedule": "Plazo",
+    "services": "Servicios"
   },
   "projects": {
     "title": "Solicitudes en tu zona",
@@ -401,6 +428,7 @@
     "CONTACT_LOCKED": "Compra el contacto para ver los datos del cliente.",
     "CONSENT_REQUIRED": "Debes aceptar la política de privacidad para publicar.",
     "UNKNOWN_POSTAL_CODE": "No reconocemos ese código postal.",
+    "POSTAL_CODE_NOT_COVERED": "Por ahora solo damos servicio en la Comunidad de Madrid.",
     "PROFILE_INCOMPLETE": "Completa tu perfil para continuar.",
     "PROFESSIONAL_NOT_FOUND": "Todavía no has creado tu perfil profesional.",
     "CATEGORY_NOT_FOUND": "Ese oficio no está disponible.",
@@ -419,7 +447,12 @@
     "SUBSCRIPTION_REQUIRED": "Activa tu recarga mensual para poder comprar contactos.",
     "SUBSCRIPTION_ALREADY_EXISTS": "Ya tienes una mensualidad en curso. Gestiónala desde tu cuenta.",
     "INSUFFICIENT_CREDIT": "No tienes saldo suficiente para esta operación.",
-    "ACCOUNT_NOT_FOUND": "No encontramos tu cuenta de mensualidad."
+    "ACCOUNT_NOT_FOUND": "No encontramos tu cuenta de mensualidad.",
+    "INVALID_SERVICE": "Uno de los servicios elegidos no pertenece a esa categoría.",
+    "PHONE_NOT_MOBILE": "Para verificar tu teléfono necesitamos un móvil español.",
+    "PHONE_NOT_VERIFIED": "El código no es correcto o ha caducado. Pide otro si lo necesitas.",
+    "TOO_MANY_VERIFICATION_ATTEMPTS": "Has pedido demasiados códigos. Espera unos minutos y vuelve a intentarlo.",
+    "PHONE_VERIFICATION_UNAVAILABLE": "No hemos podido enviarte el SMS. Inténtalo de nuevo en unos minutos."
   },
   "validation": {
     "categoryRequired": "Elige un oficio.",
@@ -429,6 +462,7 @@
     "descriptionTooLong": "La descripción es demasiado larga.",
     "postalCodeFormat": "El código postal debe tener 5 dígitos.",
     "postalCodeUnknown": "Ese código postal no existe en España.",
+    "postalCodeNotCovered": "Por ahora solo damos servicio en la Comunidad de Madrid (códigos postales 28xxx).",
     "phoneFormat": "Introduce un teléfono español válido.",
     "emailFormat": "Ese email no es válido.",
     "nameTooShort": "Escribe tu nombre.",
@@ -442,6 +476,10 @@
     "tooManyCategories": "Has seleccionado demasiados oficios.",
     "photoType": "{filename}: formato no admitido.",
     "photoSize": "{filename}: supera los 10 MB.",
-    "photoCount": "{filename}: has alcanzado el máximo de fotos."
+    "photoCount": "{filename}: has alcanzado el máximo de fotos.",
+    "propertyTypeRequired": "Elige el tipo de inmueble.",
+    "scheduleRequired": "Indica la programación de tu proyecto.",
+    "tooManyServices": "Puedes marcar como máximo 10 servicios.",
+    "phoneCodeFormat": "El código tiene 6 cifras."
   }
 }

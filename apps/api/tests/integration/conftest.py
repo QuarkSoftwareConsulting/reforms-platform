@@ -21,9 +21,9 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from app.config import get_settings
-from app.domain.models import Category, Professional, User, UserRole
+from app.domain.models import Category, Professional, Service, User, UserRole
 from app.domain.value_objects import Coordinates, Email, Money, PhoneNumber, PostalCode
-from app.infrastructure.adapters.db.models import Base, PostalCodeRow
+from app.infrastructure.adapters.db.models import Base, PostalCodeRow, ServiceRow
 from app.infrastructure.adapters.db.repositories import (
     SqlAlchemyCategoryRepository,
     SqlAlchemyLeadRepository,
@@ -47,10 +47,12 @@ TRUNCATE_ORDER = (
     "lead_purchases",
     "lead_consents",
     "lead_photos",
+    "lead_services",
     "leads",
     "professional_categories",
     "professionals",
     "users",
+    "services",
     "categories",
 )
 
@@ -129,7 +131,21 @@ async def carpentry(session: AsyncSession) -> Category:
         currency="EUR",
         active=True,
     )
+    services = [
+        ServiceRow(
+            id=uuid4(),
+            category_id=row.id,
+            slug=slug,
+            name_es=slug.title(),
+            name_en=slug.title(),
+            sort_order=index,
+            active=True,
+        )
+        for index, slug in enumerate(("puertas", "armarios"))
+    ]
     session.add(row)
+    await session.flush()
+    session.add_all(services)
     await session.commit()
     return Category(
         id=row.id,
@@ -137,6 +153,10 @@ async def carpentry(session: AsyncSession) -> Category:
         name_es=row.name_es,
         name_en=row.name_en,
         suggested_lead_price=Money(row.suggested_lead_price_cents, row.currency),
+        services=[
+            Service(id=s.id, slug=s.slug, name_es=s.name_es, name_en=s.name_en, sort_order=i)
+            for i, s in enumerate(services)
+        ],
     )
 
 

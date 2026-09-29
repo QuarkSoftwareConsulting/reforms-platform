@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     default_lead_price_cents: int = Field(default=500, gt=0)
     default_currency: str = "EUR"
     privacy_policy_version: str = "2026-09-v2"
+    # Prefijos de CP donde se pueden publicar solicitudes. Etapa 1: Comunidad de Madrid.
+    covered_postal_prefixes: str = "28"
+    # Verificacion del movil del cliente por SMS antes de publicar. "disabled" hasta
+    # que haya proveedor; "console" escribe el codigo en el log (solo desarrollo).
+    phone_verification_backend: Literal["disabled", "console"] = "disabled"
     enforce_category_match: bool = True
 
     # ------------------------------- Stripe ------------------------------
@@ -70,6 +75,18 @@ class Settings(BaseSettings):
             raise ValueError("GCS_BUCKET es obligatorio con STORAGE_BACKEND=gcs")
         if self.storage_backend == "gcs" and self.google_application_credentials:
             raise ValueError("GCS requiere ADC del runtime, sin GOOGLE_APPLICATION_CREDENTIALS")
+        return self
+
+    @model_validator(mode="after")
+    def _validate_phone_verification(self) -> Settings:
+        if self.phone_verification_backend == "console" and self.environment not in {
+            "development",
+            "test",
+        }:
+            raise ValueError(
+                "PHONE_VERIFICATION_BACKEND=console escribe los codigos en el log: "
+                "solo se permite en development y test"
+            )
         return self
 
     @field_validator("log_level")

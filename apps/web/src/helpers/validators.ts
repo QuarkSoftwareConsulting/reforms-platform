@@ -7,9 +7,12 @@
 
 import { z } from "zod";
 
+import { PROJECT_SCHEDULES, PROPERTY_TYPES } from "@/helpers/leadOptions";
+
 export const MIN_DESCRIPTION_LENGTH = 20;
 export const MAX_DESCRIPTION_LENGTH = 4000;
 export const MAX_PHOTOS = 8;
+export const MAX_SERVICES_PER_LEAD = 10;
 export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 export const ALLOWED_PHOTO_TYPES = [
   "image/jpeg",
@@ -28,6 +31,15 @@ export const spanishPostalCode = z
     return province >= 1 && province <= 52;
   }, "postalCodeUnknown");
 
+/**
+ * CP donde se pueden publicar solicitudes: en la Etapa 1, solo la Comunidad de
+ * Madrid. La regla la impone el backend (`ServiceArea`); aqui se avisa antes.
+ */
+export const coveredPostalCode = spanishPostalCode.refine(
+  (value) => value.startsWith("28"),
+  "postalCodeNotCovered",
+);
+
 /** Telefono espanol: movil (6/7) o fijo (8/9), con prefijo +34 opcional. */
 export const phoneNumber = z
   .string()
@@ -41,6 +53,8 @@ export const optionalEmail = z
 
 export const leadStepCategorySchema = z.object({
   categoryId: z.string().uuid("categoryRequired"),
+  // Opcionales: el cliente puede no encontrar su servicio exacto en el catalogo.
+  serviceIds: z.array(z.string().uuid()).max(MAX_SERVICES_PER_LEAD, "tooManyServices"),
 });
 
 export const leadStepDetailsSchema = z.object({
@@ -50,7 +64,9 @@ export const leadStepDetailsSchema = z.object({
     .trim()
     .min(MIN_DESCRIPTION_LENGTH, "descriptionTooShort")
     .max(MAX_DESCRIPTION_LENGTH, "descriptionTooLong"),
-  postalCode: spanishPostalCode,
+  propertyType: z.enum(PROPERTY_TYPES, { errorMap: () => ({ message: "propertyTypeRequired" }) }),
+  schedule: z.enum(PROJECT_SCHEDULES, { errorMap: () => ({ message: "scheduleRequired" }) }),
+  postalCode: coveredPostalCode,
 });
 
 export const leadStepContactSchema = z.object({

@@ -22,6 +22,10 @@ from app.application.use_cases.handle_payment_event import (
 from app.application.use_cases.list_categories import ListCategories
 from app.application.use_cases.list_leads import ListLeads
 from app.application.use_cases.list_my_purchases import ListMyPurchases
+from app.application.use_cases.phone_verification import (
+    PhoneVerificationStart,
+    StartPhoneVerification,
+)
 from app.application.use_cases.release_expired_reservations import ReleaseExpiredReservations
 from app.application.use_cases.request_photo_upload import RequestPhotoUpload
 from app.application.use_cases.start_lead_purchase import StartLeadPurchase
@@ -60,12 +64,14 @@ __all__ = [
     "MarkPurchaseForReview",
     "OpenBillingPortal",
     "PaymentEventOutcome",
+    "PhoneVerificationStart",
     "ReleaseExpiredReservations",
     "RequestPhotoUpload",
     "SetCategorySuggestedPrice",
     "SetLeadPrice",
     "SetSubscriptionPrice",
     "StartLeadPurchase",
+    "StartPhoneVerification",
     "StartSubscription",
     "SubscriptionPricing",
     "SyncUserFromIdentity",

@@ -100,3 +100,29 @@ class CreditEntryKind(StrEnum):
             CreditEntryKind.SPEND_REVERSAL,
             CreditEntryKind.ADJUSTMENT_CREDIT,
         }
+
+
+class PropertyType(StrEnum):
+    """Tipo de inmueble de la solicitud (formulario F01, paso 2)."""
+
+    FLAT = "flat"
+    HOUSE = "house"
+    COMMERCIAL = "commercial"
+    OFFICE = "office"
+    COMMUNITY = "community"
+    INDUSTRIAL = "industrial"
+    LAND = "land"
+
+
+class ProjectSchedule(StrEnum):
+    """Respuesta a "Cual es la programacion actual de tu proyecto?" (el plazo)."""
+
+    ASAP = "asap"
+    WITHIN_WEEKS = "within_weeks"
+    """En 2-4 semanas."""
+
+    WITHIN_MONTHS = "within_months"
+    """En 1-3 meses."""
+
+    GATHERING_QUOTES = "gathering_quotes"
+    """Solo esta pidiendo precios."""

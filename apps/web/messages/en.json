@@ -114,7 +114,7 @@
     "descriptionHint": "At least {min} characters. More detail means better quotes.",
     "postalCodeLabel": "Postal code",
     "postalCodePlaceholder": "28001",
-    "postalCodeHint": "The public listing shows only the town and province, never the exact address.",
+    "postalCodeHint": "Only in the Community of Madrid for now. Professionals see your postcode and town, never your address.",
     "photosLabel": "Job photos",
     "photosHint": "Up to {max} photos (JPG, PNG or WEBP, max 10 MB each).",
     "photosAdd": "Add photos",
@@ -157,8 +157,35 @@
     "submit": "Publish request",
     "submitting": "Publishing...",
     "successTitle": "Request received",
-    "successBody": "It's now visible to professionals in {city}. They will call you directly on the number you gave us.",
-    "publishAnother": "Send another request"
+    "successBody": "It's now visible to professionals in {city}. They will contact you directly using the details you gave us.",
+    "publishAnother": "Send another request",
+    "propertyTypeLabel": "What type of property is it?",
+    "scheduleLabel": "What is the current timing of your project?",
+    "servicesLabel": "What do you need in {category}?",
+    "servicesHint": "Optional. Tick one or more services.",
+    "phoneCodeLabel": "Verification code",
+    "phoneCodeHint": "We have sent it by text message to {phone}. Enter it to publish your request.",
+    "phoneCodeResend": "Send another code"
+  },
+  "project": {
+    "propertyTypes": {
+      "flat": "Flat",
+      "house": "House or villa",
+      "commercial": "Commercial premises",
+      "office": "Office",
+      "community": "Residents' association",
+      "industrial": "Warehouse or industrial",
+      "land": "Land or outdoor"
+    },
+    "schedules": {
+      "asap": "As soon as possible",
+      "within_weeks": "In 2-4 weeks",
+      "within_months": "In 1-3 months",
+      "gathering_quotes": "Just comparing prices"
+    },
+    "propertyType": "Property type",
+    "schedule": "Timing",
+    "services": "Services"
   },
   "projects": {
     "title": "Requests near you",
@@ -401,6 +428,7 @@
     "CONTACT_LOCKED": "Buy the contact to see the client's details.",
     "CONSENT_REQUIRED": "You must accept the privacy policy to publish.",
     "UNKNOWN_POSTAL_CODE": "We don't recognise that postal code.",
+    "POSTAL_CODE_NOT_COVERED": "For now we only serve the Community of Madrid.",
     "PROFILE_INCOMPLETE": "Complete your profile to continue.",
     "PROFESSIONAL_NOT_FOUND": "You haven't created your professional profile yet.",
     "CATEGORY_NOT_FOUND": "That trade isn't available.",
@@ -419,7 +447,12 @@
     "SUBSCRIPTION_REQUIRED": "Activate your monthly top-up to buy contacts.",
     "SUBSCRIPTION_ALREADY_EXISTS": "You already have a monthly fee in progress. Manage it from your account.",
     "INSUFFICIENT_CREDIT": "You don't have enough balance for this operation.",
-    "ACCOUNT_NOT_FOUND": "We couldn't find your monthly fee account."
+    "ACCOUNT_NOT_FOUND": "We couldn't find your monthly fee account.",
+    "INVALID_SERVICE": "One of the chosen services does not belong to that category.",
+    "PHONE_NOT_MOBILE": "To verify your phone we need a Spanish mobile number.",
+    "PHONE_NOT_VERIFIED": "The code is wrong or has expired. Ask for another one if you need it.",
+    "TOO_MANY_VERIFICATION_ATTEMPTS": "You have asked for too many codes. Wait a few minutes and try again.",
+    "PHONE_VERIFICATION_UNAVAILABLE": "We couldn't send you the text message. Please try again in a few minutes."
   },
   "validation": {
     "categoryRequired": "Pick a trade.",
@@ -429,6 +462,7 @@
     "descriptionTooLong": "The description is too long.",
     "postalCodeFormat": "The postal code must be 5 digits.",
     "postalCodeUnknown": "That postal code doesn't exist in Spain.",
+    "postalCodeNotCovered": "For now we only serve the Community of Madrid (postal codes 28xxx).",
     "phoneFormat": "Enter a valid Spanish phone number.",
     "emailFormat": "That email isn't valid.",
     "nameTooShort": "Enter your name.",
@@ -442,6 +476,10 @@
     "tooManyCategories": "You selected too many trades.",
     "photoType": "{filename}: unsupported format.",
     "photoSize": "{filename}: over the 10 MB limit.",
-    "photoCount": "{filename}: you reached the photo limit."
+    "photoCount": "{filename}: you reached the photo limit.",
+    "propertyTypeRequired": "Choose the type of property.",
+    "scheduleRequired": "Tell us the timing of your project.",
+    "tooManyServices": "You can tick at most 10 services.",
+    "phoneCodeFormat": "The code has 6 digits."
   }
 }

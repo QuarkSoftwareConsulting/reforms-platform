@@ -393,7 +393,9 @@ class InMemoryCategoryRepository(CategoryRepositoryPort):
 
     async def list_active(self) -> list[Category]:
         await _round_trip()
-        return [c for c in self.items.values() if c.active]
+        return sorted(
+            (c for c in self.items.values() if c.active), key=lambda c: (c.sort_order, c.name_es)
+        )
 
     async def get(self, category_id: UUID) -> Category | None:
         await _round_trip()
