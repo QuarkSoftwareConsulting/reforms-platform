@@ -125,6 +125,17 @@ class VerificationTransitionError(DomainError):
     status = 409
 
 
+class RejectionAwaitingPaymentError(DomainError):
+    """El primer cobro de la recarga sigue en proceso: no se puede rechazar todavia.
+
+    Un adeudo SEPA en proceso no se puede anular: se confirmaria despues del rechazo,
+    abonando saldo a un rechazado sin que nadie lo reembolse.
+    """
+
+    code = "REJECTION_AWAITING_PAYMENT"
+    status = 409
+
+
 class VerificationLockedError(DomainError):
     """Estos datos ya se enviaron a revision y no se pueden cambiar."""
 
@@ -286,6 +297,7 @@ __all__ = [
     "ProfessionalRejectedError",
     "PurchaseNotFoundError",
     "PurchaseNotPayableError",
+    "RejectionAwaitingPaymentError",
     "SubscriptionAlreadyExistsError",
     "SubscriptionRequiredError",
     "TooManyVerificationAttemptsError",

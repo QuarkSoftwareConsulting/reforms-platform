@@ -1,5 +1,6 @@
 """Alta y validacion del profesional (F02) con fakes de todos los puertos."""
 
+import asyncio
 from datetime import timedelta
 from uuid import UUID, uuid4
 
@@ -15,6 +16,7 @@ from app.domain.exceptions import (
     PostalCodeNotCoveredError,
     ProfessionalNotApprovedError,
     ProfessionalProfileIncompleteError,
+    RejectionAwaitingPaymentError,
     ValidationError,
     VerificationLockedError,
     VerificationTransitionError,
@@ -27,6 +29,7 @@ from app.domain.models import (
     Professional,
     ProfessionalType,
     Service,
+    SubscriptionStatus,
     VerificationStatus,
 )
 from app.domain.value_objects import Money, TaxId
@@ -370,3 +373,91 @@ class TestRejection:
             )
         assert world.payments.refunds == {}
         assert world.payments.canceled_subscriptions == set()
+
+
+class TestRejectionUnderConcurrency:
+    """Aprobar, rechazar y guardar el perfil a la vez no deben pisarse (4.13)."""
+
+    async def paying_pending(self, world: World, carpentry: Category) -> Professional:
+        professional = await pending(world, carpentry)
+        world.add_account(professional, balance_cents=1800)
+        paid_topup(world, professional.id, "in_first")
+        return professional
+
+    @pytest.mark.parametrize("approve_first", [False, True])
+    async def test_approve_and_reject_at_once_leave_one_consistent_outcome(
+        self, world: World, carpentry: Category, approve_first: bool
+    ) -> None:
+        professional = await self.paying_pending(world, carpentry)
+        reject = world.reject_professional.execute(
+            professional_id=professional.id, admin_user_id=ADMIN, reason="Ilegible"
+        )
+        approve = world.approve_professional.execute(
+            professional_id=professional.id, admin_user_id=ADMIN
+        )
+        calls = [approve, reject] if approve_first else [reject, approve]
+
+        results = await asyncio.gather(*calls, return_exceptions=True)
+
+        failures = [r for r in results if isinstance(r, BaseException)]
+        assert len(failures) == 1, "solo una de las dos decisiones puede ganar"
+        assert isinstance(failures[0], VerificationTransitionError)
+        final = world.professionals.items[professional.id].verification_status
+        # Nunca un aprobado con el primer cobro devuelto y la recarga cancelada.
+        if final is VerificationStatus.APPROVED:
+            assert world.payments.refunds == {}
+            assert world.payments.canceled_subscriptions == set()
+        else:
+            assert final is VerificationStatus.REJECTED
+            assert list(world.payments.refunds.values()) == ["in_first"]
+
+    async def test_saving_the_profile_during_a_rejection_keeps_it_rejected(
+        self, world: World, carpentry: Category
+    ) -> None:
+        professional = await self.paying_pending(world, carpentry)
+
+        await asyncio.gather(
+            world.reject_professional.execute(
+                professional_id=professional.id, admin_user_id=ADMIN, reason="Ilegible"
+            ),
+            world.upsert_profile.execute(
+                user_id=professional.user_id,
+                data=profile(carpentry, business_name="Reformas Lopez e Hijos"),
+            ),
+        )
+
+        stored = world.professionals.items[professional.id]
+        assert stored.verification_status is VerificationStatus.REJECTED
+        assert stored.business_name == "Reformas Lopez e Hijos"
+
+
+class TestRejectionWithPaymentInFlight:
+    async def test_cannot_reject_while_the_first_charge_is_processing(
+        self, world: World, carpentry: Category
+    ) -> None:
+        # SEPA: checkout completado, adeudo en curso. No se puede anular, asi que
+        # se confirmaria despues y abonaria saldo a un rechazado sin reembolso.
+        professional = await pending(world, carpentry)
+        world.add_account(professional, subscription_status=SubscriptionStatus.PENDING)
+
+        with pytest.raises(RejectionAwaitingPaymentError):
+            await world.reject_professional.execute(
+                professional_id=professional.id, admin_user_id=ADMIN, reason="Ilegible"
+            )
+        assert world.payments.refunds == {}
+        assert world.payments.canceled_subscriptions == set()
+        stored = world.professionals.items[professional.id]
+        assert stored.verification_status is VerificationStatus.PENDING
+
+    async def test_a_failed_first_charge_does_not_block_the_rejection(
+        self, world: World, carpentry: Category
+    ) -> None:
+        professional = await pending(world, carpentry)
+        world.add_account(professional, subscription_status=SubscriptionStatus.PAST_DUE)
+
+        result = await world.reject_professional.execute(
+            professional_id=professional.id, admin_user_id=ADMIN, reason="Ilegible"
+        )
+        assert result.professional.verification_status is VerificationStatus.REJECTED
+        assert result.refunded is None
+        assert result.subscription_canceled

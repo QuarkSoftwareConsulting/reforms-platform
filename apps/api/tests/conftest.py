@@ -389,7 +389,7 @@ def world() -> World:
         leads=InMemoryLeadRepository(uow=uow),
         purchases=InMemoryPurchaseRepository(),
         reviews=InMemoryPurchaseReviewRepository(),
-        professionals=InMemoryProfessionalRepository(),
+        professionals=InMemoryProfessionalRepository(uow=uow),
         users=InMemoryUserRepository(),
         categories=InMemoryCategoryRepository(),
         postal_codes=InMemoryPostalCodeRepository(POSTAL_CODES),

@@ -62,8 +62,8 @@ npx -y firebase-tools emulators:start --only auth \
 | Objetivo | Comando |
 |---|---|
 | Todo el lint (ruff + mypy strict + eslint + tsc) | `pnpm lint` |
-| Todos los tests (561 back + 113 front) | `pnpm test` |
-| Backend rápido, **sin Docker** (468 tests) | `cd apps/api && uv run pytest -m "not integration"` |
+| Todos los tests (568 back + 113 front) | `pnpm test` |
+| Backend rápido, **sin Docker** (475 tests) | `cd apps/api && uv run pytest -m "not integration"` |
 | Backend completo (requiere `pnpm infra:up`) | `pnpm api:test` |
 | Un solo test de backend | `cd apps/api && uv run pytest tests/unit/domain/test_lead.py -k capping` |
 | Frontend en watch | `pnpm --filter web test:watch` |
@@ -215,6 +215,13 @@ pasarela falla no se guarda nada y el admin reintenta. Lo que impida rechazar (e
 motivo) se comprueba antes, con `assert_can_reject`. Pasadas 24 h Stripe olvida la clave
 de idempotencia: un cargo ya reembolsado cuenta como hecho. El saldo del primer cobro se retira
 con `VERIFICATION_REFUND` sobre la misma factura.
+→ Quien escribe el perfil (enviar, aprobar, rechazar, guardar el perfil, documentos) lo
+carga con `get_for_update` dentro de la transacción: `update` reescribe el perfil entero,
+estado del alta incluido. El rechazo mantiene el bloqueo durante las llamadas a Stripe.
+Orden de bloqueo: **profesional antes que cuenta**.
+→ Con la recarga en `pending` (adeudo SEPA en proceso) no se rechaza
+(`409 REJECTION_AWAITING_PAYMENT`): ese adeudo no se puede anular y se confirmaría después,
+abonando saldo a un rechazado sin reembolso.
 → Los documentos de alta (DNI, modelos de Hacienda) van al **bucket privado**
 (`S3_PRIVATE_BUCKET` / `GCS_PRIVATE_BUCKET`, nunca el público) y solo salen con URLs
 firmadas de corta duración en el expediente del admin. El perfil propio no las incluye.

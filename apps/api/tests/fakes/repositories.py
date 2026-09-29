@@ -355,9 +355,40 @@ class InMemoryUserRepository(UserRepositoryPort):
 
 
 class InMemoryProfessionalRepository(ProfessionalRepositoryPort):
-    def __init__(self, professionals: list[Professional] | None = None) -> None:
+    """Perfiles. `get_for_update` imita el FOR UPDATE con un lock por profesional.
+
+    `get_for_update` devuelve una COPIA, como dos sesiones de Postgres: sin ella no se
+    reproduce la carrera entre aprobar y rechazar (cada uno escribe el estado que
+    leyo). `get` sigue devolviendo la instancia, como el resto de este fake.
+    """
+
+    def __init__(
+        self,
+        professionals: list[Professional] | None = None,
+        *,
+        uow: InMemoryUnitOfWork | None = None,
+    ) -> None:
         self.items: dict[UUID, Professional] = {p.id: p for p in (professionals or [])}
         self.events: list[VerificationEvent] = []
+        self._locks: dict[UUID, asyncio.Lock] = {}
+        self.uow = uow
+        self.locking_enabled = True
+        """Solo para comprobar que el test de carrera falla sin el bloqueo."""
+
+    async def get_for_update(self, professional_id: UUID) -> Professional | None:
+        await _round_trip()
+        if professional_id not in self.items:
+            return None
+        if self.locking_enabled:
+            lock = self._locks.setdefault(professional_id, asyncio.Lock())
+            await lock.acquire()
+            if self.uow is not None:
+                self.uow.register_release(lock.release)
+            else:
+                lock.release()
+        # Se lee DESPUES de obtener el bloqueo: ve lo que confirmo quien lo tenia.
+        # Copia profunda: documentos y fotos son listas que el caso de uso muta.
+        return copy.deepcopy(self.items[professional_id])
 
     async def add(self, professional: Professional) -> Professional:
         await _round_trip()
