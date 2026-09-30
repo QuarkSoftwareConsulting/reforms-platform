@@ -8,6 +8,8 @@ from typing import Literal
 from pydantic import Field, computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.domain.models import policy_covers_public_preview
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -31,16 +33,25 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3010"
 
     # ------------------------------- Reglas de negocio -------------------
-    lead_max_purchases: int = Field(default=3, ge=1, le=10)
+    lead_max_purchases: int = Field(default=5, ge=1, le=10)
     purchase_reservation_ttl_minutes: int = Field(default=30, ge=5, le=1440)
     default_lead_price_cents: int = Field(default=500, gt=0)
     default_currency: str = "EUR"
-    privacy_policy_version: str = "2026-01-v1"
+    privacy_policy_version: str = "2026-09-v2"
+    # Prefijos de CP donde se pueden publicar solicitudes. Etapa 1: Comunidad de Madrid.
+    covered_postal_prefixes: str = "28"
+    # Verificacion del movil del cliente por SMS antes de publicar. "disabled" hasta
+    # que haya proveedor; "console" escribe el codigo en el log (solo desarrollo).
+    phone_verification_backend: Literal["disabled", "console"] = "disabled"
     enforce_category_match: bool = True
 
     # ------------------------------- Stripe ------------------------------
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
+    # Mensualidad INICIAL, hasta que el admin fije la suya desde el panel (que crea
+    # su propio precio en Stripe y tiene prioridad). Deben coincidir entre si.
+    stripe_topup_price_id: str = ""
+    subscription_topup_cents: int = Field(default=1800, gt=0)
 
     # ------------------------------- Firebase ----------------------------
     firebase_project_id: str = ""
@@ -51,10 +62,14 @@ class Settings(BaseSettings):
     # ------------------------------- Almacenamiento ----------------------
     storage_backend: Literal["s3", "gcs"] = "s3"
     gcs_bucket: str = ""
+    # Bucket PRIVADO de los documentos de alta del profesional (DNI, modelos de
+    # Hacienda). Sin acceso publico: solo descargas firmadas para el admin.
+    gcs_private_bucket: str = ""
     gcs_signed_url_expires_seconds: int = Field(default=900, ge=1, le=604800)
     s3_endpoint_url: str = "http://localhost:9000"
     s3_public_base_url: str = "http://localhost:9000/reforma-hub-dev"
     s3_bucket: str = "reforma-hub-dev"
+    s3_private_bucket: str = "reforma-hub-private"
     s3_region: str = "auto"
     s3_access_key_id: str = ""
     s3_secret_access_key: str = ""
@@ -64,8 +79,40 @@ class Settings(BaseSettings):
     def _validate_storage(self) -> Settings:
         if self.storage_backend == "gcs" and not self.gcs_bucket.strip():
             raise ValueError("GCS_BUCKET es obligatorio con STORAGE_BACKEND=gcs")
+        if self.storage_backend == "gcs" and not self.gcs_private_bucket.strip():
+            raise ValueError("GCS_PRIVATE_BUCKET es obligatorio con STORAGE_BACKEND=gcs")
+        private = (
+            self.gcs_private_bucket if self.storage_backend == "gcs" else self.s3_private_bucket
+        )
+        public = self.gcs_bucket if self.storage_backend == "gcs" else self.s3_bucket
+        if private.strip() == public.strip():
+            # Con el mismo bucket los documentos de identidad serian publicos.
+            raise ValueError("El bucket privado de documentos no puede ser el publico")
         if self.storage_backend == "gcs" and self.google_application_credentials:
             raise ValueError("GCS requiere ADC del runtime, sin GOOGLE_APPLICATION_CREDENTIALS")
+        return self
+
+    @model_validator(mode="after")
+    def _validate_privacy_policy(self) -> Settings:
+        # Sin esto, subir la version y olvidar declararla en el dominio apagaria la
+        # vista previa de todos los leads nuevos sin que nadie se entere.
+        if not policy_covers_public_preview(self.privacy_policy_version):
+            raise ValueError(
+                f"PRIVACY_POLICY_VERSION={self.privacy_policy_version} no figura en "
+                "PUBLIC_PREVIEW_POLICY_VERSIONS: declara si cubre la vista previa del lead"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _validate_phone_verification(self) -> Settings:
+        if self.phone_verification_backend == "console" and self.environment not in {
+            "development",
+            "test",
+        }:
+            raise ValueError(
+                "PHONE_VERIFICATION_BACKEND=console escribe los codigos en el log: "
+                "solo se permite en development y test"
+            )
         return self
 
     @field_validator("log_level")

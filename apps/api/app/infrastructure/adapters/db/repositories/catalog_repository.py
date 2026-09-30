@@ -34,7 +34,12 @@ class SqlAlchemyCategoryRepository(CategoryRepositoryPort):
         self._session = session
 
     async def list_active(self) -> list[Category]:
-        stmt = select(CategoryRow).where(CategoryRow.active.is_(True)).order_by(CategoryRow.name_es)
+        # El orden lo fija el catalogo (el del documento del cliente), no el alfabeto.
+        stmt = (
+            select(CategoryRow)
+            .where(CategoryRow.active.is_(True))
+            .order_by(CategoryRow.sort_order, CategoryRow.name_es)
+        )
         rows = (await self._session.execute(stmt)).scalars().all()
         return [category_to_domain(row) for row in rows]
 

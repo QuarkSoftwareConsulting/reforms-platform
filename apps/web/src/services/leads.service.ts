@@ -1,8 +1,9 @@
 /** Endpoints de solicitudes. */
 
+import type { ProjectSchedule, PropertyType } from "@/helpers/leadOptions";
 import { request } from "@/services/api";
 import type {
-  Category,
+  CatalogCategory,
   CreatedLead,
   LeadDetail,
   LeadList,
@@ -20,6 +21,11 @@ export interface CreateLeadPayload {
   client_phone: string;
   client_email: string | null;
   photo_keys: string[];
+  service_ids: string[];
+  property_type: PropertyType;
+  schedule: ProjectSchedule;
+  /** Codigo del SMS; `null` si el entorno no verifica por SMS. */
+  phone_verification_code: string | null;
   consent: { accepted: boolean };
 }
 
@@ -37,6 +43,15 @@ export const leadsService = {
       method: "POST",
       body: payload,
       locale,
+      anonymous: true,
+    });
+  },
+
+  /** Pide el SMS de verificacion. `required: false` = este entorno no verifica. */
+  startPhoneVerification(phone: string): Promise<{ required: boolean }> {
+    return request<{ required: boolean }>("/leads/phone-verification", {
+      method: "POST",
+      body: { phone },
       anonymous: true,
     });
   },
@@ -66,9 +81,9 @@ export const leadsService = {
     return request<LeadDetail>(`/leads/${leadId}`, { locale });
   },
 
-  categories(locale: Locale): Promise<Category[]> {
+  categories(locale: Locale): Promise<CatalogCategory[]> {
     // El catalogo cambia muy poco: se cachea 5 minutos para las paginas SSR.
-    return request<Category[]>("/categories", { locale, anonymous: true, revalidate: 300 });
+    return request<CatalogCategory[]>("/categories", { locale, anonymous: true, revalidate: 300 });
   },
 
   postalCode(code: string): Promise<PostalCodeInfo> {

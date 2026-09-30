@@ -104,6 +104,45 @@ class ProfessionalProfileIncompleteError(DomainError):
     status = 409
 
 
+class ProfessionalNotApprovedError(DomainError):
+    """Tu perfil todavia no esta aprobado: podras comprar contactos cuando lo validemos."""
+
+    code = "PROFESSIONAL_NOT_APPROVED"
+    status = 403
+
+
+class ProfessionalRejectedError(DomainError):
+    """Tu solicitud de alta fue rechazada."""
+
+    code = "PROFESSIONAL_REJECTED"
+    status = 403
+
+
+class VerificationTransitionError(DomainError):
+    """Ese cambio de estado de la validacion no es posible ahora."""
+
+    code = "INVALID_VERIFICATION_TRANSITION"
+    status = 409
+
+
+class RejectionAwaitingPaymentError(DomainError):
+    """El primer cobro de la recarga sigue en proceso: no se puede rechazar todavia.
+
+    Un adeudo SEPA en proceso no se puede anular: se confirmaria despues del rechazo,
+    abonando saldo a un rechazado sin que nadie lo reembolse.
+    """
+
+    code = "REJECTION_AWAITING_PAYMENT"
+    status = 409
+
+
+class VerificationLockedError(DomainError):
+    """Estos datos ya se enviaron a revision y no se pueden cambiar."""
+
+    code = "VERIFICATION_LOCKED"
+    status = 409
+
+
 class ProfessionalNotFoundError(NotFoundError):
     """El profesional no existe."""
 
@@ -122,6 +161,24 @@ class UnknownPostalCodeError(ValidationError):
     code = "UNKNOWN_POSTAL_CODE"
 
 
+class InvalidTaxIdError(ValidationError):
+    """El NIF, NIE o CIF no es valido: revisa la letra o el digito de control."""
+
+    code = "INVALID_TAX_ID"
+
+
+class InvalidServiceError(ValidationError):
+    """El servicio elegido no pertenece a la categoria de la solicitud."""
+
+    code = "INVALID_SERVICE"
+
+
+class PostalCodeNotCoveredError(ValidationError):
+    """Todavia no damos servicio en ese codigo postal."""
+
+    code = "POSTAL_CODE_NOT_COVERED"
+
+
 class InvalidSalePriceError(ValidationError):
     """El precio de venta indicado no es valido."""
 
@@ -138,6 +195,62 @@ class ConsentRequiredError(ValidationError):
     """Debes aceptar la politica de privacidad para publicar la solicitud."""
 
     code = "CONSENT_REQUIRED"
+
+
+# --------------------------- Recarga y saldo -----------------------------
+
+
+class SubscriptionRequiredError(DomainError):
+    """Activa la recarga mensual para poder comprar contactos."""
+
+    code = "SUBSCRIPTION_REQUIRED"
+    status = 402
+
+
+class SubscriptionAlreadyExistsError(DomainError):
+    """Ya tienes una recarga mensual en curso. Gestionala desde tu cuenta."""
+
+    code = "SUBSCRIPTION_ALREADY_EXISTS"
+    status = 409
+
+
+class InsufficientCreditError(DomainError):
+    """No tienes saldo suficiente para esta operacion."""
+
+    code = "INSUFFICIENT_CREDIT"
+    status = 409
+
+
+class ProfessionalAccountNotFoundError(NotFoundError):
+    """No encontramos la cuenta de recarga del profesional."""
+
+    code = "ACCOUNT_NOT_FOUND"
+
+
+class PhoneNotMobileError(ValidationError):
+    """Para verificar el telefono por SMS hace falta un movil espanol."""
+
+    code = "PHONE_NOT_MOBILE"
+
+
+class PhoneNotVerifiedError(ValidationError):
+    """El codigo de verificacion del telefono no es correcto o ha caducado."""
+
+    code = "PHONE_NOT_VERIFIED"
+
+
+class TooManyVerificationAttemptsError(DomainError):
+    """Demasiados codigos pedidos para este telefono. Prueba mas tarde."""
+
+    code = "TOO_MANY_VERIFICATION_ATTEMPTS"
+    status = 429
+
+
+class PhoneVerificationUnavailableError(DomainError):
+    """No hemos podido enviar el SMS de verificacion."""
+
+    code = "PHONE_VERIFICATION_UNAVAILABLE"
+    status = 503
 
 
 class PaymentGatewayError(DomainError):
@@ -162,7 +275,10 @@ __all__ = [
     "ContactLockedError",
     "CurrencyMismatchError",
     "DomainError",
+    "InsufficientCreditError",
     "InvalidSalePriceError",
+    "InvalidServiceError",
+    "InvalidTaxIdError",
     "LeadAlreadyPurchasedError",
     "LeadCapReachedError",
     "LeadNotFoundError",
@@ -170,10 +286,23 @@ __all__ = [
     "NotFoundError",
     "PaymentGatewayError",
     "PermissionDeniedError",
+    "PhoneNotMobileError",
+    "PhoneNotVerifiedError",
+    "PhoneVerificationUnavailableError",
+    "PostalCodeNotCoveredError",
+    "ProfessionalAccountNotFoundError",
+    "ProfessionalNotApprovedError",
     "ProfessionalNotFoundError",
     "ProfessionalProfileIncompleteError",
+    "ProfessionalRejectedError",
     "PurchaseNotFoundError",
     "PurchaseNotPayableError",
+    "RejectionAwaitingPaymentError",
+    "SubscriptionAlreadyExistsError",
+    "SubscriptionRequiredError",
+    "TooManyVerificationAttemptsError",
     "UnknownPostalCodeError",
     "ValidationError",
+    "VerificationLockedError",
+    "VerificationTransitionError",
 ]

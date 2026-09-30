@@ -21,9 +21,9 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from app.config import get_settings
-from app.domain.models import Category, Professional, User, UserRole
+from app.domain.models import Category, Professional, Service, User, UserRole, VerificationStatus
 from app.domain.value_objects import Coordinates, Email, Money, PhoneNumber, PostalCode
-from app.infrastructure.adapters.db.models import Base, PostalCodeRow
+from app.infrastructure.adapters.db.models import Base, PostalCodeRow, ServiceRow
 from app.infrastructure.adapters.db.repositories import (
     SqlAlchemyCategoryRepository,
     SqlAlchemyLeadRepository,
@@ -41,13 +41,22 @@ pytestmark = pytest.mark.integration
 # Tablas a vaciar entre tests, en orden inverso de dependencias.
 TRUNCATE_ORDER = (
     "processed_payment_events",
+    "credit_entries",
+    "professional_accounts",
+    "subscription_prices",
     "lead_purchases",
     "lead_consents",
     "lead_photos",
+    "lead_services",
     "leads",
     "professional_categories",
+    "professional_services",
+    "professional_documents",
+    "professional_work_photos",
+    "professional_verification_events",
     "professionals",
     "users",
+    "services",
     "categories",
 )
 
@@ -126,7 +135,21 @@ async def carpentry(session: AsyncSession) -> Category:
         currency="EUR",
         active=True,
     )
+    services = [
+        ServiceRow(
+            id=uuid4(),
+            category_id=row.id,
+            slug=slug,
+            name_es=slug.title(),
+            name_en=slug.title(),
+            sort_order=index,
+            active=True,
+        )
+        for index, slug in enumerate(("puertas", "armarios"))
+    ]
     session.add(row)
+    await session.flush()
+    session.add_all(services)
     await session.commit()
     return Category(
         id=row.id,
@@ -134,6 +157,10 @@ async def carpentry(session: AsyncSession) -> Category:
         name_es=row.name_es,
         name_en=row.name_en,
         suggested_lead_price=Money(row.suggested_lead_price_cents, row.currency),
+        services=[
+            Service(id=s.id, slug=s.slug, name_es=s.name_es, name_en=s.name_en, sort_order=i)
+            for i, s in enumerate(services)
+        ],
     )
 
 
@@ -164,6 +191,8 @@ async def madrid_carpenter(session: AsyncSession, carpentry: Category) -> Profes
             city="Madrid",
             province="Madrid",
             category_ids={carpentry.id},
+            # Validado: los tests de integracion prueban la compra, no el alta.
+            verification_status=VerificationStatus.APPROVED,
         )
     )
     await session.commit()

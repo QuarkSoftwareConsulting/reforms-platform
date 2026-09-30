@@ -89,14 +89,14 @@ class TestProfessionalProfile:
             data=UpsertProfessionalInput(
                 business_name="Carpinteria Lopez",
                 phone="+34600111222",
-                postal_code="08001",
+                postal_code="28801",
                 service_radius_km=40,
                 category_ids={carpentry.id},
             ),
         )
 
-        assert professional.city == "Barcelona"
-        assert professional.province == "Barcelona"
+        assert professional.city == "Alcala de Henares"
+        assert professional.province == "Madrid"
         assert professional.service_radius_km == 40
         assert professional.category_ids == {carpentry.id}
 
@@ -118,7 +118,7 @@ class TestProfessionalProfile:
             data=UpsertProfessionalInput(
                 business_name="Reformas SL",
                 phone="+34600111222",
-                postal_code="08001",
+                postal_code="28801",
                 service_radius_km=60,
                 category_ids={carpentry.id, plumbing.id},
             ),
@@ -127,7 +127,7 @@ class TestProfessionalProfile:
         assert first.id == second.id
         assert len(world.professionals.items) == 1
         assert second.service_radius_km == 60
-        assert second.city == "Barcelona"
+        assert second.city == "Alcala de Henares"
         assert second.category_ids == {carpentry.id, plumbing.id}
 
     async def test_invalid_radius_is_rejected_on_update(
@@ -163,7 +163,7 @@ class TestProfessionalProfile:
                 data=UpsertProfessionalInput(
                     business_name="Reformas SL",
                     phone="+34600111222",
-                    postal_code="99999",
+                    postal_code="28999",
                     service_radius_km=20,
                     category_ids={carpentry.id},
                 ),

@@ -54,3 +54,112 @@ class PurchaseStatus(StrEnum):
     def unlocks_contact(self) -> bool:
         """Solo un pago confirmado da acceso a los datos del cliente."""
         return self is PurchaseStatus.PAID
+
+
+class SubscriptionStatus(StrEnum):
+    """Estado de la recarga mensual que mantiene activa la cuenta del profesional."""
+
+    NONE = "none"
+    """Nunca se ha suscrito (o la cuenta aun no tiene cliente en la pasarela)."""
+
+    PENDING = "pending"
+    """Checkout completado pero el primer cobro no esta confirmado (SEPA tarda dias)."""
+
+    ACTIVE = "active"
+    """Al dia con la recarga: puede comprar contactos."""
+
+    PAST_DUE = "past_due"
+    """Fallo el cobro de la recarga: puede ver solicitudes pero no comprar."""
+
+    CANCELED = "canceled"
+    """Suscripcion cancelada. El saldo se conserva pero no se puede gastar."""
+
+
+class CreditEntryKind(StrEnum):
+    """Movimientos del libro de saldo. El signo lo decide el tipo, no el importe."""
+
+    TOPUP = "topup"
+    """Recarga mensual cobrada y confirmada por la pasarela."""
+
+    SPEND = "spend"
+    """Saldo aplicado a la compra de un contacto."""
+
+    SPEND_REVERSAL = "spend_reversal"
+    """Devolucion del saldo de una reserva que caduco o fallo sin completarse."""
+
+    ADJUSTMENT_CREDIT = "adjustment_credit"
+    """Abono manual del admin (p. ej. compensar un lead problematico)."""
+
+    ADJUSTMENT_DEBIT = "adjustment_debit"
+    """Cargo manual del admin."""
+
+    VERIFICATION_REFUND = "verification_refund"
+    """Retirada del saldo del primer cobro, reembolsado al rechazar la validacion."""
+
+    @property
+    def is_credit(self) -> bool:
+        return self in {
+            CreditEntryKind.TOPUP,
+            CreditEntryKind.SPEND_REVERSAL,
+            CreditEntryKind.ADJUSTMENT_CREDIT,
+        }
+
+
+class PropertyType(StrEnum):
+    """Tipo de inmueble de la solicitud (formulario F01, paso 2)."""
+
+    FLAT = "flat"
+    HOUSE = "house"
+    COMMERCIAL = "commercial"
+    OFFICE = "office"
+    COMMUNITY = "community"
+    INDUSTRIAL = "industrial"
+    LAND = "land"
+
+
+class ProjectSchedule(StrEnum):
+    """Respuesta a "Cual es la programacion actual de tu proyecto?" (el plazo)."""
+
+    ASAP = "asap"
+    WITHIN_WEEKS = "within_weeks"
+    """En 2-4 semanas."""
+
+    WITHIN_MONTHS = "within_months"
+    """En 1-3 meses."""
+
+    GATHERING_QUOTES = "gathering_quotes"
+    """Solo esta pidiendo precios."""
+
+
+class ProfessionalType(StrEnum):
+    """Como se da de alta el profesional (F02). Decide que documentos aporta."""
+
+    SELF_EMPLOYED = "self_employed"
+    """Autonomo: modelos de alta de la Agencia Tributaria."""
+
+    COMPANY = "company"
+    """Empresa: modelos de alta de la Agencia Tributaria."""
+
+    INDEPENDENT = "independent"
+    """Trabajador independiente: documento de identidad (DNI, TIE o pasaporte)."""
+
+
+class VerificationStatus(StrEnum):
+    INCOMPLETE = "incomplete"
+    """Faltan datos o documentos; aun no se ha enviado a revision."""
+
+    PENDING = "pending"
+    """En revision por el admin. Ve solicitudes, no compra."""
+
+    APPROVED = "approved"
+
+    REJECTED = "rejected"
+    """Rechazado: se reembolsa el primer cobro y se cancela la recarga."""
+
+
+class DocumentKind(StrEnum):
+    TAX_REGISTRATION = "tax_registration"
+    """Modelos de la Agencia Tributaria (036/037, alta censal)."""
+
+    IDENTITY = "identity"
+    """DNI, TIE o pasaporte."""

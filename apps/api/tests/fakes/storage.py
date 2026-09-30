@@ -23,5 +23,8 @@ class FakeStorage(StoragePort):
     def public_url(self, storage_key: str) -> str:
         return f"{self.base_url}/{storage_key}"
 
+    async def signed_download_url(self, storage_key: str, *, filename: str) -> str:
+        return f"{self.base_url}/{storage_key}?download={filename}&signature=fake"
+
     async def delete(self, storage_key: str) -> None:
         self.deleted.append(storage_key)

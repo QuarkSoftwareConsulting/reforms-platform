@@ -9,15 +9,17 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Category } from "@/types/api";
+import type { CatalogCategory } from "@/types/api";
 
 const createLead = vi.fn();
 const presignPhoto = vi.fn();
+const startPhoneVerification = vi.fn();
 
 vi.mock("@/services/leads.service", () => ({
   leadsService: {
     create: (...args: unknown[]) => createLead(...args),
     presignPhoto: (...args: unknown[]) => presignPhoto(...args),
+    startPhoneVerification: (...args: unknown[]) => startPhoneVerification(...args),
   },
 }));
 
@@ -32,18 +34,26 @@ const { renderWithIntl, messages } = await import("./render");
 /** La etiqueta del campo lleva el asterisco de obligatorio pegado detras. */
 const label = (text: string): RegExp => new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
 
-const CATEGORIES: Category[] = [
+const WARDROBES = "6f1c2a8e-3d5b-4c7a-9e2f-1a2b3c4d5e6f";
+const DOORS = "7a2d3b9f-4e6c-4d8b-8f3a-2b3c4d5e6f70";
+
+const CATEGORIES: CatalogCategory[] = [
   {
     id: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
     slug: "carpinteria",
     name: "Carpinteria",
     suggested_lead_price: { amount_cents: 500, currency: "EUR", formatted: "5.00 €" },
+    services: [
+      { id: WARDROBES, slug: "armarios", name: "Armarios a medida" },
+      { id: DOORS, slug: "puertas", name: "Puertas" },
+    ],
   },
   {
     id: "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed",
     slug: "fontaneria",
     name: "Fontaneria",
     suggested_lead_price: { amount_cents: 700, currency: "EUR", formatted: "7.00 €" },
+    services: [],
   },
 ];
 
@@ -56,12 +66,23 @@ async function fillUpToContactStep(user: ReturnType<typeof userEvent.setup>): Pr
 
   await user.type(screen.getByLabelText(label(messages.publish.titleLabel)), "Reparar armario");
   await user.type(screen.getByLabelText(label(messages.publish.descriptionLabel)), DESCRIPTION);
+  await pickProjectData(user);
   await user.type(screen.getByLabelText(label(messages.publish.postalCodeLabel)), "28001");
   await user.click(screen.getByRole("button", { name: messages.common.next }));
 }
 
+async function pickProjectData(user: ReturnType<typeof userEvent.setup>): Promise<void> {
+  await user.click(screen.getByRole("radio", { name: messages.project.propertyTypes.flat }));
+  await user.click(
+    screen.getByRole("radio", { name: messages.project.schedules.within_weeks }),
+  );
+}
+
 describe("LeadWizard", () => {
   beforeEach(() => {
+    // Por defecto, como hoy en produccion: el entorno no verifica por SMS.
+    startPhoneVerification.mockReset();
+    startPhoneVerification.mockResolvedValue({ required: false });
     createLead.mockReset();
     createLead.mockResolvedValue({
       id: "lead-1",
@@ -112,10 +133,59 @@ describe("LeadWizard", () => {
     await user.click(screen.getByRole("button", { name: messages.common.next }));
     await user.type(screen.getByLabelText(label(messages.publish.titleLabel)), "Reparar armario");
     await user.type(screen.getByLabelText(label(messages.publish.descriptionLabel)), DESCRIPTION);
+    await pickProjectData(user);
     await user.type(screen.getByLabelText(label(messages.publish.postalCodeLabel)), "99001");
     await user.click(screen.getByRole("button", { name: messages.common.next }));
 
     expect(await screen.findByText(messages.validation.postalCodeUnknown)).toBeDefined();
+  });
+
+  it("only accepts postal codes from the Community of Madrid", async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<LeadWizard categories={CATEGORIES} />);
+
+    await user.click(screen.getByRole("radio", { name: /Carpinteria/i }));
+    await user.click(screen.getByRole("button", { name: messages.common.next }));
+    await user.type(screen.getByLabelText(label(messages.publish.titleLabel)), "Reparar armario");
+    await user.type(screen.getByLabelText(label(messages.publish.descriptionLabel)), DESCRIPTION);
+    await pickProjectData(user);
+    await user.type(screen.getByLabelText(label(messages.publish.postalCodeLabel)), "08001");
+    await user.click(screen.getByRole("button", { name: messages.common.next }));
+
+    expect(await screen.findByText(messages.validation.postalCodeNotCovered)).toBeDefined();
+  });
+
+  it("requires the property type and the project timing", async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<LeadWizard categories={CATEGORIES} />);
+
+    await user.click(screen.getByRole("radio", { name: /Carpinteria/i }));
+    await user.click(screen.getByRole("button", { name: messages.common.next }));
+    await user.type(screen.getByLabelText(label(messages.publish.titleLabel)), "Reparar armario");
+    await user.type(screen.getByLabelText(label(messages.publish.descriptionLabel)), DESCRIPTION);
+    await user.type(screen.getByLabelText(label(messages.publish.postalCodeLabel)), "28001");
+    await user.click(screen.getByRole("button", { name: messages.common.next }));
+
+    expect(await screen.findByText(messages.validation.propertyTypeRequired)).toBeDefined();
+    expect(screen.getByText(messages.validation.scheduleRequired)).toBeDefined();
+    // La pregunta es la que pidio el cliente, no la del mockup.
+    expect(screen.getByText(label(messages.publish.scheduleLabel))).toBeDefined();
+  });
+
+  it("shows the services of the chosen category and clears them on switching", async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<LeadWizard categories={CATEGORIES} />);
+
+    expect(screen.queryByRole("checkbox", { name: "Puertas" })).toBeNull();
+    await user.click(screen.getByRole("radio", { name: /Carpinteria/i }));
+    await user.click(screen.getByRole("checkbox", { name: "Puertas" }));
+    expect(screen.getByRole("checkbox", { name: "Puertas" })).toHaveProperty("checked", true);
+
+    // Fontaneria no tiene servicios: el panel desaparece y la seleccion se pierde.
+    await user.click(screen.getByRole("radio", { name: /Fontaneria/i }));
+    expect(screen.queryByRole("checkbox", { name: "Puertas" })).toBeNull();
+    await user.click(screen.getByRole("radio", { name: /Carpinteria/i }));
+    expect(screen.getByRole("checkbox", { name: "Puertas" })).toHaveProperty("checked", false);
   });
 
   it("blocks submission until the privacy consent is accepted", async () => {
@@ -134,6 +204,9 @@ describe("LeadWizard", () => {
   it("publishes once the consent is accepted", async () => {
     const user = userEvent.setup();
     renderWithIntl(<LeadWizard categories={CATEGORIES} />);
+    await user.click(screen.getByRole("radio", { name: /Carpinteria/i }));
+    await user.click(screen.getByRole("checkbox", { name: "Puertas" }));
+    await user.click(screen.getByRole("checkbox", { name: "Armarios a medida" }));
     await fillUpToContactStep(user);
 
     await user.type(screen.getByLabelText(label(messages.publish.nameLabel)), "Ana Lopez");
@@ -148,6 +221,10 @@ describe("LeadWizard", () => {
       category_id: CATEGORIES[0]!.id,
       postal_code: "28001",
       client_name: "Ana Lopez",
+      // En el orden en que el cliente los marco.
+      service_ids: [DOORS, WARDROBES],
+      property_type: "flat",
+      schedule: "within_weeks",
       consent: { accepted: true },
     });
     expect(await screen.findByText(messages.publish.successTitle)).toBeDefined();
@@ -198,5 +275,67 @@ describe("LeadWizard", () => {
       "value",
       "Reparar armario",
     );
+  });
+
+  describe("SMS verification", () => {
+    async function submitContact(user: ReturnType<typeof userEvent.setup>, phone: string) {
+      const phoneField = screen.getByLabelText(label(messages.publish.phoneLabel));
+      await user.clear(phoneField);
+      await user.type(phoneField, phone);
+      await user.click(screen.getByRole("button", { name: messages.publish.submit }));
+    }
+
+    beforeEach(() => startPhoneVerification.mockResolvedValue({ required: true }));
+
+    it("asks for the SMS code before publishing", async () => {
+      const user = userEvent.setup();
+      renderWithIntl(<LeadWizard categories={CATEGORIES} />);
+      await fillUpToContactStep(user);
+      await user.type(screen.getByLabelText(label(messages.publish.nameLabel)), "Ana Lopez");
+      await user.click(screen.getByRole("checkbox"));
+
+      await submitContact(user, "611223344");
+
+      expect(startPhoneVerification).toHaveBeenCalledWith("611223344");
+      expect(await screen.findByLabelText(label(messages.publish.phoneCodeLabel))).toBeDefined();
+      expect(createLead).not.toHaveBeenCalled();
+
+      await user.type(screen.getByLabelText(label(messages.publish.phoneCodeLabel)), "246810");
+      await user.click(screen.getByRole("button", { name: messages.publish.submit }));
+
+      await waitFor(() => expect(createLead).toHaveBeenCalledTimes(1));
+      expect(createLead.mock.calls[0]?.[0]).toMatchObject({ phone_verification_code: "246810" });
+      expect(startPhoneVerification).toHaveBeenCalledTimes(1);
+    });
+
+    it("rejects a code that is not six digits without calling the API", async () => {
+      const user = userEvent.setup();
+      renderWithIntl(<LeadWizard categories={CATEGORIES} />);
+      await fillUpToContactStep(user);
+      await user.type(screen.getByLabelText(label(messages.publish.nameLabel)), "Ana Lopez");
+      await user.click(screen.getByRole("checkbox"));
+      await submitContact(user, "611223344");
+
+      await user.type(await screen.findByLabelText(label(messages.publish.phoneCodeLabel)), "12");
+      await user.click(screen.getByRole("button", { name: messages.publish.submit }));
+
+      expect(await screen.findByText(messages.validation.phoneCodeFormat)).toBeDefined();
+      expect(createLead).not.toHaveBeenCalled();
+    });
+
+    it("sends a new code when the phone changes after the first SMS", async () => {
+      const user = userEvent.setup();
+      renderWithIntl(<LeadWizard categories={CATEGORIES} />);
+      await fillUpToContactStep(user);
+      await user.type(screen.getByLabelText(label(messages.publish.nameLabel)), "Ana Lopez");
+      await user.click(screen.getByRole("checkbox"));
+      await submitContact(user, "611223344");
+      await screen.findByLabelText(label(messages.publish.phoneCodeLabel));
+
+      await submitContact(user, "622334455");
+
+      await waitFor(() => expect(startPhoneVerification).toHaveBeenLastCalledWith("622334455"));
+      expect(createLead).not.toHaveBeenCalled();
+    });
   });
 });

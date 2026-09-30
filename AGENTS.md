@@ -13,13 +13,19 @@ si tocas el backend, las reglas de `apps/api/AGENTS.md` tienen prioridad sobre l
 ## 1. Qué es este producto
 
 Marketplace **pay-per-lead** de oficios. El cliente publica gratis lo que necesita; el
-profesional paga por desbloquear su contacto. **El precio de cada contacto lo decide el
-admin**: la categoría solo aporta un precio sugerido (§4.9). **Cada solicitud se vende a un
-máximo de 3 profesionales.** Esa regla, y la protección de los datos personales del cliente, son
-el producto — no un detalle de implementación.
+profesional paga por desbloquear su contacto. **Para comprar necesita la recarga mensual al
+día** (sin ella puede ver solicitudes, pero no comprarlas); su importe lo fija el admin y
+se abona como saldo para pagar contactos (§4.10). **El precio de cada contacto lo decide el admin**: la categoría solo
+aporta un precio sugerido (§4.9). **Cada solicitud se vende a un máximo de 5
+profesionales** (los leads anteriores a la Etapa 1 conservan sus 3). Esa regla, y la protección de los datos personales del cliente, son el
+producto — no un detalle de implementación.
 
 Monorepo: `apps/api` (FastAPI hexagonal, Python 3.13 + uv) y `apps/web` (Next.js 15,
 TypeScript + pnpm). Estado y alcance de la fase actual: ver `README.md`.
+
+**Trabajo en curso (Etapa 1):** [`docs/plan-etapa-1.md`](./docs/plan-etapa-1.md) recoge las
+reglas acordadas con el cliente, qué fase está hecha y qué falta. Léelo antes de tocar
+pagos, acceso o validación de profesionales, y actualízalo al cerrar una fase.
 
 ---
 
@@ -56,8 +62,8 @@ npx -y firebase-tools emulators:start --only auth \
 | Objetivo | Comando |
 |---|---|
 | Todo el lint (ruff + mypy strict + eslint + tsc) | `pnpm lint` |
-| Todos los tests (308 back + 61 front) | `pnpm test` |
-| Backend rápido, **sin Docker** (190 tests) | `cd apps/api && uv run pytest -m "not integration"` |
+| Todos los tests (568 back + 113 front) | `pnpm test` |
+| Backend rápido, **sin Docker** (475 tests) | `cd apps/api && uv run pytest -m "not integration"` |
 | Backend completo (requiere `pnpm infra:up`) | `pnpm api:test` |
 | Un solo test de backend | `cd apps/api && uv run pytest tests/unit/domain/test_lead.py -k capping` |
 | Frontend en watch | `pnpm --filter web test:watch` |
@@ -99,13 +105,15 @@ tuyo las simplifica, el cambio está mal.
 `StartLeadPurchase` bloquea la fila del lead (`SELECT … FOR UPDATE`), cuenta plazas vivas y
 crea la compra en `reserved` con TTL de 30 min, y solo después pide la sesión de checkout.
 *Por qué:* si el cap se validara al confirmar el pago, N profesionales podrían pagar a la
-vez por un lead de 3 plazas y habría que reembolsar a los que sobran.
+vez por un lead de 5 plazas y habría que reembolsar a los que sobran.
 → No muevas la validación del cap al webhook. No quites el `FOR UPDATE`.
 
-**4.2 · Solo el webhook desbloquea el contacto.**
+**4.2 · Solo dinero confirmado por el webhook desbloquea el contacto.**
 Volver de la pasarela al frontend no desbloquea nada. La confirmación llega firmada por
-Stripe a `POST /api/v1/webhooks/stripe`.
+Stripe a `POST /api/v1/webhooks/stripe`. Una compra pagada **con saldo** pasa a `paid` sin
+checkout porque ese dinero ya lo confirmó el webhook al cobrar la recarga (`invoice.paid`).
 → Nunca marques una compra como pagada desde una petición del navegador.
+→ Nunca abones saldo ni actives una cuenta fuera del webhook (ni al volver del checkout).
 
 **4.3 · El webhook es idempotente.**
 `processed_payment_events` (clave primaria + `ON CONFLICT DO NOTHING`) es el cerrojo.
@@ -113,10 +121,20 @@ Stripe reenvía eventos; procesarlos dos veces cobraría dos plazas por una vent
 → Cualquier manejador de eventos nuevo pasa por ese registro.
 
 **4.4 · La PII del cliente vive en un tipo que no la contiene.**
-`Lead.public_view()` devuelve `LeadPublicView`, que **no tiene campos** para nombre,
-teléfono ni email. Los schemas del explorador solo aceptan ese tipo.
+`Lead.public_view()` devuelve `LeadPublicView`, que **no tiene campos** para el nombre
+completo, el teléfono ni el email. Los schemas del explorador solo aceptan ese tipo.
+Antes de pagar solo se ven el **nombre de pila** y el **CP completo** (lo pidió el
+cliente, Etapa 1), y solo si `ConsentRecord.allows_public_preview`: los consentimientos
+anteriores a la política `2026-09-v2` no lo cubren y sus leads siguen sin nombre y con el
+prefijo del CP.
 → No añadas campos de contacto a `LeadPublicView` ni a `LeadPublicOut`. El único camino a
 los datos reales es `Lead.contact_view(unlocked=True)`, y solo con compra `paid`.
+→ Mostrar un dato nuevo antes de pagar exige cambiar la política de privacidad, subir
+`PRIVACY_POLICY_VERSION` y condicionarlo al consentimiento.
+→ `allows_public_preview` sale de la versión aceptada (`policy_covers_public_preview`), no
+de que el lead sea nuevo: una pestaña antigua o un lead del admin con la política anterior
+no la cubren. Al subir la versión, decláralo en `PUBLIC_PREVIEW_POLICY_VERSIONS`;
+`Settings` no arranca si la vigente falta.
 → Nunca registres PII en logs.
 
 **4.5 · Sin consentimiento no hay lead orgánico.**
@@ -147,6 +165,68 @@ y se cobra el importe congelado dentro del bloqueo de fila de `StartLeadPurchase
 → Cambiar un precio no reescribe compras existentes: cada `Purchase` guarda su importe.
 → Cambiar el sugerido de un oficio no toca los leads con precio propio.
 → El precio solo se cambia por los endpoints `/admin/...`, con `AdminDep`.
+
+**4.10 · Sin recarga mensual al día no se compra; el saldo se gasta una sola vez.**
+`ProfessionalAccount` guarda el estado de la suscripción y el saldo. Una cuenta inactiva
+**puede ver** solicitudes (listado y detalle, sin datos de contacto), pero
+`StartLeadPurchase` la rechaza con `402 SUBSCRIPTION_REQUIRED`
+(`account_access.require_active_account`). Así lo fijó el cliente (documento, F02).
+→ No bloquees el listado ni el detalle por la recarga: ya se decidió y se descartó.
+El saldo se gasta dentro del mismo bloqueo que la plaza, con la cuenta en `FOR UPDATE`
+**después** del lead (siempre ese orden, para no interbloquear). Cada movimiento va a
+`credit_entries`, append-only, con `UNIQUE (kind, source_ref)` como segundo cerrojo tras
+`processed_payment_events`.
+→ Solo `invoice.paid` activa una cuenta. Con SEPA, Stripe marca la suscripción `active`
+mientras el adeudo se procesa: `sync_subscription` no la activa por eso.
+→ Todo movimiento de saldo pasa por `CreditLedgerService` (compra, caducidad, webhook, job,
+ajuste del admin). Si una reserva con saldo caduca o falla, se devuelve con `SPEND_REVERSAL`.
+→ Una compra reembolsada no devuelve saldo sola (§4.6): lo decide el admin con un ajuste.
+→ El importe lo fija el admin (`PUT /admin/subscription-price`), que crea un precio nuevo en
+Stripe y una fila en `subscription_prices` (append-only; vige la más reciente). Solo afecta
+a las suscripciones nuevas: quien ya paga conserva su importe. Hasta que el admin lo fije,
+rige `STRIPE_TOPUP_PRICE_ID` + `SUBSCRIPTION_TOPUP_CENTS`.
+
+**4.11 · Solo se publica dentro de la zona de cobertura.**
+En la Etapa 1, la Comunidad de Madrid (CP 28xxx). `CreateLead` lo comprueba con
+`ServiceArea` **antes** de consultar el catálogo de CP, para que un CP real de fuera
+responda `POSTAL_CODE_NOT_COVERED` y no `UNKNOWN_POSTAL_CODE`. La zona es configuración
+(`COVERED_POSTAL_PREFIXES`), no código.
+→ Si falta un CP 28xxx real en `postal_codes_es.csv`, regenéralo con
+`scripts/import_postal_codes.py`; no quites la comprobación.
+
+**4.12 · El móvil del cliente se verifica por SMS antes de publicar.**
+El cliente publica como invitado: el SMS es lo único que prueba que el teléfono que
+vendemos existe y es suyo. Lo hace el puerto `PhoneVerificationPort`; el proveedor
+genera, caduca y limita los códigos, así que no guardamos ninguno. Con
+`PHONE_VERIFICATION_BACKEND=disabled` (hoy, sin proveedor) se publica sin código.
+→ El código se confirma **lo último**, después de validar todo lo demás: se consume al
+confirmarlo y un error en otro campo no debe obligar a pedir otro SMS.
+→ `console` escribe el código en el log: `Settings` lo prohíbe fuera de development y test.
+
+**4.13 · Compra solo quien tiene el alta aprobada; un rechazo reembolsa y cancela.**
+`Professional.verification_status`: `incomplete` → `pending` (el profesional envía el alta)
+→ `approved` / `rejected` (el admin). Incompleto o en revisión **ve** solicitudes pero no
+compra (`403 PROFESSIONAL_NOT_APPROVED`, comprobado antes que la recarga); rechazado no ve
+ni compra. Cada transición deja un `VerificationEvent` (append-only, con el admin que la
+hizo). Enviado el alta, tipo, razón social, NIF y documentos quedan fijos.
+→ `RejectProfessional` llama a la pasarela **antes** de guardar, con operaciones
+idempotentes (clave de idempotencia en el reembolso; cancelar dos veces no falla): si la
+pasarela falla no se guarda nada y el admin reintenta. Lo que impida rechazar (estado,
+motivo) se comprueba antes, con `assert_can_reject`. Pasadas 24 h Stripe olvida la clave
+de idempotencia: un cargo ya reembolsado cuenta como hecho. El saldo del primer cobro se retira
+con `VERIFICATION_REFUND` sobre la misma factura.
+→ Quien escribe el perfil (enviar, aprobar, rechazar, guardar el perfil, documentos) lo
+carga con `get_for_update` dentro de la transacción: `update` reescribe el perfil entero,
+estado del alta incluido. El rechazo mantiene el bloqueo durante las llamadas a Stripe.
+Orden de bloqueo: **profesional antes que cuenta**.
+→ Con la recarga en `pending` (adeudo SEPA en proceso) no se rechaza
+(`409 REJECTION_AWAITING_PAYMENT`): ese adeudo no se puede anular y se confirmaría después,
+abonando saldo a un rechazado sin reembolso.
+→ Los documentos de alta (DNI, modelos de Hacienda) van al **bucket privado**
+(`S3_PRIVATE_BUCKET` / `GCS_PRIVATE_BUCKET`, nunca el público) y solo salen con URLs
+firmadas de corta duración en el expediente del admin. El perfil propio no las incluye.
+→ Las claves de archivo llevan el id del profesional en el prefijo y se comprueban al
+adjuntarlas: nadie adjunta un archivo subido por otro.
 
 ---
 
@@ -242,7 +322,12 @@ Tres reglas aprendidas a golpes:
 
 **Alembic** — `--autogenerate` produce migraciones que **hay que revisar a mano**: no añade
 `import geoalchemy2` (aunque lo referencie), no crea la extensión PostGIS y no borra los
-tipos `ENUM` en el `downgrade`. Compara con `alembic/versions/*_initial_schema.py` y
+tipos `ENUM` en el `downgrade`. Tampoco crea el tipo `ENUM` de una columna nueva
+añadida con `add_column` (sí lo hace `create_table`): créalo antes con
+`postgresql.ENUM(..., create_type=False).create(op.get_bind(), checkfirst=True)`, como en
+`*_catalogo_de_servicios_y_datos_del_.py`. Un valor nuevo en un `ENUM` existente tampoco lo
+detecta: `ALTER TYPE ... ADD VALUE IF NOT EXISTS` a mano (ver `*_validacion_del_profesional.py`).
+Compara con `alembic/versions/*_initial_schema.py` y
 verifica siempre `upgrade` → `downgrade` → `upgrade` y `alembic check`.
 
 **pnpm 10.34.5** — usa la versión fijada en `packageManager`. Los paquetes autorizados
@@ -253,8 +338,8 @@ dentro de `pnpm-workspace.yaml`.
 alrededor o el `build` falla al prerenderizar. Ver `publicar/page.tsx`.
 
 **Acentos** — `apps/web/messages/*.json` es texto de cara al usuario y lleva acentos
-correctos (284 claves por idioma). La regla de ASCII puro aplica **solo al código fuente**.
-Lo mismo vale para `apps/api/data/categories.csv`: los nombres de oficio se muestran en la
+correctos (484 claves por idioma). La regla de ASCII puro aplica **solo al código fuente**.
+Lo mismo vale para `apps/api/data/categories.csv`, `services.csv`: los nombres de oficio se muestran en la
 landing y en el formulario.
 
 ---

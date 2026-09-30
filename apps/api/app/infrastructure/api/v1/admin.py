@@ -14,7 +14,7 @@ from fastapi import APIRouter, Query, status
 
 from app.application.dto import ConsentInput, CreateLeadInput
 from app.application.ports import AdminLeadFilters
-from app.domain.models import LeadSource, LeadStatus
+from app.domain.models import LeadSource, LeadStatus, VerificationStatus
 from app.domain.value_objects import Money
 from app.infrastructure.api import serializers
 from app.infrastructure.api.dependencies import AdminDep, ContainerDep, LocaleDep
@@ -28,10 +28,20 @@ from app.infrastructure.api.schemas.admin import (
     LeadPricingOut,
     PurchaseReviewIn,
     PurchaseReviewOut,
+    RejectionOut,
+    RejectProfessionalIn,
     SetCategoryPriceIn,
     SetLeadPriceIn,
+    VerificationDossierOut,
+)
+from app.infrastructure.api.schemas.billing import (
+    AdminAccountOut,
+    CreditAdjustmentIn,
+    SetSubscriptionPriceIn,
+    SubscriptionPriceOut,
 )
 from app.infrastructure.api.schemas.leads import CategoryOut, CreateLeadOut
+from app.infrastructure.api.schemas.professionals import ProfessionalOut
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -85,6 +95,9 @@ async def create_admin_lead(
             client_phone=payload.client_phone,
             client_email=payload.client_email,
             photo_keys=payload.photo_keys,
+            service_ids=payload.service_ids,
+            property_type=payload.property_type,
+            schedule=payload.schedule,
             consent=ConsentInput(
                 accepted=True,
                 policy_version=payload.consent.policy_version,
@@ -147,11 +160,128 @@ async def list_admin_professionals(
     locale: LocaleDep,
     _: AdminDep,
     query: str | None = None,
+    verification_status: VerificationStatus | None = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> AdminProfessionalListOut:
-    result = await container.admin_professionals.execute(query=query, limit=limit, offset=offset)
+    """Con `verification_status=pending` es la cola de validacion (lo mas antiguo primero)."""
+    result = await container.admin_professionals.execute(
+        query=query, limit=limit, offset=offset, verification_status=verification_status
+    )
     return serializers.admin_professional_list_out(result, locale)
+
+
+@router.get(
+    "/professionals/{professional_id}/verification",
+    response_model=VerificationDossierOut,
+    summary="Expediente de validacion: datos, documentos y auditoria",
+)
+async def get_verification_dossier(
+    professional_id: UUID, container: ContainerDep, locale: LocaleDep, _: AdminDep
+) -> VerificationDossierOut:
+    """Las URLs de los documentos son firmadas y caducan en minutos: no se guardan."""
+    dossier = await container.verification_dossier.execute(professional_id=professional_id)
+    return serializers.verification_dossier_out(
+        dossier, storage=container.infra.storage, locale=locale
+    )
+
+
+@router.post(
+    "/professionals/{professional_id}/approve",
+    response_model=ProfessionalOut,
+    summary="Aprobar el alta de un profesional",
+)
+async def approve_professional(
+    professional_id: UUID, container: ContainerDep, locale: LocaleDep, admin: AdminDep
+) -> ProfessionalOut:
+    professional = await container.approve_professional.execute(
+        professional_id=professional_id, admin_user_id=admin.id
+    )
+    categories = await container.categories.get_many(professional.category_ids)
+    return serializers.professional_out(
+        professional, categories, locale, storage=container.infra.storage
+    )
+
+
+@router.post(
+    "/professionals/{professional_id}/reject",
+    response_model=RejectionOut,
+    summary="Rechazar el alta: reembolsa el primer cobro y cancela la recarga",
+)
+async def reject_professional(
+    professional_id: UUID,
+    payload: RejectProfessionalIn,
+    container: ContainerDep,
+    locale: LocaleDep,
+    admin: AdminDep,
+) -> RejectionOut:
+    """503 PAYMENT_GATEWAY_ERROR si la pasarela falla: no se guarda nada y se puede reintentar."""
+    result = await container.reject_professional.execute(
+        professional_id=professional_id, admin_user_id=admin.id, reason=payload.reason
+    )
+    categories = await container.categories.get_many(result.professional.category_ids)
+    return RejectionOut(
+        professional=serializers.professional_out(
+            result.professional, categories, locale, storage=container.infra.storage
+        ),
+        refunded=serializers.money_out(result.refunded) if result.refunded else None,
+        subscription_canceled=result.subscription_canceled,
+    )
+
+
+@router.get(
+    "/subscription-price",
+    response_model=SubscriptionPriceOut,
+    summary="Mensualidad vigente para suscripciones nuevas",
+)
+async def get_subscription_price(container: ContainerDep, _: AdminDep) -> SubscriptionPriceOut:
+    return serializers.subscription_price_out(await container.pricing.current())
+
+
+@router.put(
+    "/subscription-price",
+    response_model=SubscriptionPriceOut,
+    summary="Cambiar la mensualidad",
+)
+async def set_subscription_price(
+    payload: SetSubscriptionPriceIn, container: ContainerDep, admin: AdminDep
+) -> SubscriptionPriceOut:
+    """Crea un precio nuevo en la pasarela. Los ya suscritos conservan el suyo."""
+    info = await container.set_subscription_price.execute(
+        amount_cents=payload.amount_cents, admin_user_id=admin.id
+    )
+    return serializers.subscription_price_out(info)
+
+
+@router.post(
+    "/professionals/{professional_id}/credit-adjustments",
+    response_model=AdminAccountOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Ajustar a mano el saldo de un profesional",
+)
+async def adjust_professional_credit(
+    professional_id: UUID,
+    payload: CreditAdjustmentIn,
+    container: ContainerDep,
+    admin: AdminDep,
+) -> AdminAccountOut:
+    """Abona (importe positivo) o carga (negativo) saldo, con nota obligatoria.
+
+    Es la via para compensar una compra reembolsada: la plaza no se libera, pero
+    el profesional recupera el importe como saldo.
+    """
+    account = await container.adjust_credit.execute(
+        professional_id=professional_id,
+        amount_cents=payload.amount_cents,
+        note=payload.note,
+        admin_user_id=admin.id,
+    )
+    return AdminAccountOut(
+        status=account.subscription_status.value,
+        is_active=account.is_active(container.infra.clock.now()),
+        balance=serializers.money_out(account.balance),
+        current_period_end=account.current_period_end,
+    )
 
 
 @router.post(

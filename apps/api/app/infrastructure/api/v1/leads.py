@@ -24,6 +24,8 @@ from app.infrastructure.api.schemas.leads import (
     CreateLeadOut,
     LeadDetailOut,
     LeadListOut,
+    PhoneVerificationIn,
+    PhoneVerificationOut,
     PostalCodeOut,
     PresignPhotoIn,
     PresignPhotoOut,
@@ -58,6 +60,10 @@ async def create_lead(
             client_phone=payload.client_phone,
             client_email=payload.client_email,
             photo_keys=payload.photo_keys,
+            service_ids=payload.service_ids,
+            property_type=payload.property_type,
+            schedule=payload.schedule,
+            phone_verification_code=payload.phone_verification_code,
             consent=ConsentInput(
                 accepted=payload.consent.accepted,
                 policy_version=payload.consent.policy_version or settings.privacy_policy_version,
@@ -68,6 +74,23 @@ async def create_lead(
         source=LeadSource.ORGANIC,
     )
     return serializers.created_lead_out(lead)
+
+
+@router.post(
+    "/leads/phone-verification",
+    response_model=PhoneVerificationOut,
+    summary="Enviar el SMS que verifica el movil del cliente",
+)
+async def start_phone_verification(
+    payload: PhoneVerificationIn, container: ContainerDep
+) -> PhoneVerificationOut:
+    """Endpoint publico, como la publicacion: el cliente no tiene cuenta.
+
+    Con `required=False` el entorno no verifica por SMS y el formulario publica sin
+    codigo. El limite de envios por telefono lo aplica el proveedor.
+    """
+    result = await container.start_phone_verification.execute(payload.phone)
+    return PhoneVerificationOut(required=result.required)
 
 
 @router.post(
@@ -138,8 +161,10 @@ async def start_purchase(
 ) -> StartPurchaseOut:
     """Reserva la plaza y devuelve la URL del checkout.
 
-    El contacto se desbloquea cuando el webhook confirma el pago, no al volver de
-    la pasarela: la confirmacion tiene que venir de Stripe, no del navegador.
+    Exige estar al dia con la recarga mensual (402 `SUBSCRIPTION_REQUIRED`). Si el
+    saldo cubre el precio, la compra queda pagada sin checkout. Si no, el contacto
+    se desbloquea cuando el webhook confirma el pago, no al volver de la pasarela:
+    la confirmacion tiene que venir de Stripe, no del navegador.
     """
     result = await container.start_purchase.execute(
         lead_id=lead_id, professional_id=professional.id, locale=locale
@@ -148,6 +173,9 @@ async def start_purchase(
         purchase_id=result.purchase_id,
         checkout_url=result.checkout_url,
         amount=serializers.money_out(result.amount),
+        credit_applied=serializers.money_out(result.credit_applied),
+        amount_due=serializers.money_out(result.amount_due),
+        paid_with_credit=result.paid_with_credit,
         expires_at=result.expires_at,
     )
 

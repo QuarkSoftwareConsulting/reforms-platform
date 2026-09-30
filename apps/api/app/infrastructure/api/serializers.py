@@ -7,6 +7,7 @@ dos cosas que no pertenecen al dominio.
 from __future__ import annotations
 
 from app.application.dto import (
+    AccountSummary,
     AdminLeadItem,
     AdminLeadListResult,
     AdminMetrics,
@@ -18,17 +19,24 @@ from app.application.dto import (
     LeadListResult,
     LeadPricing,
     PurchasedContact,
+    SubscriptionPriceInfo,
+    VerificationDossier,
 )
 from app.application.ports import PresignedUpload, StoragePort
 from app.domain.models import (
     Category,
     ClientContact,
+    CreditEntry,
     Lead,
     LeadPublicView,
     Professional,
+    ProfessionalDocument,
     Purchase,
     PurchaseReview,
+    Service,
     User,
+    VatBreakdown,
+    vat_breakdown,
 )
 from app.domain.value_objects import Money
 from app.infrastructure.api.schemas.admin import (
@@ -38,11 +46,21 @@ from app.infrastructure.api.schemas.admin import (
     AdminProfessionalListOut,
     AdminProfessionalOut,
     AdminPurchaseOut,
+    DocumentDownloadOut,
     LeadPricingOut,
     PurchaseReviewOut,
+    VerificationDossierOut,
+    VerificationEventOut,
+)
+from app.infrastructure.api.schemas.billing import (
+    AccountOut,
+    AdminAccountOut,
+    CreditEntryOut,
+    SubscriptionPriceOut,
 )
 from app.infrastructure.api.schemas.common import MoneyOut
 from app.infrastructure.api.schemas.leads import (
+    CatalogCategoryOut,
     CategoryOut,
     ClientContactOut,
     CreateLeadOut,
@@ -51,8 +69,15 @@ from app.infrastructure.api.schemas.leads import (
     LeadPublicOut,
     PresignPhotoOut,
     PurchaseOut,
+    ServiceOut,
+    VatBreakdownOut,
 )
-from app.infrastructure.api.schemas.professionals import ProfessionalOut
+from app.infrastructure.api.schemas.professionals import (
+    MediaOut,
+    ProfessionalDocumentOut,
+    ProfessionalOut,
+    VerificationOut,
+)
 from app.infrastructure.api.schemas.purchases import PurchasedLeadOut
 
 CURRENCY_SYMBOLS = {"EUR": "€", "USD": "$", "GBP": "£"}
@@ -76,6 +101,17 @@ def category_out(category: Category, locale: str) -> CategoryOut:
     )
 
 
+def service_out(service: Service, locale: str) -> ServiceOut:
+    return ServiceOut(id=service.id, slug=service.slug, name=service.name(locale))
+
+
+def catalog_category_out(category: Category, locale: str) -> CatalogCategoryOut:
+    return CatalogCategoryOut(
+        **category_out(category, locale).model_dump(),
+        services=[service_out(s, locale) for s in category.active_services],
+    )
+
+
 def lead_public_out(
     view: LeadPublicView,
     category: Category,
@@ -93,15 +129,32 @@ def lead_public_out(
         city=view.city,
         province=view.province,
         postal_code_prefix=view.postal_code_prefix,
+        postal_code=view.postal_code,
+        client_first_name=view.client_first_name,
         category=category_out(category, locale),
+        services=[service_out(s, locale) for s in category.services_named(view.service_ids)],
+        property_type=view.property_type,
+        schedule=view.schedule,
         photo_urls=[storage.public_url(key) for key in view.photo_keys],
         created_at=view.created_at,
         remaining_slots=view.remaining_slots,
+        purchases_count=view.purchases_count,
+        max_purchases=view.max_purchases,
+        is_closed=view.is_closed,
         distance_km=distance_km,
         masked_phone=view.masked_phone,
         masked_email=view.masked_email,
         already_purchased=already_purchased,
         price=money_out(price),
+        price_breakdown=vat_breakdown_out(vat_breakdown(price)),
+    )
+
+
+def vat_breakdown_out(breakdown: VatBreakdown) -> VatBreakdownOut:
+    return VatBreakdownOut(
+        net=money_out(breakdown.net),
+        vat=money_out(breakdown.vat),
+        rate_percent=breakdown.rate_percent,
     )
 
 
@@ -139,6 +192,9 @@ def purchase_out(purchase: Purchase) -> PurchaseOut:
         id=purchase.id,
         status=purchase.status.value,
         amount=money_out(purchase.price),
+        credit_applied=(
+            money_out(purchase.credit_applied) if purchase.credit_applied is not None else None
+        ),
         created_at=purchase.created_at,
         paid_at=purchase.paid_at,
         reserved_until=purchase.reserved_until,
@@ -186,8 +242,18 @@ def created_lead_out(lead: Lead) -> CreateLeadOut:
 
 
 def professional_out(
-    professional: Professional, categories: list[Category], locale: str
+    professional: Professional,
+    categories: list[Category],
+    locale: str,
+    *,
+    storage: StoragePort,
 ) -> ProfessionalOut:
+    """Perfil propio del profesional. Los documentos salen sin URL: solo los abre el admin."""
+
+    def media(key: str | None) -> MediaOut | None:
+        return MediaOut(key=key, url=storage.public_url(key)) if key else None
+
+    offered = [s for c in categories for s in c.services if s.id in professional.service_ids]
     return ProfessionalOut(
         id=professional.id,
         business_name=professional.business_name,
@@ -197,6 +263,60 @@ def professional_out(
         province=professional.province,
         service_radius_km=professional.service_radius_km,
         categories=[category_out(category, locale) for category in categories],
+        services=[service_out(service, locale) for service in offered],
+        professional_type=professional.professional_type,
+        legal_name=professional.legal_name,
+        tax_id=professional.tax_id.value if professional.tax_id else None,
+        address=professional.address,
+        profile_photo=media(professional.profile_photo_key),
+        logo=media(professional.logo_key),
+        work_photos=[
+            MediaOut(key=key, url=storage.public_url(key)) for key in professional.work_photo_keys
+        ],
+        documents=[document_out(d) for d in professional.documents],
+        verification=VerificationOut(
+            status=professional.verification_status,
+            submitted_at=professional.submitted_at,
+            reviewed_at=professional.reviewed_at,
+            rejection_reason=professional.rejection_reason,
+            missing=professional.missing_for_review(),
+        ),
+    )
+
+
+def document_out(document: ProfessionalDocument) -> ProfessionalDocumentOut:
+    return ProfessionalDocumentOut(
+        id=document.id,
+        kind=document.kind,
+        filename=document.filename,
+        uploaded_at=document.uploaded_at,
+    )
+
+
+def verification_dossier_out(
+    dossier: VerificationDossier, *, storage: StoragePort, locale: str
+) -> VerificationDossierOut:
+    return VerificationDossierOut(
+        professional=professional_out(
+            dossier.professional, dossier.categories, locale, storage=storage
+        ),
+        email=dossier.email,
+        documents=[
+            DocumentDownloadOut(
+                **document_out(item.document).model_dump(), download_url=item.download_url
+            )
+            for item in dossier.documents
+        ],
+        events=[
+            VerificationEventOut(
+                from_status=event.from_status,
+                to_status=event.to_status,
+                actor_user_id=event.actor_user_id,
+                note=event.note,
+                created_at=event.created_at,
+            )
+            for event in dossier.events
+        ],
     )
 
 
@@ -260,6 +380,11 @@ def admin_metrics_out(metrics: AdminMetrics) -> AdminMetricsOut:
             currency: money_out(Money(amount, currency))
             for currency, amount in metrics.revenue_by_currency.items()
         },
+        active_accounts=metrics.active_accounts,
+        topup_revenue_by_currency={
+            currency: money_out(Money(amount, currency))
+            for currency, amount in metrics.topup_revenue_by_currency.items()
+        },
     )
 
 
@@ -273,6 +398,19 @@ def admin_professional_out(item: AdminProfessionalItem, locale: str) -> AdminPro
         province=professional.province,
         service_radius_km=professional.service_radius_km,
         categories=[category_out(category, locale) for category in item.categories],
+        legal_name=professional.legal_name,
+        verification_status=professional.verification_status,
+        submitted_at=professional.submitted_at,
+        account=(
+            AdminAccountOut(
+                status=item.account.subscription_status.value,
+                is_active=item.account_active,
+                balance=money_out(item.account.balance),
+                current_period_end=item.account.current_period_end,
+            )
+            if item.account is not None
+            else None
+        ),
     )
 
 
@@ -325,3 +463,33 @@ def user_summary(user: User) -> dict[str, object]:
         "role": user.role.value,
         "display_name": user.display_name,
     }
+
+
+def credit_entry_out(entry: CreditEntry) -> CreditEntryOut:
+    return CreditEntryOut(
+        kind=entry.kind.value,
+        amount=money_out(entry.amount),
+        signed_amount_cents=entry.signed_cents,
+        created_at=entry.created_at,
+    )
+
+
+def account_out(summary: AccountSummary) -> AccountOut:
+    return AccountOut(
+        status=summary.status.value,
+        is_active=summary.is_active,
+        balance=money_out(summary.balance),
+        topup_amount=money_out(summary.topup_amount),
+        current_period_end=summary.current_period_end,
+        can_manage_billing=summary.can_manage_billing,
+        entries=[credit_entry_out(entry) for entry in summary.entries],
+    )
+
+
+def subscription_price_out(info: SubscriptionPriceInfo) -> SubscriptionPriceOut:
+    return SubscriptionPriceOut(
+        amount=money_out(info.amount),
+        updated_at=info.updated_at,
+        is_default=info.is_default,
+        configured=info.stripe_price_id is not None,
+    )

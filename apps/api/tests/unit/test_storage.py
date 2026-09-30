@@ -65,6 +65,7 @@ def settings(**overrides: object) -> Settings:
         "firebase_project_id": "project",
         "stripe_secret_key": "test-key",
         "stripe_webhook_secret": "test-webhook",
+        "stripe_topup_price_id": "price_test",
         "s3_access_key_id": "",
         "s3_secret_access_key": "",
     }
@@ -87,7 +88,9 @@ def test_default_backend_is_s3_without_adc(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 def test_select_gcs_without_s3_secrets(adc: Mock, client: Mock) -> None:
-    config = settings(storage_backend="gcs", gcs_bucket="private-photos")
+    config = settings(
+        storage_backend="gcs", gcs_bucket="private-photos", gcs_private_bucket="private-docs"
+    )
     config.assert_production_ready()
     assert isinstance(create_storage(config), GCSStorage)
     client.bucket.assert_called_once_with("private-photos")
@@ -110,6 +113,10 @@ def test_s3_still_requires_secrets_in_production() -> None:
             "gcs_bucket": "private",
             "google_application_credentials": "/not-loaded.json",
         },
+        # Sin bucket privado, o con el mismo que el publico, los DNI serian publicos.
+        {"storage_backend": "gcs", "gcs_bucket": "photos", "gcs_private_bucket": " "},
+        {"storage_backend": "gcs", "gcs_bucket": "photos", "gcs_private_bucket": "photos"},
+        {"s3_bucket": "reforma-hub-dev", "s3_private_bucket": "reforma-hub-dev"},
     ],
 )
 def test_invalid_storage_configuration(overrides: dict[str, object]) -> None:
@@ -300,3 +307,27 @@ async def test_s3_upload_contract_is_unchanged(monkeypatch: pytest.MonkeyPatch) 
     assert result.upload_url == "https://signed-s3"
     await adapter.delete(result.storage_key)
     client.delete_object.assert_called_once_with(Bucket="reforma-hub-dev", Key=result.storage_key)
+
+
+async def test_s3_private_download_is_signed_and_keeps_the_filename() -> None:
+    """Firma real de botocore, sin red: el bucket privado nunca da una URL fija."""
+    from urllib.parse import parse_qs, urlparse
+
+    from app.infrastructure.adapters.storage.s3_adapter import S3Storage
+
+    storage = S3Storage(
+        bucket="reforma-hub-private",
+        endpoint_url="http://localhost:9000",
+        access_key_id="test",
+        secret_access_key="test",
+        presign_expires_seconds=300,
+    )
+    url = await storage.signed_download_url(
+        "professionals/p1/documents/abc.pdf", filename='modelo "036".pdf'
+    )
+    query = parse_qs(urlparse(url).query)
+
+    assert urlparse(url).path == "/reforma-hub-private/professionals/p1/documents/abc.pdf"
+    assert query["X-Amz-Expires"] == ["300"]
+    assert "X-Amz-Signature" in query
+    assert query["response-content-disposition"] == ['attachment; filename="modelo 036.pdf"']

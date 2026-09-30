@@ -1,8 +1,7 @@
-# Semilla de codigos postales de Espana para desarrollo.
-# Cubre las 52 capitales de provincia y ciudades autonomas, mas varios distritos
-# de Madrid, Barcelona y Valencia, con el centroide aproximado de cada zona.
-# Para produccion, sustituye este fichero por el dataset completo (~11.000 codigos)
-# manteniendo las mismas columnas: el script de semilla no necesita cambios.
+# Catalogo de codigos postales. Columnas: code,city,province,latitude,longitude.
+# Comunidad de Madrid (28xxx): completa, generada con scripts/import_postal_codes.py
+# a partir de GeoNames (https://www.geonames.org, CC BY 4.0). Resto de Espana: capitales
+# de provincia y algunos distritos, con el centroide aproximado de cada zona.
 code,city,province,latitude,longitude
 01001,Vitoria-Gasteiz,Alava,42.8467,-2.6716
 02001,Albacete,Albacete,38.9942,-1.8564
@@ -37,26 +36,329 @@ code,city,province,latitude,longitude
 25001,Lleida,Lleida,41.6176,0.6200
 26001,Logrono,La Rioja,42.4650,-2.4487
 27001,Lugo,Lugo,43.0121,-7.5559
-28001,Madrid,Madrid,40.4239,-3.6873
-28002,Madrid,Madrid,40.4380,-3.6790
-28004,Madrid,Madrid,40.4238,-3.7009
-28005,Madrid,Madrid,40.4079,-3.7120
-28010,Madrid,Madrid,40.4325,-3.6997
-28013,Madrid,Madrid,40.4180,-3.7075
-28015,Madrid,Madrid,40.4300,-3.7120
-28017,Madrid,Madrid,40.4247,-3.6480
-28020,Madrid,Madrid,40.4531,-3.6934
-28025,Madrid,Madrid,40.3846,-3.7300
-28028,Madrid,Madrid,40.4290,-3.6660
-28034,Madrid,Madrid,40.4830,-3.7180
-28040,Madrid,Madrid,40.4400,-3.7250
-28045,Madrid,Madrid,40.3960,-3.6920
-28050,Madrid,Madrid,40.5010,-3.6760
-28801,Alcala de Henares,Madrid,40.4818,-3.3644
-28901,Getafe,Madrid,40.3082,-3.7325
-28911,Leganes,Madrid,40.3272,-3.7635
-28921,Alcorcon,Madrid,40.3459,-3.8249
-28931,Mostoles,Madrid,40.3227,-3.8649
+28001,Madrid,Madrid,40.4255,-3.6834
+28002,Madrid,Madrid,40.4465,-3.6751
+28003,Madrid,Madrid,40.4423,-3.7046
+28004,Madrid,Madrid,40.4241,-3.7007
+28005,Madrid,Madrid,40.4081,-3.7107
+28006,Madrid,Madrid,40.4344,-3.6805
+28007,Madrid,Madrid,40.4066,-3.6724
+28008,Madrid,Madrid,40.4277,-3.7239
+28009,Madrid,Madrid,40.4207,-3.6747
+28010,Madrid,Madrid,40.4329,-3.6980
+28011,Madrid,Madrid,40.4087,-3.7361
+28012,Madrid,Madrid,40.4106,-3.7017
+28013,Madrid,Madrid,40.4187,-3.7076
+28014,Madrid,Madrid,40.4133,-3.6939
+28015,Madrid,Madrid,40.4319,-3.7106
+28016,Madrid,Madrid,40.4582,-3.6724
+28017,Madrid,Madrid,40.4285,-3.6453
+28018,Madrid,Madrid,40.3857,-3.6566
+28019,Madrid,Madrid,40.3930,-3.7245
+28020,Madrid,Madrid,40.4551,-3.6983
+28021,Madrid,Madrid,40.3457,-3.6990
+28022,Madrid,Madrid,40.4428,-3.5933
+28023,Madrid,Madrid,40.4600,-3.7866
+28024,Madrid,Madrid,40.3921,-3.7728
+28025,Madrid,Madrid,40.3832,-3.7369
+28026,Madrid,Madrid,40.3841,-3.7072
+28027,Madrid,Madrid,40.4401,-3.6437
+28028,Madrid,Madrid,40.4312,-3.6670
+28029,Madrid,Madrid,40.4710,-3.7007
+28030,Madrid,Madrid,40.4050,-3.6446
+28031,Madrid,Madrid,40.3770,-3.6240
+28032,Madrid,Madrid,40.4053,-3.6099
+28033,Madrid,Madrid,40.4736,-3.6543
+28034,Madrid,Madrid,40.4931,-3.6956
+28035,Madrid,Madrid,40.4766,-3.7280
+28036,Madrid,Madrid,40.4634,-3.6835
+28037,Madrid,Madrid,40.4305,-3.6232
+28038,Madrid,Madrid,40.3971,-3.6580
+28039,Madrid,Madrid,40.4597,-3.7070
+28040,Madrid,Madrid,40.4489,-3.7199
+28041,Madrid,Madrid,40.3677,-3.7019
+28042,Madrid,Madrid,40.4638,-3.5923
+28043,Madrid,Madrid,40.4596,-3.6460
+28044,Madrid,Madrid,40.3749,-3.7629
+28045,Madrid,Madrid,40.3963,-3.6924
+28046,Madrid,Madrid,40.4599,-3.6884
+28047,Madrid,Madrid,40.3948,-3.7463
+28048,Madrid,Madrid,40.4905,-3.7550
+28049,Madrid,Madrid,40.5056,-3.6985
+28050,Madrid,Madrid,40.4975,-3.6637
+28051,Madrid,Madrid,40.3652,-3.6027
+28052,Madrid,Madrid,40.3988,-3.5867
+28053,Madrid,Madrid,40.3837,-3.6679
+28054,Madrid,Madrid,40.3665,-3.7568
+28055,Madrid,Madrid,40.4881,-3.6302
+28070,Madrid,Madrid,40.4165,-3.7026
+28071,Madrid,Madrid,40.4165,-3.7026
+28080,Madrid,Madrid,40.4165,-3.7026
+28082,Madrid,Madrid,40.4165,-3.7026
+28083,Madrid,Madrid,40.4165,-3.7026
+28085,Madrid,Madrid,40.4165,-3.7026
+28086,Madrid,Madrid,40.4165,-3.7026
+28087,Madrid,Madrid,40.4165,-3.7026
+28100,Alcobendas,Madrid,40.5447,-3.6406
+28108,Alcobendas,Madrid,40.5316,-3.6475
+28109,Alcobendas,Madrid,40.5229,-3.6329
+28110,Algete,Madrid,40.5981,-3.5000
+28119,Cottolengo Del Padre Alegre,Madrid,40.5971,-3.4974
+28120,Colmenar Viejo,Madrid,40.8772,-3.5118
+28130,Valdeolmos-Alalpardo,Madrid,40.6386,-3.4525
+28140,Fuente el Saz de Jarama,Madrid,40.8772,-3.5118
+28150,Valdetorres de Jarama,Madrid,40.6937,-3.5116
+28160,Talamanca de Jarama,Madrid,40.8772,-3.5118
+28170,Valdepiélagos,Madrid,40.7584,-3.4616
+28180,Torrelaguna,Madrid,40.8270,-3.5376
+28189,Patones,Madrid,40.8524,-3.4834
+28190,El Cardoso de la Sierra,Madrid,41.0595,-3.5299
+28191,Horcajuelo de la Sierra,Madrid,41.0602,-3.5464
+28192,El Berrueco,Madrid,40.8886,-3.5609
+28193,Cervera de Buitrago,Madrid,40.9199,-3.5270
+28194,Berzosa del Lozoya,Madrid,40.9732,-3.5201
+28195,Puentes Viejas,Madrid,40.9872,-3.5339
+28196,Puentes Viejas,Madrid,41.0056,-3.5617
+28200,San Lorenzo de El Escorial,Madrid,40.5914,-4.1474
+28209,"Valle De Los Caidos, Sta Cruz",Madrid,40.5914,-4.1474
+28210,Navalagamella,Madrid,40.5008,-4.0655
+28211,El Escorial,Madrid,40.5405,-4.1253
+28212,El Escorial,Madrid,40.4685,-4.1237
+28213,Colmenar del Arroyo,Madrid,40.4190,-4.1985
+28214,Fresnedillas de la Oliva,Madrid,40.1642,-3.7327
+28219,El Escorial,Madrid,40.0570,-3.6048
+28220,Majadahonda,Madrid,40.4708,-3.8748
+28221,Majadahonda,Madrid,40.4711,-3.8575
+28222,Majadahonda,Madrid,40.4522,-3.8725
+28223,Pozuelo de Alarcón,Madrid,40.4329,-3.8134
+28224,Pozuelo de Alarcón,Madrid,40.4329,-3.8134
+28229,Villanueva del Pardillo,Madrid,40.4833,-3.9667
+28230,Las Rozas De Madrid,Madrid,40.4929,-3.8737
+28231,Las Rozas de Madrid,Madrid,40.4929,-3.8737
+28232,Las Rozas de Madrid,Madrid,40.4929,-3.8737
+28240,Hoyo de Manzanares,Madrid,40.6226,-3.9073
+28248,Hoyo de Manzanares,Madrid,40.0570,-3.6048
+28250,Galapagar,Madrid,40.5788,-3.9259
+28260,Galapagar,Madrid,40.5626,-4.0082
+28270,Galapagar,Madrid,40.5581,-4.0158
+28279,Colmenarejo,Madrid,40.5606,-4.0171
+28280,El Escorial,Madrid,40.5858,-4.1291
+28290,Las Rozas de Madrid,Madrid,40.5578,-3.8917
+28292,El Escorial,Madrid,40.6219,-4.0324
+28293,Zarzalejo,Madrid,40.5483,-4.1817
+28294,Robledo de Chavela,Madrid,40.5775,-4.1592
+28295,Valdemaqueda,Madrid,40.5111,-4.2977
+28296,Santa María de la Alameda,Madrid,40.5949,-4.2577
+28297,Santa María de la Alameda,Madrid,40.5768,-4.2068
+28300,Aranjuez,Madrid,40.0303,-3.5993
+28310,Algodor,Madrid,39.9143,-3.8635
+28311,Castillejo,Madrid,40.1277,-3.5769
+28312,"Infantas, Las (Aranjuez)",Madrid,40.1277,-3.5769
+28320,Pinto,Madrid,40.2466,-3.7007
+28330,San Martín de la Vega,Madrid,40.2074,-3.5706
+28339,La Boyeriza,Madrid,40.2074,-3.5706
+28340,Valdemoro,Madrid,40.1908,-3.6789
+28341,Valdemoro,Madrid,40.1833,-3.6841
+28342,Valdemoro,Madrid,40.1964,-3.6862
+28343,Valdemoro,Madrid,40.1889,-3.6676
+28350,Ciempozuelos,Madrid,40.1581,-3.6227
+28359,Titulcia,Madrid,40.1379,-3.5700
+28360,Villaconejos,Madrid,40.1038,-3.4854
+28370,Chinchón,Madrid,40.1402,-3.4227
+28380,Colmenar de Oreja,Madrid,40.1067,-3.3855
+28390,Belmonte de Tajo,Madrid,40.1316,-3.3358
+28391,Valdelaguna,Madrid,40.1612,-3.3675
+28400,Collado Villalba,Madrid,40.6424,-3.9981
+28410,Manzanares el Real,Madrid,40.7263,-3.8627
+28411,Moralzarzal,Madrid,40.6782,-3.9707
+28412,El Boalo,Madrid,40.6989,-3.9337
+28413,El Boalo,Madrid,40.7161,-3.9200
+28419,Nieves Y Sol,Madrid,40.7011,-3.9223
+28420,Galapagar,Madrid,40.5991,-3.9839
+28430,Alpedrete,Madrid,40.6595,-4.0305
+28440,Guadarrama,Madrid,40.6736,-4.0899
+28450,Collado Mediano,Madrid,40.6922,-4.0293
+28459,Monte Golf,Madrid,40.6933,-4.0228
+28460,Los Molinos,Madrid,40.7280,-4.0765
+28470,Cercedilla,Madrid,40.7410,-4.0564
+28479,Las Dehesas,Madrid,40.7569,-4.0728
+28480,Guadarrama,Madrid,40.7153,-4.0730
+28490,Becerril de la Sierra,Madrid,40.7170,-3.9886
+28491,Navacerrada,Madrid,40.4353,-3.6495
+28492,El Boalo,Madrid,40.5761,-3.8190
+28500,Arganda del Rey,Madrid,40.5161,-3.5232
+28510,Campo Real,Madrid,40.3396,-3.3798
+28511,Valdilecha,Madrid,40.2949,-3.3017
+28512,Villar del Olmo,Madrid,40.3347,-3.2340
+28513,Las Villas De Nuevo Baztan,Madrid,40.3395,-3.2755
+28514,Nuevo Baztán,Madrid,40.3673,-3.2412
+28515,Olmeda de las Fuentes,Madrid,40.3667,-3.2167
+28521,Rivas-Vaciamadrid,Madrid,40.2774,-3.2775
+28522,Rivas-Vaciamadrid,Madrid,40.2774,-3.2775
+28523,Rivas-Vaciamadrid,Madrid,40.2774,-3.2775
+28524,Rivas-Vaciamadrid,Madrid,40.2774,-3.2775
+28529,Rivas-Vaciamadrid,Madrid,40.2774,-3.2775
+28530,Morata de Tajuña,Madrid,40.2268,-3.4327
+28540,Perales de Tajuña,Madrid,40.2313,-3.3502
+28550,Tielmes,Madrid,40.2460,-3.3154
+28560,Carabaña,Madrid,40.2575,-3.2374
+28570,Orusco de Tajuña,Madrid,40.2774,-3.2775
+28580,Ambite,Madrid,40.3284,-3.1826
+28590,Villarejo de Salvanés,Madrid,40.1666,-3.2728
+28594,Valdaracete,Madrid,40.2104,-3.1945
+28595,Estremera,Madrid,40.1837,-3.1065
+28596,Brea de Tajo,Madrid,40.2333,-3.1000
+28597,Fuentidueña de Tajo,Madrid,40.1157,-3.1572
+28598,Villamanrique de Tajo,Madrid,40.0662,-3.2367
+28600,Navalcarnero,Madrid,40.2899,-4.0103
+28607,El Álamo,Madrid,40.2307,-3.9945
+28609,Villamantilla,Madrid,40.3416,-4.1305
+28610,Villamanta,Madrid,40.2989,-4.1122
+28620,Aldea del Fresno,Madrid,40.3236,-4.2032
+28630,Villa del Prado,Madrid,40.2785,-4.3053
+28640,Cadalso de los Vidrios,Madrid,40.3007,-4.4335
+28648,Cadalso de los Vidrios,Madrid,40.3087,-4.4584
+28649,Rozas de Puerto Real,Madrid,40.3167,-4.4833
+28650,Cenicientos,Madrid,40.2635,-4.4670
+28660,Boadilla del Monte,Madrid,40.4050,-3.8783
+28668,Monteprincipe,Madrid,40.4050,-3.8783
+28669,Parque Boadilla,Madrid,40.4050,-3.8783
+28670,Villaviciosa de Odón,Madrid,40.3569,-3.9001
+28679,Residencia Ancianos (Villaviciosa Odon),Madrid,40.3569,-3.9001
+28680,San Martín de Valdeiglesias,Madrid,40.3618,-4.3983
+28690,Brunete,Madrid,40.4049,-3.9993
+28691,Villanueva de la Cañada,Madrid,40.4469,-4.0043
+28692,Villanueva de la Cañada,Madrid,40.3149,-4.0081
+28693,Quijorna,Madrid,40.4290,-4.0565
+28694,Chapinería,Madrid,40.3789,-4.2101
+28695,Navas del Rey,Madrid,40.3861,-4.2512
+28696,Pelayos de la Presa,Madrid,40.3605,-4.3346
+28700,San Sebastián de los Reyes,Madrid,40.5443,-3.6159
+28701,San Sebastián de los Reyes,Madrid,40.5443,-3.6159
+28702,San Sebastián de los Reyes,Madrid,40.5443,-3.6159
+28703,San Sebastián de los Reyes,Madrid,40.5443,-3.6159
+28706,San Sebastián de los Reyes,Madrid,40.0570,-3.6048
+28707,Colmenar Viejo,Madrid,40.4469,-3.6137
+28708,San Sebastián de los Reyes,Madrid,40.4469,-3.6137
+28709,San Sebastián de los Reyes,Madrid,40.4469,-3.6137
+28710,El Molar,Madrid,40.7338,-3.5839
+28720,Bustarviejo,Madrid,40.8585,-3.7100
+28721,Redueña,Madrid,40.8165,-3.6029
+28722,El Vellón,Madrid,40.7666,-3.5329
+28723,Pedrezuela,Madrid,40.7449,-3.6020
+28729,Navalafuente,Madrid,40.8206,-3.6706
+28730,Buitrago del Lozoya,Madrid,40.9909,-3.6337
+28737,Braojos,Madrid,41.0403,-3.6427
+28739,Navarredonda y San Mamés,Madrid,41.0040,-3.6687
+28740,Rascafría,Madrid,40.9041,-3.8790
+28741,"Paular, Real El (Monasterio)",Madrid,40.9202,-3.7886
+28742,Alameda del Valle,Madrid,40.9202,-3.7886
+28743,Canencia,Madrid,40.9199,-3.6838
+28749,Pinilla del Valle,Madrid,40.9245,-3.8169
+28750,Colmenar Viejo,Madrid,40.6788,-3.6164
+28751,La Cabrera,Madrid,40.8663,-3.6141
+28752,Lozoyuela-Navas-Sieteiglesias,Madrid,40.9283,-3.6208
+28753,Lozoyuela-Navas-Sieteiglesias,Madrid,40.9129,-3.5867
+28754,Puentes Viejas,Madrid,40.9587,-3.6120
+28755,La Acebeda,Madrid,41.0868,-3.6245
+28756,Somosierra,Madrid,41.1319,-3.5821
+28760,Tres Cantos,Madrid,40.6005,-3.7061
+28770,Colmenar Viejo,Madrid,40.6616,-3.7716
+28791,Soto del Real,Madrid,40.7526,-3.7802
+28792,Miraflores de la Sierra,Madrid,40.8155,-3.7621
+28793,Los Endrinales,Madrid,40.7870,-3.7412
+28794,Guadalix de la Sierra,Madrid,40.7850,-3.6935
+28800,Alcala De Henares,Madrid,40.4820,-3.3600
+28801,Alcalá de Henares,Madrid,40.4820,-3.3600
+28802,Alcalá de Henares,Madrid,40.4820,-3.3600
+28803,Alcalá de Henares,Madrid,40.4820,-3.3600
+28804,Alcalá de Henares,Madrid,40.4820,-3.3600
+28805,Alcalá de Henares,Madrid,40.4820,-3.3600
+28806,Alcalá de Henares,Madrid,40.4820,-3.3600
+28807,El Álamo,Madrid,40.4820,-3.3600
+28810,Villalbilla,Madrid,40.4325,-3.2957
+28811,Corpa,Madrid,40.4251,-3.2637
+28812,Valverde de Alcalá,Madrid,40.4167,-3.2963
+28813,Pozuelo del Rey,Madrid,40.3646,-3.3170
+28814,Daganzo de Arriba,Madrid,40.5429,-3.4546
+28815,Fresno de Torote,Madrid,40.5904,-3.4100
+28816,Camarma de Esteruelas,Madrid,40.5503,-3.3729
+28817,Los Santos de la Humosa,Madrid,40.4997,-3.2533
+28818,Anchuelo,Madrid,40.4657,-3.2683
+28820,Coslada,Madrid,40.4238,-3.5613
+28821,Coslada,Madrid,40.4284,-3.5612
+28822,Coslada,Madrid,40.4191,-3.5516
+28823,Coslada,Madrid,40.4318,-3.5395
+28830,San Fernando de Henares,Madrid,40.4239,-3.5326
+28840,Mejorada del Campo,Madrid,40.3928,-3.4819
+28850,Torrejón de Ardoz,Madrid,40.4554,-3.4697
+28851,Parque Corredor Del Henares (Mercado),Madrid,40.4554,-3.4697
+28860,Paracuellos de Jarama,Madrid,40.5035,-3.5278
+28861,Paracuellos de Jarama,Madrid,40.5390,-3.5064
+28862,Paracuellos de Jarama,Madrid,40.5608,-3.5476
+28863,Cobeña,Madrid,40.5672,-3.5059
+28864,Ajalvir,Madrid,40.5329,-3.4821
+28870,Alcala De Henares,Madrid,40.4820,-3.3600
+28880,Meco,Madrid,40.5514,-3.3295
+28890,Loeches,Madrid,40.3846,-3.4139
+28891,Velilla de San Antonio,Madrid,40.3652,-3.4848
+28900,Getafe,Madrid,40.3057,-3.7329
+28901,Getafe,Madrid,40.3048,-3.7303
+28902,Getafe,Madrid,40.3112,-3.7292
+28903,Getafe,Madrid,40.3184,-3.7190
+28904,Getafe,Madrid,40.3083,-3.7368
+28905,Getafe,Madrid,40.2929,-3.7479
+28906,Getafe,Madrid,40.3054,-3.7013
+28907,Getafe,Madrid,40.3221,-3.7327
+28909,Getafe,Madrid,40.3057,-3.7329
+28910,Leganes,Madrid,40.3272,-3.7635
+28911,Leganés,Madrid,40.3272,-3.7635
+28912,Leganés,Madrid,40.3272,-3.7635
+28913,Leganés,Madrid,40.3272,-3.7635
+28914,Leganés,Madrid,40.3272,-3.7635
+28915,Leganés,Madrid,40.3272,-3.7635
+28916,Leganés,Madrid,40.3272,-3.7635
+28917,Leganés,Madrid,40.3272,-3.7635
+28918,Leganés,Madrid,40.3272,-3.7635
+28919,Leganés,Madrid,40.3272,-3.7635
+28920,Alcorcon,Madrid,40.3458,-3.8249
+28921,Alcorcón,Madrid,40.3458,-3.8249
+28922,Alcorcón,Madrid,40.3458,-3.8249
+28923,Alcorcón,Madrid,40.3458,-3.8249
+28924,Alcorcón,Madrid,40.3458,-3.8249
+28925,Alcorcón,Madrid,40.3458,-3.8249
+28930,Mostoles,Madrid,40.3223,-3.8650
+28931,Móstoles,Madrid,40.3223,-3.8650
+28932,Móstoles,Madrid,40.3223,-3.8650
+28933,Móstoles,Madrid,40.3223,-3.8650
+28934,Móstoles,Madrid,40.3223,-3.8650
+28935,Móstoles,Madrid,40.3223,-3.8650
+28936,Móstoles,Madrid,40.3223,-3.8650
+28937,Móstoles,Madrid,40.3223,-3.8650
+28938,Móstoles,Madrid,40.3223,-3.8650
+28939,Arroyomolinos,Madrid,40.2663,-3.9181
+28940,Fuenlabrada,Madrid,40.2842,-3.7941
+28941,Fuenlabrada,Madrid,40.2989,-3.8022
+28942,Fuenlabrada,Madrid,40.2925,-3.8136
+28943,Fuenlabrada,Madrid,40.2841,-3.8047
+28944,Fuenlabrada,Madrid,40.2806,-3.7942
+28945,Fuenlabrada,Madrid,40.2893,-3.7888
+28946,Fuenlabrada,Madrid,40.2740,-3.7694
+28947,Fuenlabrada,Madrid,40.2640,-3.7497
+28950,Moraleja de Enmedio,Madrid,40.2613,-3.8596
+28970,Humanes de Madrid,Madrid,40.2504,-3.8306
+28971,Griñón,Madrid,40.2125,-3.8548
+28976,Batres,Madrid,40.2085,-3.9204
+28977,Casarrubuelos,Madrid,40.1714,-3.8276
+28978,Cubas de la Sagra,Madrid,40.1890,-3.8353
+28979,Serranillos del Valle,Madrid,40.2021,-3.8819
+28980,Parla,Madrid,40.2360,-3.7675
+28981,Parla,Madrid,40.2379,-3.7741
+28982,Parla,Madrid,40.2390,-3.7641
+28983,Parla,Madrid,40.2303,-3.7598
+28984,Parla,Madrid,40.2357,-3.7872
+28990,Torrejón de Velasco,Madrid,40.1875,-3.7768
+28991,Torrejón de la Calzada,Madrid,40.1989,-3.7970
 29001,Malaga,Malaga,36.7213,-4.4214
 30001,Murcia,Murcia,37.9861,-1.1303
 31001,Pamplona,Navarra,42.8125,-1.6458

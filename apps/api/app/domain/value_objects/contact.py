@@ -7,6 +7,8 @@ from dataclasses import dataclass
 
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s.]+(\.[^@\s.]+)+$")
 _PHONE_ALLOWED_RE = re.compile(r"^\+?[0-9]{6,15}$")
+# Movil espanol: 9 cifras que empiezan por 6 o 7, con el prefijo +34/0034 opcional.
+_SPANISH_MOBILE_RE = re.compile(r"^(?:\+34|0034)?[67][0-9]{8}$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,6 +43,11 @@ class PhoneNumber:
         if not _PHONE_ALLOWED_RE.match(compact):
             raise ValueError(f"Telefono invalido: {self.value!r}")
         object.__setattr__(self, "value", compact)
+
+    @property
+    def is_spanish_mobile(self) -> bool:
+        """Solo a un movil se le puede mandar el SMS de verificacion."""
+        return bool(_SPANISH_MOBILE_RE.match(self.value))
 
     @property
     def masked(self) -> str:

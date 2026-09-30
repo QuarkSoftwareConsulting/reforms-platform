@@ -22,6 +22,7 @@ export const routes = {
   projects: "/proyectos",
   myContacts: "/mis-contactos",
   profile: "/perfil",
+  subscription: "/suscripcion",
   login: "/login",
   register: "/registro",
   admin: "/admin",

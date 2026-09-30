@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import Select, case, func, select
+from sqlalchemy import Select, case, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -16,13 +16,22 @@ from app.application.ports import (
     LeadSearchRow,
 )
 from app.domain.exceptions import LeadNotFoundError
-from app.domain.models import Lead, LeadSource, LeadStatus, PurchaseStatus
+from app.domain.models import EXPLORER_STATUSES, Lead, LeadSource, LeadStatus, PurchaseStatus
 from app.infrastructure.adapters.db.mappers import apply_lead, lead_to_domain, to_geography
 from app.infrastructure.adapters.db.models import (
     LeadConsentRow,
     LeadPhotoRow,
     LeadPurchaseRow,
     LeadRow,
+    LeadServiceRow,
+)
+
+# Relaciones que el mapeo a dominio lee siempre; cargarlas de antemano evita la carga
+# perezosa, que en async falla con MissingGreenlet.
+_LEAD_RELATIONS = (
+    selectinload(LeadRow.photos),
+    selectinload(LeadRow.consents),
+    selectinload(LeadRow.services),
 )
 
 
@@ -57,11 +66,16 @@ class SqlAlchemyLeadRepository(LeadRepositoryPort):
                     accepted_at=lead.consent.accepted_at,
                     external_channel=lead.consent.channel,
                     external_campaign_reference=lead.consent.campaign_reference,
+                    allows_public_preview=lead.consent.allows_public_preview,
                 )
             ]
             if lead.consent is not None
             else []
         )
+        row.services = [
+            LeadServiceRow(lead_id=lead.id, service_id=service_id, sort_order=index)
+            for index, service_id in enumerate(lead.service_ids)
+        ]
         self._session.add(row)
         await self._session.flush()
         # Se devuelve la entidad recibida: la fila acaba de escribirse y su columna
@@ -93,7 +107,7 @@ class SqlAlchemyLeadRepository(LeadRepositoryPort):
         stmt = (
             select(LeadRow)
             .where(LeadRow.id == lead_id)
-            .options(selectinload(LeadRow.photos), selectinload(LeadRow.consents))
+            .options(*_LEAD_RELATIONS)
             .execution_options(populate_existing=True)
         )
         return (await self._session.execute(stmt)).scalar_one_or_none()
@@ -110,18 +124,31 @@ class SqlAlchemyLeadRepository(LeadRepositoryPort):
         row = (await self._session.execute(stmt)).scalar_one_or_none()
         if row is None:
             return None
-        await self._session.refresh(row, ["photos", "consents"])
+        await self._session.refresh(row, ["photos", "consents", "services"])
         return lead_to_domain(row)
 
     # ------------------------------ Busqueda -----------------------------
 
     def _base_query(self, filters: LeadSearchFilters) -> Select[tuple[LeadRow]]:
-        stmt = select(LeadRow).where(LeadRow.status == LeadStatus.PUBLISHED)
+        stmt = select(LeadRow).where(LeadRow.status.in_(EXPLORER_STATUSES))
 
         if filters.category_ids:
             stmt = stmt.where(LeadRow.category_id.in_(filters.category_ids))
         if filters.province:
             stmt = stmt.where(LeadRow.province == filters.province)
+        if filters.restricted_category_ids:
+            chose_services = exists().where(LeadServiceRow.lead_id == LeadRow.id)
+            offers_one = exists().where(
+                LeadServiceRow.lead_id == LeadRow.id,
+                LeadServiceRow.service_id.in_(filters.service_ids),
+            )
+            stmt = stmt.where(
+                or_(
+                    LeadRow.category_id.not_in(filters.restricted_category_ids),
+                    ~chose_services,
+                    offers_one,
+                )
+            )
         if filters.center is not None and filters.radius_km is not None:
             # ST_DWithin sobre geography usa metros y aprovecha el indice GIST.
             stmt = stmt.where(
@@ -144,8 +171,9 @@ class SqlAlchemyLeadRepository(LeadRepositoryPort):
 
         stmt = (
             self._base_query(filters)
-            .options(selectinload(LeadRow.photos), selectinload(LeadRow.consents))
-            .order_by(LeadRow.created_at.desc())
+            .options(*_LEAD_RELATIONS)
+            # Los cerrados se ven, pero despues de los que aun se pueden comprar.
+            .order_by((LeadRow.status == LeadStatus.EXHAUSTED).asc(), LeadRow.created_at.desc())
             .limit(filters.limit)
             .offset(filters.offset)
         )
@@ -182,7 +210,7 @@ class SqlAlchemyLeadRepository(LeadRepositoryPort):
         return (await self._session.execute(stmt)).scalar_one()
 
     async def search_admin(self, filters: AdminLeadFilters) -> list[Lead]:
-        stmt = select(LeadRow).options(selectinload(LeadRow.photos), selectinload(LeadRow.consents))
+        stmt = select(LeadRow).options(*_LEAD_RELATIONS)
         if filters.category_id is not None:
             stmt = stmt.where(LeadRow.category_id == filters.category_id)
         if filters.status is not None:

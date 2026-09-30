@@ -73,7 +73,9 @@ services:
       mc alias set local http://minio:9000 reformahub reformahub123 &&
       mc mb --ignore-existing local/reforma-hub-dev &&
       mc anonymous set download local/reforma-hub-dev &&
-      echo 'bucket reforma-hub-dev listo'
+      mc mb --ignore-existing local/reforma-hub-private &&
+      mc anonymous set none local/reforma-hub-private &&
+      echo 'buckets reforma-hub-dev (publico) y reforma-hub-private (documentos) listos'
       "
 
 volumes:

@@ -1,3 +1,8 @@
+from app.infrastructure.adapters.db.repositories.billing_repository import (
+    SqlAlchemyCreditLedgerRepository,
+    SqlAlchemyProfessionalAccountRepository,
+    SqlAlchemySubscriptionPriceRepository,
+)
 from app.infrastructure.adapters.db.repositories.catalog_repository import (
     SqlAlchemyCategoryRepository,
     SqlAlchemyPostalCodeRepository,
@@ -17,11 +22,14 @@ from app.infrastructure.adapters.db.repositories.user_repository import (
 
 __all__ = [
     "SqlAlchemyCategoryRepository",
+    "SqlAlchemyCreditLedgerRepository",
     "SqlAlchemyLeadRepository",
     "SqlAlchemyPostalCodeRepository",
     "SqlAlchemyProcessedEventRepository",
+    "SqlAlchemyProfessionalAccountRepository",
     "SqlAlchemyProfessionalRepository",
     "SqlAlchemyPurchaseRepository",
     "SqlAlchemyPurchaseReviewRepository",
+    "SqlAlchemySubscriptionPriceRepository",
     "SqlAlchemyUserRepository",
 ]

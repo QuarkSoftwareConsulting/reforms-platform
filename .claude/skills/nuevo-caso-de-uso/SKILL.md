@@ -21,7 +21,7 @@ código, no antes.
 ## Antes de escribir: dos preguntas
 
 **¿Es de verdad un caso de uso?** Si solo transforma datos sin decidir nada, es un helper.
-Si expresa una regla del negocio ("un lead se vende como maximo a 3 profesionales"), va al
+Si expresa una regla del negocio ("un lead se vende como maximo a 5 profesionales"), va al
 **dominio**, no al caso de uso. El caso de uso *orquesta*: carga, delega la decision a la
 entidad, persiste.
 

@@ -20,16 +20,24 @@ from app.application.ports import (
     ClockPort,
     IdGeneratorPort,
     PaymentPort,
+    PhoneVerificationPort,
     StoragePort,
     TokenVerifierPort,
 )
 from app.application.use_cases import (
+    AddProfessionalDocument,
+    AdjustProfessionalCredit,
+    ApplySubscriptionEvent,
+    ApproveProfessional,
     ChangeLeadAvailability,
     CreateLead,
+    CreditLedgerService,
     GetAdminMetrics,
     GetLeadDetail,
     GetLeadPricing,
+    GetProfessionalAccount,
     GetProfessionalProfile,
+    GetVerificationDossier,
     HandlePaymentEvent,
     ListAdminLeads,
     ListAdminProfessionals,
@@ -38,28 +46,42 @@ from app.application.use_cases import (
     ListLeads,
     ListMyPurchases,
     MarkPurchaseForReview,
+    OpenBillingPortal,
+    RejectProfessional,
     ReleaseExpiredReservations,
+    RemoveProfessionalDocument,
     RequestPhotoUpload,
+    RequestProfessionalUpload,
     SetCategorySuggestedPrice,
     SetLeadPrice,
+    SetSubscriptionPrice,
     StartLeadPurchase,
+    StartPhoneVerification,
+    StartSubscription,
+    SubmitForReview,
+    SubscriptionPricing,
     SyncUserFromIdentity,
     UpsertProfessionalProfile,
 )
 from app.config import Settings, get_settings
 from app.domain.exceptions import DomainError, ProfessionalNotFoundError
-from app.domain.models import Professional, User
+from app.domain.models import Professional, ServiceArea, User
+from app.domain.value_objects import Money
 from app.infrastructure.adapters.db.repositories import (
     SqlAlchemyCategoryRepository,
+    SqlAlchemyCreditLedgerRepository,
     SqlAlchemyLeadRepository,
     SqlAlchemyPostalCodeRepository,
     SqlAlchemyProcessedEventRepository,
+    SqlAlchemyProfessionalAccountRepository,
     SqlAlchemyProfessionalRepository,
     SqlAlchemyPurchaseRepository,
     SqlAlchemyPurchaseReviewRepository,
+    SqlAlchemySubscriptionPriceRepository,
     SqlAlchemyUserRepository,
 )
 from app.infrastructure.adapters.db.session import SqlAlchemyUnitOfWork
+from app.infrastructure.adapters.sms import ConsolePhoneVerifier
 from app.infrastructure.adapters.storage.gcs_adapter import GCSStorage
 from app.infrastructure.adapters.storage.s3_adapter import S3Storage
 
@@ -81,6 +103,30 @@ def create_storage(settings: Settings) -> StoragePort:
     )
 
 
+def create_document_storage(settings: Settings) -> StoragePort:
+    """Bucket privado de los documentos de alta. Nunca se sirve con URL publica."""
+    if settings.storage_backend == "gcs":
+        return GCSStorage(
+            bucket=settings.gcs_private_bucket,
+            signed_url_expires_seconds=settings.gcs_signed_url_expires_seconds,
+        )
+    return S3Storage(
+        bucket=settings.s3_private_bucket,
+        endpoint_url=settings.s3_endpoint_url,
+        access_key_id=settings.s3_access_key_id,
+        secret_access_key=settings.s3_secret_access_key,
+        region=settings.s3_region,
+        presign_expires_seconds=settings.s3_presign_expires_seconds,
+    )
+
+
+def create_phone_verifier(settings: Settings, clock: ClockPort) -> PhoneVerificationPort | None:
+    """`None` desactiva la verificacion por SMS: el formulario publica sin codigo."""
+    if settings.phone_verification_backend == "console":
+        return ConsolePhoneVerifier(clock=clock)
+    return None
+
+
 @dataclass(slots=True)
 class Infrastructure:
     """Recursos de proceso: se crean al arrancar y se comparten entre peticiones."""
@@ -93,6 +139,16 @@ class Infrastructure:
     token_verifier: TokenVerifierPort
     clock: ClockPort
     ids: IdGeneratorPort
+    # De proceso: el adaptador de consola guarda los codigos en memoria.
+    phone_verifier: PhoneVerificationPort | None = None
+    document_storage: StoragePort | None = None
+    """Bucket privado. `None` solo en tests que no tocan documentos."""
+
+    @property
+    def documents(self) -> StoragePort:
+        if self.document_storage is None:
+            raise RuntimeError("Falta configurar el almacenamiento privado de documentos")
+        return self.document_storage
 
 
 def get_infrastructure(request: Request) -> Infrastructure:
@@ -132,6 +188,9 @@ class RequestContainer:
     categories: SqlAlchemyCategoryRepository
     postal_codes: SqlAlchemyPostalCodeRepository
     processed_events: SqlAlchemyProcessedEventRepository
+    accounts: SqlAlchemyProfessionalAccountRepository
+    ledger: SqlAlchemyCreditLedgerRepository
+    subscription_prices: SqlAlchemySubscriptionPriceRepository
 
     @classmethod
     def build(cls, infra: Infrastructure, session: AsyncSession) -> RequestContainer:
@@ -147,7 +206,23 @@ class RequestContainer:
             categories=SqlAlchemyCategoryRepository(session),
             postal_codes=SqlAlchemyPostalCodeRepository(session),
             processed_events=SqlAlchemyProcessedEventRepository(session),
+            accounts=SqlAlchemyProfessionalAccountRepository(session),
+            ledger=SqlAlchemyCreditLedgerRepository(session),
+            subscription_prices=SqlAlchemySubscriptionPriceRepository(session),
         )
+
+    @property
+    def pricing(self) -> SubscriptionPricing:
+        settings = self.infra.settings
+        return SubscriptionPricing(
+            prices=self.subscription_prices,
+            default_amount=Money(settings.subscription_topup_cents, settings.default_currency),
+            default_price_id=settings.stripe_topup_price_id,
+        )
+
+    @property
+    def credit(self) -> CreditLedgerService:
+        return CreditLedgerService(accounts=self.accounts, ledger=self.ledger, ids=self.infra.ids)
 
     # ------------------------------ Casos de uso -------------------------
 
@@ -161,7 +236,13 @@ class RequestContainer:
             ids=self.infra.ids,
             uow=self.uow,
             max_purchases=self.infra.settings.lead_max_purchases,
+            service_area=ServiceArea.from_prefixes(self.infra.settings.covered_postal_prefixes),
+            phone_verifier=self.infra.phone_verifier,
         )
+
+    @property
+    def start_phone_verification(self) -> StartPhoneVerification:
+        return StartPhoneVerification(verifier=self.infra.phone_verifier)
 
     @property
     def list_leads(self) -> ListLeads:
@@ -185,6 +266,8 @@ class RequestContainer:
             purchases=self.purchases,
             professionals=self.professionals,
             categories=self.categories,
+            accounts=self.accounts,
+            credit=self.credit,
             payments=self.infra.payments,
             clock=self.infra.clock,
             ids=self.infra.ids,
@@ -217,7 +300,12 @@ class RequestContainer:
     @property
     def admin_metrics(self) -> GetAdminMetrics:
         return GetAdminMetrics(
-            leads=self.leads, purchases=self.purchases, professionals=self.professionals
+            leads=self.leads,
+            purchases=self.purchases,
+            professionals=self.professionals,
+            accounts=self.accounts,
+            ledger=self.ledger,
+            clock=self.infra.clock,
         )
 
     @property
@@ -228,7 +316,12 @@ class RequestContainer:
 
     @property
     def admin_professionals(self) -> ListAdminProfessionals:
-        return ListAdminProfessionals(professionals=self.professionals, categories=self.categories)
+        return ListAdminProfessionals(
+            professionals=self.professionals,
+            categories=self.categories,
+            accounts=self.accounts,
+            clock=self.infra.clock,
+        )
 
     @property
     def mark_purchase_for_review(self) -> MarkPurchaseForReview:
@@ -249,6 +342,10 @@ class RequestContainer:
             payments=self.infra.payments,
             clock=self.infra.clock,
             uow=self.uow,
+            credit=self.credit,
+            subscriptions=ApplySubscriptionEvent(
+                accounts=self.accounts, credit=self.credit, clock=self.infra.clock
+            ),
         )
 
     @property
@@ -264,6 +361,60 @@ class RequestContainer:
             payments=self.infra.payments,
             clock=self.infra.clock,
             uow=self.uow,
+            credit=self.credit,
+        )
+
+    @property
+    def start_subscription(self) -> StartSubscription:
+        return StartSubscription(
+            accounts=self.accounts,
+            pricing=self.pricing,
+            payments=self.infra.payments,
+            clock=self.infra.clock,
+            uow=self.uow,
+            web_base_url=self.infra.settings.public_web_url,
+            currency=self.infra.settings.default_currency,
+        )
+
+    @property
+    def billing_portal(self) -> OpenBillingPortal:
+        return OpenBillingPortal(
+            accounts=self.accounts,
+            payments=self.infra.payments,
+            web_base_url=self.infra.settings.public_web_url,
+        )
+
+    @property
+    def get_account(self) -> GetProfessionalAccount:
+        return GetProfessionalAccount(
+            accounts=self.accounts,
+            ledger=self.ledger,
+            pricing=self.pricing,
+            clock=self.infra.clock,
+        )
+
+    @property
+    def set_subscription_price(self) -> SetSubscriptionPrice:
+        return SetSubscriptionPrice(
+            prices=self.subscription_prices,
+            pricing=self.pricing,
+            payments=self.infra.payments,
+            clock=self.infra.clock,
+            ids=self.infra.ids,
+            uow=self.uow,
+            currency=self.infra.settings.default_currency,
+        )
+
+    @property
+    def adjust_credit(self) -> AdjustProfessionalCredit:
+        return AdjustProfessionalCredit(
+            professionals=self.professionals,
+            accounts=self.accounts,
+            credit=self.credit,
+            clock=self.infra.clock,
+            ids=self.infra.ids,
+            uow=self.uow,
+            currency=self.infra.settings.default_currency,
         )
 
     @property
@@ -281,6 +432,66 @@ class RequestContainer:
             clock=self.infra.clock,
             ids=self.infra.ids,
             uow=self.uow,
+            service_area=ServiceArea.from_prefixes(self.infra.settings.covered_postal_prefixes),
+        )
+
+    @property
+    def request_professional_upload(self) -> RequestProfessionalUpload:
+        return RequestProfessionalUpload(media=self.infra.storage, documents=self.infra.documents)
+
+    @property
+    def add_professional_document(self) -> AddProfessionalDocument:
+        return AddProfessionalDocument(
+            professionals=self.professionals,
+            clock=self.infra.clock,
+            ids=self.infra.ids,
+            uow=self.uow,
+        )
+
+    @property
+    def remove_professional_document(self) -> RemoveProfessionalDocument:
+        return RemoveProfessionalDocument(
+            professionals=self.professionals, documents=self.infra.documents, uow=self.uow
+        )
+
+    @property
+    def submit_for_review(self) -> SubmitForReview:
+        return SubmitForReview(
+            professionals=self.professionals,
+            clock=self.infra.clock,
+            ids=self.infra.ids,
+            uow=self.uow,
+        )
+
+    @property
+    def approve_professional(self) -> ApproveProfessional:
+        return ApproveProfessional(
+            professionals=self.professionals,
+            clock=self.infra.clock,
+            ids=self.infra.ids,
+            uow=self.uow,
+        )
+
+    @property
+    def reject_professional(self) -> RejectProfessional:
+        return RejectProfessional(
+            professionals=self.professionals,
+            accounts=self.accounts,
+            ledger=self.ledger,
+            credit=self.credit,
+            payments=self.infra.payments,
+            clock=self.infra.clock,
+            ids=self.infra.ids,
+            uow=self.uow,
+        )
+
+    @property
+    def verification_dossier(self) -> GetVerificationDossier:
+        return GetVerificationDossier(
+            professionals=self.professionals,
+            categories=self.categories,
+            users=self.users,
+            documents=self.infra.documents,
         )
 
     @property

@@ -20,8 +20,9 @@ from app.domain.exceptions import (
     CategoryNotFoundError,
     LeadNotFoundError,
     ProfessionalNotFoundError,
+    ProfessionalRejectedError,
 )
-from app.domain.models import LeadStatus, PurchaseStatus
+from app.domain.models import LeadStatus, PurchaseStatus, VerificationStatus
 
 
 @dataclass(slots=True)
@@ -35,6 +36,8 @@ class GetLeadDetail:
         professional = await self.professionals.get(professional_id)
         if professional is None:
             raise ProfessionalNotFoundError()
+        if professional.verification_status is VerificationStatus.REJECTED:
+            raise ProfessionalRejectedError()
 
         lead = await self.leads.get(lead_id)
         if lead is None:

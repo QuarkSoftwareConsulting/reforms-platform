@@ -1,0 +1,90 @@
+# Segundo nivel del catalogo: servicios de cada categoria, en el orden del documento
+# del cliente (docs/etapa-1-cliente.md). Un servicio retirado se quita de aqui y la
+# semilla lo desactiva; no se borra porque los leads antiguos lo siguen nombrando.
+category_slug,slug,name_es,name_en
+reformas,reformas-banos,Reformas de baños,Bathroom renovations
+reformas,reformas-cocinas,Reformas de cocinas,Kitchen renovations
+reformas,reformas-viviendas,Reformas de viviendas,Home renovations
+reformas,reforma-integral,"Reforma integral (baño, cocina, casa, piso, vivienda)","Full renovation (bathroom, kitchen, house, flat, home)"
+reformas,reformas-locales,Reformas de locales comerciales,Commercial premises renovations
+reformas,rehabilitacion-fachadas,Rehabilitación de fachadas,Façade restoration
+reformas,cambiar-plato-ducha,Cambiar plato de ducha,Shower tray replacement
+reformas,banera-por-plato-ducha,Cambiar bañera por plato de ducha,Replace bathtub with shower tray
+reformas,cambiar-encimera-cocina,Cambiar encimera de cocina,Kitchen worktop replacement
+reformas,cerramiento-terrazas,Cerramiento de terrazas,Terrace enclosures
+reformas,alicatador,Alicatador,Tiler
+reformas,quitar-gotele,Quitar gotelé,Textured paint removal
+reformas,reparacion-paredes,Reparación de paredes,Wall repairs
+seguridad-electronica,cctv,Circuito cerrado de televisión (CCTV),Closed-circuit television (CCTV)
+seguridad-electronica,alarma,Alarma,Alarm
+seguridad-electronica,control-acceso,Control de acceso,Access control
+seguridad-electronica,deteccion-incendio,Sistemas de detección de incendio,Fire detection systems
+seguridad-electronica,automatizacion,Automatización,Automation
+seguridad-electronica,domotica,Domótica,Home automation
+construccion,construccion-casas,Construcción de casas,House building
+construccion,construccion-piscinas,Construcción de piscinas,Swimming pool construction
+construccion,construccion-muros,Construcción de muros,Wall construction
+construccion,derribos-demoliciones,Derribos y demoliciones,Demolition
+construccion,excavaciones,Excavaciones,Excavation
+construccion,nivelacion-terreno,Nivelación de terreno,Land levelling
+construccion,alquiler-andamios,Alquiler de andamios,Scaffolding hire
+instaladores,electricistas,Electricistas,Electricians
+instaladores,instalacion-electrica,Instalación eléctrica,Electrical installation
+instaladores,aire-acondicionado,Aire acondicionado (instalación y reparación),Air conditioning (installation and repair)
+instaladores,ventilador-techo,Instalación de ventilador de techo,Ceiling fan installation
+instaladores,aerotermia,Aerotermia,Aerothermal heat pumps
+instaladores,calefaccion,Calefacción,Heating
+instaladores,cambiar-caldera,Cambiar caldera,Boiler replacement
+instaladores,instalar-radiadores,Instalar radiadores,Radiator installation
+instaladores,placas-solares,Placas solares,Solar panels
+instaladores,ascensores,Ascensores,Lifts
+instaladores,antenas,Antenas,Aerials
+instaladores,toldos,Toldos,Awnings
+instaladores,domotica,Domótica,Home automation
+instaladores,alarmas,Alarmas,Alarms
+instaladores,porteros-automaticos,Porteros automáticos,Door entry systems
+instaladores,puertas-garaje,Puertas de garaje,Garage doors
+instaladores,reparacion-persianas,Reparación de persianas,Blind and shutter repair
+obras-menores,pintores,Pintores,Painters
+obras-menores,pintar-casa,Pintar casa,House painting
+obras-menores,pintar-paredes,Pintar paredes,Wall painting
+obras-menores,albaniles,Albañiles,Bricklayers
+obras-menores,fontaneros,Fontaneros,Plumbers
+obras-menores,cerrajeros,Cerrajeros,Locksmiths
+obras-menores,carpinteros,Carpinteros,Carpenters
+obras-menores,pladur,Pladur (paredes y techos),Plasterboard (walls and ceilings)
+obras-menores,microcemento,Microcemento,Microcement
+obras-menores,parquetistas,Parquetistas,Parquet fitters
+obras-menores,cristaleros,Cristaleros,Glaziers
+obras-menores,yeseros,Yeseros,Plasterers
+obras-menores,suelo-laminado,Poner suelo laminado,Laminate flooring
+obras-menores,suelo-porcelanico,Poner suelo porcelánico,Porcelain tile flooring
+obras-menores,humedades,Humedades,Damp treatment
+obras-menores,impermeabilizaciones,Impermeabilizaciones,Waterproofing
+obras-menores,aislamiento-termico,Aislamiento térmico,Thermal insulation
+obras-menores,tejados,Tejados y reparación de tejados,Roofing and roof repair
+mantenimiento,limpieza,Limpieza,Cleaning
+mantenimiento,jardineros,Jardineros,Gardeners
+mantenimiento,control-plagas,Control de plagas,Pest control
+mantenimiento,pulir-suelos,Pulir suelos,Floor polishing
+mantenimiento,montaje-muebles,Montaje de muebles (incl. IKEA),Furniture assembly (incl. IKEA)
+mantenimiento,manitas,Manitas,Handyman
+mantenimiento,mantenimiento-ascensores,Mantenimiento de ascensores,Lift maintenance
+mantenimiento,mantenimiento-comunidades,Mantenimiento de comunidades,Building maintenance
+mantenimiento,mantenimiento-piscinas,Mantenimiento de piscinas,Swimming pool maintenance
+tecnicos,arquitectos,Arquitectos,Architects
+tecnicos,ingenieros,Ingenieros,Engineers
+tecnicos,peritos,Peritos,Surveyors
+tecnicos,interiorismo,Interiorismo,Interior design
+tecnicos,certificaciones-energeticas,Certificaciones energéticas,Energy certificates
+tecnicos,cedulas-habitabilidad,Cédulas de habitabilidad,Habitability certificates
+mudanzas,mudanzas-viviendas,Mudanzas de viviendas,Home removals
+mudanzas,mudanzas-oficinas,Mudanzas de oficinas,Office removals
+mudanzas,portes,Portes,Small moves
+mudanzas,guardamuebles,Guardamuebles,Furniture storage
+mudanzas,trasteros,Trasteros,Storage units
+mudanzas,transporte-muebles,Transporte de muebles,Furniture transport
+mudanzas,retirada-muebles,Retirada de muebles,Furniture removal
+bienestar-salud,entrenador-personal,Entrenador personal,Personal trainer
+servicios-profesionales,diseno-web,Diseño web y creación de páginas web,Web design and development
+servicios-profesionales,marketing-publicidad,Marketing y publicidad,Marketing and advertising

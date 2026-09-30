@@ -13,13 +13,18 @@ from uuid import UUID
 
 from app.domain.models import (
     Category,
+    CreditEntry,
     Lead,
     LeadSource,
     LeadStatus,
     Professional,
+    ProfessionalAccount,
     Purchase,
     PurchaseReview,
+    SubscriptionPrice,
     User,
+    VerificationEvent,
+    VerificationStatus,
 )
 from app.domain.value_objects import Coordinates, PostalCode
 
@@ -42,6 +47,14 @@ class LeadSearchFilters:
     center: Coordinates | None = None
     radius_km: int | None = None
     province: str | None = None
+    service_ids: frozenset[UUID] = frozenset()
+    """Servicios que ofrece el profesional."""
+    restricted_category_ids: frozenset[UUID] = frozenset()
+    """Oficios en los que el profesional eligio servicios concretos.
+
+    En esos oficios solo ve las solicitudes de sus servicios o las que no indican
+    ninguno; en el resto, todas. Sin servicios elegidos no se restringe nada.
+    """
     limit: int = 20
     offset: int = 0
 
@@ -168,6 +181,9 @@ class UserRepositoryPort(ABC):
     async def add(self, user: User) -> User: ...
 
     @abstractmethod
+    async def get(self, user_id: UUID) -> User | None: ...
+
+    @abstractmethod
     async def get_by_firebase_uid(self, firebase_uid: str) -> User | None: ...
 
     @abstractmethod
@@ -185,18 +201,42 @@ class ProfessionalRepositoryPort(ABC):
     async def get_by_user_id(self, user_id: UUID) -> Professional | None: ...
 
     @abstractmethod
+    async def get_for_update(self, professional_id: UUID) -> Professional | None:
+        """Bloquea la fila hasta el final de la transaccion (aprobar/rechazar el alta).
+
+        Si hace falta tambien la cuenta, se bloquea DESPUES del profesional: siempre
+        en ese orden, para no interbloquear.
+        """
+
+    @abstractmethod
     async def update(self, professional: Professional) -> Professional: ...
 
     @abstractmethod
     async def list_admin(
-        self, *, query: str | None, limit: int, offset: int
-    ) -> list[Professional]: ...
+        self,
+        *,
+        query: str | None,
+        limit: int,
+        offset: int,
+        verification_status: VerificationStatus | None = None,
+    ) -> list[Professional]:
+        """Con estado `pending`, es la cola de validacion: los mas antiguos primero."""
 
     @abstractmethod
-    async def count_admin(self, *, query: str | None) -> int: ...
+    async def count_admin(
+        self, *, query: str | None, verification_status: VerificationStatus | None = None
+    ) -> int: ...
 
     @abstractmethod
     async def count_all(self) -> int: ...
+
+    @abstractmethod
+    async def add_verification_event(self, event: VerificationEvent) -> None:
+        """Auditoria append-only de la validacion."""
+
+    @abstractmethod
+    async def list_verification_events(self, professional_id: UUID) -> list[VerificationEvent]:
+        """Del mas antiguo al mas reciente."""
 
 
 class CategoryRepositoryPort(ABC):
@@ -244,3 +284,75 @@ class PurchaseReviewRepositoryPort(ABC):
 
     @abstractmethod
     async def list_for_purchase(self, purchase_id: UUID) -> list[PurchaseReview]: ...
+
+
+class ProfessionalAccountRepositoryPort(ABC):
+    """Cuenta de recarga + saldo. Una por profesional, creada al iniciar la recarga."""
+
+    @abstractmethod
+    async def add(self, account: ProfessionalAccount) -> ProfessionalAccount: ...
+
+    @abstractmethod
+    async def update(self, account: ProfessionalAccount) -> ProfessionalAccount: ...
+
+    @abstractmethod
+    async def get(self, professional_id: UUID) -> ProfessionalAccount | None: ...
+
+    @abstractmethod
+    async def get_for_update(self, professional_id: UUID) -> ProfessionalAccount | None:
+        """Bloquea la cuenta hasta el final de la transaccion.
+
+        Es lo que impide gastar dos veces el mismo saldo en compras simultaneas.
+        Quien bloquee tambien un lead debe bloquear primero el lead y despues la
+        cuenta, siempre en ese orden, para no provocar interbloqueos.
+        """
+
+    @abstractmethod
+    async def get_by_customer_for_update(self, customer_id: str) -> ProfessionalAccount | None:
+        """Cuenta asociada al cliente de la pasarela, bloqueada (eventos del webhook)."""
+
+    @abstractmethod
+    async def get_many(self, professional_ids: set[UUID]) -> dict[UUID, ProfessionalAccount]: ...
+
+    @abstractmethod
+    async def count_active(self, *, now: datetime) -> int: ...
+
+
+class CreditLedgerRepositoryPort(ABC):
+    """Libro append-only de movimientos de saldo."""
+
+    @abstractmethod
+    async def add_if_absent(self, entry: CreditEntry) -> bool:
+        """Registra el movimiento y devuelve True si no existia otro igual.
+
+        "Igual" es el mismo `kind` con la misma `source_ref`. Si devuelve False el
+        movimiento ya se habia aplicado y el caso de uso no debe tocar el saldo.
+        """
+
+    @abstractmethod
+    async def list_for_professional(
+        self, professional_id: UUID, *, limit: int = 50, offset: int = 0
+    ) -> list[CreditEntry]: ...
+
+    @abstractmethod
+    async def latest_topup(self, professional_id: UUID) -> CreditEntry | None:
+        """Ultima recarga cobrada: dice cuanto paga ESTE profesional al mes."""
+
+    @abstractmethod
+    async def first_topup(self, professional_id: UUID) -> CreditEntry | None:
+        """Primera recarga cobrada: la que se reembolsa si se rechaza el alta."""
+
+    @abstractmethod
+    async def topup_totals(self) -> dict[str, int]:
+        """Suma de recargas cobradas por divisa (en centimos)."""
+
+
+class SubscriptionPriceRepositoryPort(ABC):
+    """Historial append-only del importe de la mensualidad."""
+
+    @abstractmethod
+    async def add(self, price: SubscriptionPrice) -> SubscriptionPrice: ...
+
+    @abstractmethod
+    async def current(self) -> SubscriptionPrice | None:
+        """La mas reciente, o None si el admin aun no la ha fijado."""

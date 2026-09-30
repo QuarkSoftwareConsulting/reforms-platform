@@ -17,15 +17,17 @@ from app.application.ports import (
     AdminLeadFilters,
     CategoryRepositoryPort,
     ClockPort,
+    CreditLedgerRepositoryPort,
     IdGeneratorPort,
     LeadRepositoryPort,
+    ProfessionalAccountRepositoryPort,
     ProfessionalRepositoryPort,
     PurchaseRepositoryPort,
     PurchaseReviewRepositoryPort,
     UnitOfWork,
 )
 from app.domain.exceptions import LeadNotFoundError, PurchaseNotFoundError
-from app.domain.models import Lead, PurchaseReview
+from app.domain.models import Lead, PurchaseReview, VerificationStatus
 
 MAX_PAGE_SIZE = 100
 
@@ -95,6 +97,9 @@ class GetAdminMetrics:
     leads: LeadRepositoryPort
     purchases: PurchaseRepositoryPort
     professionals: ProfessionalRepositoryPort
+    accounts: ProfessionalAccountRepositoryPort
+    ledger: CreditLedgerRepositoryPort
+    clock: ClockPort
 
     async def execute(self) -> AdminMetrics:
         lead_counts = await self.leads.dashboard_counts()
@@ -110,6 +115,8 @@ class GetAdminMetrics:
             paid_purchases=purchase_metrics.count,
             paid_leads=purchase_metrics.lead_count,
             revenue_by_currency=purchase_metrics.revenue_by_currency,
+            active_accounts=await self.accounts.count_active(now=self.clock.now()),
+            topup_revenue_by_currency=await self.ledger.topup_totals(),
         )
 
 
@@ -143,14 +150,25 @@ class ListAdminProfessionals:
 
     professionals: ProfessionalRepositoryPort
     categories: CategoryRepositoryPort
+    accounts: ProfessionalAccountRepositoryPort
+    clock: ClockPort
 
     async def execute(
-        self, *, query: str | None, limit: int, offset: int
+        self,
+        *,
+        query: str | None,
+        limit: int,
+        offset: int,
+        verification_status: VerificationStatus | None = None,
     ) -> AdminProfessionalListResult:
+        """Con `verification_status=PENDING` es la cola de validacion."""
         normalized_limit = min(max(limit, 1), MAX_PAGE_SIZE)
         normalized_offset = max(offset, 0)
         rows = await self.professionals.list_admin(
-            query=query, limit=normalized_limit, offset=normalized_offset
+            query=query,
+            limit=normalized_limit,
+            offset=normalized_offset,
+            verification_status=verification_status,
         )
         categories = {
             category.id: category
@@ -158,6 +176,8 @@ class ListAdminProfessionals:
                 {category_id for professional in rows for category_id in professional.category_ids}
             )
         }
+        accounts = await self.accounts.get_many({professional.id for professional in rows})
+        now = self.clock.now()
         return AdminProfessionalListResult(
             items=[
                 AdminProfessionalItem(
@@ -167,10 +187,16 @@ class ListAdminProfessionals:
                         for category_id in professional.category_ids
                         if category_id in categories
                     ],
+                    account=accounts.get(professional.id),
+                    account_active=(
+                        professional.id in accounts and accounts[professional.id].is_active(now)
+                    ),
                 )
                 for professional in rows
             ],
-            total=await self.professionals.count_admin(query=query),
+            total=await self.professionals.count_admin(
+                query=query, verification_status=verification_status
+            ),
             limit=normalized_limit,
             offset=normalized_offset,
         )

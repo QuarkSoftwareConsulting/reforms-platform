@@ -6,7 +6,7 @@ campo obligatorio al dominio rompa en un solo sitio.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 from app.domain.models import (
@@ -19,10 +19,13 @@ from app.domain.models import (
     LeadSource,
     LeadStatus,
     Professional,
+    ProfessionalAccount,
     Purchase,
     PurchaseStatus,
+    SubscriptionStatus,
     User,
     UserRole,
+    VerificationStatus,
 )
 from app.domain.value_objects import Coordinates, Email, Money, PhoneNumber, PostalCode
 
@@ -127,6 +130,9 @@ def make_professional(*, category_ids: set[UUID] | None = None, **kwargs: object
         "city": "Madrid",
         "province": "Madrid",
         "category_ids": category_ids if category_ids is not None else {uuid4()},
+        # Por defecto, un profesional ya validado: la mayoria de tests prueban lo
+        # que ocurre cuando puede comprar. Los de validacion fijan su estado.
+        "verification_status": VerificationStatus.APPROVED,
     }
     defaults.update(kwargs)
     return Professional(**defaults)  # type: ignore[arg-type]
@@ -147,3 +153,21 @@ def make_purchase(**kwargs: object) -> Purchase:
     }
     defaults.update(kwargs)
     return Purchase(**defaults)  # type: ignore[arg-type]
+
+
+def make_account(
+    *, professional_id: UUID | None = None, balance_cents: int = 0, **kwargs: object
+) -> ProfessionalAccount:
+    """Cuenta al dia con la recarga, con el periodo pagado en curso."""
+    pid = professional_id or uuid4()
+    defaults: dict[str, object] = {
+        "professional_id": pid,
+        "balance": Money(balance_cents, "EUR"),
+        "created_at": NOW,
+        "subscription_status": SubscriptionStatus.ACTIVE,
+        "stripe_customer_id": f"cus_{pid.hex[:12]}",
+        "stripe_subscription_id": f"sub_{pid.hex[:12]}",
+        "current_period_end": NOW + timedelta(days=30),
+    }
+    defaults.update(kwargs)
+    return ProfessionalAccount(**defaults)  # type: ignore[arg-type]

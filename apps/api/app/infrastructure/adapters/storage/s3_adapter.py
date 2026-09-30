@@ -15,6 +15,11 @@ from app.application.ports import PresignedUpload, StoragePort
 from app.infrastructure.adapters.storage.object_keys import create_object_key
 
 
+def _safe(filename: str) -> str:
+    """Nombre apto para la cabecera Content-Disposition (sin comillas ni saltos)."""
+    return "".join(c for c in filename if c.isprintable() and c not in '"\\') or "documento"
+
+
 class S3Storage(StoragePort):
     def __init__(
         self,
@@ -60,6 +65,20 @@ class S3Storage(StoragePort):
 
     def public_url(self, storage_key: str) -> str:
         return f"{self._public_base_url}/{storage_key.lstrip('/')}"
+
+    async def signed_download_url(self, storage_key: str, *, filename: str) -> str:
+        url: str = await asyncio.to_thread(
+            self._client.generate_presigned_url,
+            "get_object",
+            Params={
+                "Bucket": self._bucket,
+                "Key": storage_key,
+                # Se descarga con su nombre original, no con la clave aleatoria.
+                "ResponseContentDisposition": f'attachment; filename="{_safe(filename)}"',
+            },
+            ExpiresIn=self._expires,
+        )
+        return url
 
     async def delete(self, storage_key: str) -> None:
         await asyncio.to_thread(self._client.delete_object, Bucket=self._bucket, Key=storage_key)

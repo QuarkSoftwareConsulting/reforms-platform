@@ -22,14 +22,15 @@
     "admin": "Admin",
     "howWeValidate": "How we validate",
     "pricing": "Pricing",
-    "menu": "Open menu"
+    "menu": "Open menu",
+    "subscription": "My monthly fee"
   },
   "footer": {
     "tagline": "Your ideas. The best professionals."
   },
   "home": {
     "title": "Phone-verified renovation contacts across Spain",
-    "subtitle": "We check every client before publishing their request. You see the job, the area and the contact price before paying. No monthly fee, no lock-in.",
+    "subtitle": "We check every client before publishing their request. You see the job, the area and the contact price before paying. Your monthly fee becomes balance to buy contacts.",
     "heroEyebrow": "Verified contacts · Spain",
     "heroTitle": "The job is already <mark>checked</mark>. All that's left is your call.",
     "heroSubtitle": "We check every request before publishing it. You see the job, the area and the contact price, and you decide whether to buy it.",
@@ -74,9 +75,9 @@
         "title": "The contact price is visible before you pay",
         "body": "Every card carries its amount in plain sight. No bundles, no credit packs, no prices that change at checkout."
       },
-      "noFee": {
-        "title": "No monthly fee, no lock-in",
-        "body": "You only pay for the contacts you choose to buy. Signing up and browsing the listing costs nothing."
+      "topup": {
+        "title": "Your monthly fee becomes balance",
+        "body": "Every month {amount} is charged and added to your balance to buy the contacts you choose. Browsing the listing costs nothing."
       },
       "privacy": {
         "title": "Only the buyer sees the client's phone",
@@ -87,7 +88,7 @@
       "eyebrow": "Transparent pricing",
       "headline": "From {price} per contact",
       "headlineFallback": "You pay per contact. Nothing else.",
-      "body": "No fee, no lock-in and the price visible on every card. Each purchase keeps the amount you paid, even if the trade's price changes later.",
+      "body": "With your monthly fee up to date, each contact is paid from your balance and the price is visible on every card. Each purchase keeps the amount you paid.",
       "cta": "Create a free account"
     },
     "clientBanner": {
@@ -113,7 +114,7 @@
     "descriptionHint": "At least {min} characters. More detail means better quotes.",
     "postalCodeLabel": "Postal code",
     "postalCodePlaceholder": "28001",
-    "postalCodeHint": "The public listing shows only the town and province, never the exact address.",
+    "postalCodeHint": "Only in the Community of Madrid for now. Professionals see your postcode and town, never your address.",
     "photosLabel": "Job photos",
     "photosHint": "Up to {max} photos (JPG, PNG or WEBP, max 10 MB each).",
     "photosAdd": "Add photos",
@@ -124,7 +125,7 @@
     "phoneHint": "This is the key detail. Only professionals who buy your contact will see it.",
     "emailLabel": "Email",
     "emailHint": "We'll send you a copy of your request.",
-    "consentLabel": "I have read and accept the data processing policy. I authorise Voy a Reformar to process my data to validate the request and to share it with up to {maxProfessionals} professionals who buy the contact, under GDPR (EU) 2016/679 and LOPDGDD 3/2018.",
+    "consentLabel": "I have read and accept the data processing policy. I authorise Voy a Reformar to process my data to validate the request, to show my first name and postcode to registered professionals and to share my contact details with up to {maxProfessionals} professionals who buy the contact, under GDPR (EU) 2016/679 and LOPDGDD 3/2018.",
     "policyShow": "See the data policy summary",
     "policyHide": "Hide the summary",
     "policy": {
@@ -142,7 +143,7 @@
       },
       "recipients": {
         "term": "Recipients",
-        "body": "At most {maxProfessionals} professionals who buy your contact. Nobody else receives your name or phone."
+        "body": "Registered professionals see your first name, your postcode and what you need. Your full name, phone and email are only shared with at most {maxProfessionals} professionals who buy your contact."
       },
       "retention": {
         "term": "Retention",
@@ -156,8 +157,35 @@
     "submit": "Publish request",
     "submitting": "Publishing...",
     "successTitle": "Request received",
-    "successBody": "It's now visible to professionals in {city}. They will call you directly on the number you gave us.",
-    "publishAnother": "Send another request"
+    "successBody": "It's now visible to professionals in {city}. They will contact you directly using the details you gave us.",
+    "publishAnother": "Send another request",
+    "propertyTypeLabel": "What type of property is it?",
+    "scheduleLabel": "What is the current timing of your project?",
+    "servicesLabel": "What do you need in {category}?",
+    "servicesHint": "Optional. Tick one or more services.",
+    "phoneCodeLabel": "Verification code",
+    "phoneCodeHint": "We have sent it by text message to {phone}. Enter it to publish your request.",
+    "phoneCodeResend": "Send another code"
+  },
+  "project": {
+    "propertyTypes": {
+      "flat": "Flat",
+      "house": "House or villa",
+      "commercial": "Commercial premises",
+      "office": "Office",
+      "community": "Residents' association",
+      "industrial": "Warehouse or industrial",
+      "land": "Land or outdoor"
+    },
+    "schedules": {
+      "asap": "As soon as possible",
+      "within_weeks": "In 2-4 weeks",
+      "within_months": "In 1-3 months",
+      "gathering_quotes": "Just comparing prices"
+    },
+    "propertyType": "Property type",
+    "schedule": "Timing",
+    "services": "Services"
   },
   "projects": {
     "title": "Requests near you",
@@ -168,6 +196,10 @@
     "filterAll": "All my trades",
     "filterRadius": "Search radius",
     "slotsLeft": "{count, plural, =0 {No slots left} one {1 slot left} other {# slots left}}",
+    "closed": "Closed",
+    "buyers": "{count, plural, =0 {Nobody has bought it yet} one {1 professional already bought it} other {# professionals already bought it}}",
+    "vatIncluded": "VAT included",
+    "clientFirstName": "Client: {name}",
     "purchased": "Already bought",
     "viewDetail": "See the contact",
     "contactPrice": "Contact",
@@ -176,8 +208,15 @@
   "lead": {
     "publishedAgo": "Posted {when}",
     "contactLocked": "Contact locked",
-    "contactLockedBody": "Unlock the client's name and phone for {price}. This request accepts {slots} more professionals.",
+    "contactLockedBody": "Unlock the client's full name and phone for {price}. This request accepts {slots} more professionals.",
     "contactPrice": "Contact price",
+    "vatIncluded": "VAT included",
+    "vatBreakdown": "Net {net} + VAT ({rate}%) {vat}",
+    "client": "Client",
+    "postalCode": "Postcode",
+    "buyers": "{count, plural, =0 {Nobody has bought it yet} one {1 of {max} professionals already bought it} other {# of {max} professionals already bought it}}",
+    "closedTitle": "Request closed",
+    "closedBody": "{max} professionals have already bought it, the maximum allowed. It accepts no more purchases.",
     "unlock": "Buy contact for {price}",
     "unlocking": "Redirecting to payment...",
     "contactUnlocked": "Contact unlocked",
@@ -187,7 +226,15 @@
     "callClient": "Call now",
     "reservationPending": "You have a reservation in progress. Complete the payment within {minutes} minutes or the slot will be released.",
     "resumePayment": "Complete the payment",
-    "backToProjects": "Back to requests"
+    "backToProjects": "Back to requests",
+    "needsSubscription": "You need an up-to-date monthly fee to buy this contact.",
+    "activateToBuy": "Activate monthly fee to buy",
+    "creditWillCover": "It will be paid from your balance ({balance}). You won't go through the payment gateway.",
+    "creditWillApply": "{credit} of your balance will be used and you'll pay {due} at checkout.",
+    "paymentCancelled": "You cancelled the payment. If your reservation is still valid, you can complete it before it expires.",
+    "needsApproval": "To buy contacts we need to validate your registration.",
+    "needsApprovalPending": "Your registration is under review. You can buy once we approve it.",
+    "completeRegistration": "See my registration"
   },
   "purchases": {
     "title": "My contacts",
@@ -205,11 +252,49 @@
     "paymentSuccess": "Payment confirmed. You can contact the client now.",
     "paymentPending": "We're confirming your payment. It will unlock in a few seconds."
   },
+  "subscription": {
+    "title": "Monthly fee",
+    "subtitle": "Every month {amount} is charged and added to your balance to buy contacts. Without an up-to-date top-up you can browse requests, but not buy them.",
+    "statusLabel": "Account status",
+    "status": {
+      "none": "No monthly fee",
+      "pending": "Payment being confirmed",
+      "active": "Active",
+      "past_due": "Payment overdue",
+      "canceled": "Canceled"
+    },
+    "balanceLabel": "Available balance",
+    "topupLabel": "Monthly fee",
+    "renewsOn": "Next renewal: {date}",
+    "activate": "Activate {amount}/month fee",
+    "reactivate": "Reactivate the monthly fee",
+    "manage": "Manage payment or cancel",
+    "redirecting": "Redirecting...",
+    "sepaNotice": "You can pay by card or bank direct debit (SEPA). With direct debit, the first charge takes 2 to 5 days to be confirmed and you can't buy until then.",
+    "pendingNotice": "We're waiting for the payment to be confirmed. As soon as it arrives you'll be able to buy contacts and the amount will be added to your balance.",
+    "pastDueNotice": "We couldn't charge this month's top-up. Update your payment method to buy contacts again. Your balance is kept.",
+    "canceledNotice": "Your top-up is canceled. You can still browse requests and your balance is kept; to buy, reactivate it.",
+    "checkoutSuccess": "We've received your payment details. Your account will be activated once the charge is confirmed.",
+    "checkoutCancelled": "You cancelled the payment. Your monthly fee hasn't been activated.",
+    "historyTitle": "Balance history",
+    "historyEmpty": "No movements yet.",
+    "entry": {
+      "topup": "Monthly fee",
+      "spend": "Contact purchase",
+      "spend_reversal": "Refund of unpaid reservation",
+      "adjustment_credit": "Admin credit",
+      "adjustment_debit": "Admin charge"
+    },
+    "bannerActive": "Active account · Balance: {balance}",
+    "bannerInactive": "Inactive account: you can browse requests, but to buy contacts you need an up-to-date monthly top-up.",
+    "bannerCta": "Activate monthly fee",
+    "bannerManage": "View my monthly fee"
+  },
   "profile": {
     "title": "My professional profile",
-    "subtitle": "Set your trades and working area to get relevant requests.",
+    "subtitle": "Your trades, your area and your registration details. Once we approve them you can buy contacts.",
     "businessNameLabel": "Business name",
-    "phoneLabel": "Contact phone",
+    "phoneLabel": "Mobile",
     "postalCodeLabel": "Postal code of your base",
     "radiusLabel": "Working radius",
     "radiusHint": "You'll only see requests within this radius.",
@@ -217,7 +302,90 @@
     "categoriesHint": "Pick at least one. You can only buy contacts for these trades.",
     "saved": "Profile saved",
     "onboardingTitle": "Complete your profile",
-    "onboardingSubtitle": "One last step before you see requests in your area."
+    "onboardingSubtitle": "Start with your business and your trades. Then you can upload your documents and send your registration for review.",
+    "phoneHint": "A Spanish mobile number. No landline needed.",
+    "postalCodeHint": "For now we only work in the Community of Madrid.",
+    "sections": {
+      "business": "Your business",
+      "trades": "Trades and services",
+      "registration": "Registration details",
+      "media": "Photos",
+      "documents": "Documents"
+    },
+    "servicesLabel": "Services you offer in {category}",
+    "servicesHint": "Optional. If you tick none, you will see every request of this trade.",
+    "registrationHint": "We need these details to validate your registration and to invoice you.",
+    "identityLocked": "You already sent your registration for review: type, legal name and tax ID can no longer change.",
+    "typeLabel": "How are you registering?",
+    "types": {
+      "self_employed": {
+        "title": "Self-employed",
+        "subtitle": "You provide your Tax Agency registration forms."
+      },
+      "company": {
+        "title": "Company",
+        "subtitle": "You provide your Tax Agency registration forms and your CIF."
+      },
+      "independent": {
+        "title": "Independent worker",
+        "subtitle": "You provide your DNI, TIE or passport."
+      }
+    },
+    "legalNameLabel": "Legal name or full name",
+    "legalNameHint": "The name we will invoice.",
+    "taxIdLabel": "NIF, NIE or CIF",
+    "taxIdHint": "If you are an independent worker with a passport, you can leave it blank.",
+    "addressLabel": "Business or home address",
+    "uploadsAfterSaving": "Once you save your profile you can upload your photos and documents.",
+    "create": "Create profile",
+    "goToProjects": "See requests",
+    "profilePhotoLabel": "Photo of your face",
+    "logoLabel": "Logo",
+    "workPhotosLabel": "Photos of past work",
+    "workPhotosHint": "Up to {max} photos. Clients will see them.",
+    "workPhotoAlt": "Work {index}",
+    "mediaAdd": "Upload photo",
+    "mediaReplace": "Change photo",
+    "mediaRemove": "Remove",
+    "documentsLabel": "Registration documents",
+    "documentsHint": {
+      "tax_registration": "Upload your Tax Agency registration forms (036 or 037). PDF or image, up to 10 MB.",
+      "identity": "Upload your DNI, TIE or passport. PDF or image, up to 10 MB."
+    },
+    "documentsHintNoType": "First choose how you are registering so we know which documents we need.",
+    "documentKinds": {
+      "tax_registration": "Tax Agency forms",
+      "identity": "DNI, TIE or passport"
+    },
+    "documentKindLabel": "Document type",
+    "documentAdd": "Upload document",
+    "documentRemove": "Remove",
+    "documentsLocked": "Your documents were already sent for review.",
+    "verification": {
+      "approvedTitle": "Registration approved",
+      "approvedBody": "You can now buy contacts as long as your monthly top-up is up to date.",
+      "pendingTitle": "Registration under review",
+      "pendingBody": "You sent it on {date}. While we review it you can see requests, but not buy them yet.",
+      "rejectedTitle": "Registration rejected",
+      "rejectedBody": "We have refunded your first charge and cancelled your monthly top-up.",
+      "reason": "Reason",
+      "incompleteTitle": "Complete your registration",
+      "incompleteBody": "To buy contacts we need to validate your registration. You are missing:",
+      "readyBody": "All set. Send your registration and we will review it.",
+      "submit": "Send registration for review",
+      "missing": {
+        "categories": "Choosing at least one trade",
+        "professional_type": "How you are registering",
+        "legal_name": "Your legal name or full name",
+        "tax_id": "Your NIF, NIE or CIF",
+        "address": "Your address",
+        "document_tax_registration": "Your Tax Agency forms",
+        "document_identity": "Your DNI, TIE or passport"
+      },
+      "bannerPending": "We are reviewing your registration. You can see requests, but buy them only once we approve it.",
+      "bannerIncomplete": "Complete your registration and send it for review to buy contacts.",
+      "bannerCta": "Complete registration"
+    }
   },
   "auth": {
     "loginTitle": "Log in",
@@ -319,6 +487,44 @@
       "subtitle": "Consult registered professional profiles.",
       "search": "Search business or area",
       "location": "{city} · {distance} km"
+    },
+    "account": "Monthly fee",
+    "balance": "Balance",
+    "activeAccounts": "Active accounts",
+    "noAccount": "No monthly fee",
+    "subscriptionPrice": {
+      "title": "Monthly fee",
+      "body": "Monthly amount each professional pays to be able to buy contacts; it's added as balance. A change only affects new subscriptions: existing subscribers keep their amount.",
+      "current": "Current: {amount}",
+      "default": "(initial configured value)",
+      "notConfigured": "No price configured in Stripe: nobody can subscribe.",
+      "label": "New amount (€)",
+      "save": "Save monthly fee",
+      "saved": "Monthly fee updated to {amount} for new subscriptions."
+    },
+    "verification": {
+      "title": "Registration review",
+      "subtitle": "Professionals who sent their registration, oldest first.",
+      "empty": "No registrations waiting for review.",
+      "review": "Review",
+      "submittedOn": "sent on {date}",
+      "email": "Account email",
+      "noDocuments": "No documents uploaded.",
+      "linksExpire": "Download links expire within minutes: reopen the file if needed.",
+      "history": "History",
+      "status": {
+        "incomplete": "Incomplete",
+        "pending": "Sent for review",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
+      "reasonLabel": "Reason for rejection",
+      "reasonHint": "Required to reject. The professional will see it.",
+      "approve": "Approve registration",
+      "reject": "Reject and refund",
+      "back": "Back to the queue",
+      "rejectedRefunded": "Registration rejected. {amount} was refunded and the top-up cancelled.",
+      "rejectedNothingToRefund": "Registration rejected. There was no charge to refund."
     }
   },
   "errors": {
@@ -332,6 +538,7 @@
     "CONTACT_LOCKED": "Buy the contact to see the client's details.",
     "CONSENT_REQUIRED": "You must accept the privacy policy to publish.",
     "UNKNOWN_POSTAL_CODE": "We don't recognise that postal code.",
+    "POSTAL_CODE_NOT_COVERED": "For now we only serve the Community of Madrid.",
     "PROFILE_INCOMPLETE": "Complete your profile to continue.",
     "PROFESSIONAL_NOT_FOUND": "You haven't created your professional profile yet.",
     "CATEGORY_NOT_FOUND": "That trade isn't available.",
@@ -346,7 +553,22 @@
     "auth/email-already-in-use": "An account with that email already exists.",
     "auth/weak-password": "The password must be at least 6 characters.",
     "auth/invalid-email": "That email isn't valid.",
-    "auth/too-many-requests": "Too many attempts. Try again in a few minutes."
+    "auth/too-many-requests": "Too many attempts. Try again in a few minutes.",
+    "SUBSCRIPTION_REQUIRED": "Activate your monthly top-up to buy contacts.",
+    "SUBSCRIPTION_ALREADY_EXISTS": "You already have a monthly fee in progress. Manage it from your account.",
+    "INSUFFICIENT_CREDIT": "You don't have enough balance for this operation.",
+    "ACCOUNT_NOT_FOUND": "We couldn't find your monthly fee account.",
+    "INVALID_SERVICE": "One of the chosen services does not belong to that category.",
+    "PHONE_NOT_MOBILE": "To verify your phone we need a Spanish mobile number.",
+    "PHONE_NOT_VERIFIED": "The code is wrong or has expired. Ask for another one if you need it.",
+    "TOO_MANY_VERIFICATION_ATTEMPTS": "You have asked for too many codes. Wait a few minutes and try again.",
+    "PHONE_VERIFICATION_UNAVAILABLE": "We couldn't send you the text message. Please try again in a few minutes.",
+    "PROFESSIONAL_NOT_APPROVED": "Your registration is not approved yet: you can buy contacts once we validate it.",
+    "PROFESSIONAL_REJECTED": "Your registration was rejected. If you think this is a mistake, write to us.",
+    "INVALID_VERIFICATION_TRANSITION": "That registration is no longer waiting for review.",
+    "REJECTION_AWAITING_PAYMENT": "This professional's first monthly fee payment is still processing (it can take several days with direct debit). You can reject the registration once it clears or fails.",
+    "VERIFICATION_LOCKED": "You already sent your registration for review: those details can no longer change.",
+    "INVALID_TAX_ID": "The NIF, NIE or CIF is not valid: check the control letter or digit."
   },
   "validation": {
     "categoryRequired": "Pick a trade.",
@@ -356,6 +578,7 @@
     "descriptionTooLong": "The description is too long.",
     "postalCodeFormat": "The postal code must be 5 digits.",
     "postalCodeUnknown": "That postal code doesn't exist in Spain.",
+    "postalCodeNotCovered": "For now we only serve the Community of Madrid (postal codes 28xxx).",
     "phoneFormat": "Enter a valid Spanish phone number.",
     "emailFormat": "That email isn't valid.",
     "nameTooShort": "Enter your name.",
@@ -369,6 +592,20 @@
     "tooManyCategories": "You selected too many trades.",
     "photoType": "{filename}: unsupported format.",
     "photoSize": "{filename}: over the 10 MB limit.",
-    "photoCount": "{filename}: you reached the photo limit."
+    "photoCount": "{filename}: you reached the photo limit.",
+    "propertyTypeRequired": "Choose the type of property.",
+    "scheduleRequired": "Tell us the timing of your project.",
+    "tooManyServices": "You can tick at most 10 services.",
+    "phoneCodeFormat": "The code has 6 digits.",
+    "mobileFormat": "Enter a Spanish mobile number (starting with 6 or 7).",
+    "legalNameTooLong": "At most 200 characters.",
+    "taxIdInvalid": "The NIF, NIE or CIF is not valid: check the control letter or digit.",
+    "addressTooLong": "At most 300 characters.",
+    "tooManyWorkPhotos": "At most 8 work photos.",
+    "companyNeedsCif": "A company is identified by its CIF.",
+    "mediaType": "Only JPG, PNG, WEBP or HEIC photos are accepted.",
+    "mediaTooLarge": "The photo is larger than 10 MB.",
+    "documentType": "Upload the document as a PDF or an image.",
+    "documentTooLarge": "The document is larger than 10 MB."
   }
 }

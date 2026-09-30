@@ -11,7 +11,10 @@ import { leadsService } from "@/services/leads.service";
 import type { Category } from "@/types/api";
 
 /** Cap de plazas por solicitud. Lo impone el backend; aqui solo se comunica. */
-const MAX_PROFESSIONALS = 3;
+const MAX_PROFESSIONALS = 5;
+
+/** Recarga mensual. La cobra el precio de Stripe (`SUBSCRIPTION_TOPUP_CENTS` en el API). */
+const TOPUP_CENTS = 1800;
 
 /** Oficios que caben en el tablero del hero sin alargar la primera pantalla. */
 const BOARD_SIZE = 5;
@@ -206,13 +209,19 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         <Container>
           <SectionHeading title={t("why.title")} subtitle={t("why.subtitle")} />
           <ul className="mt-10 grid gap-5 sm:grid-cols-2">
-            {(["cap", "price", "noFee", "privacy"] as const).map((item) => (
+            {(["cap", "price", "topup", "privacy"] as const).map((item) => (
               <li key={item} className="rounded-card border border-line bg-surface p-6">
                 <h3 className="text-card-title font-semibold text-ink">
                   {t(`why.${item}.title`, { maxProfessionals: MAX_PROFESSIONALS })}
                 </h3>
                 <p className="mt-2 text-[14.5px] leading-[1.6] text-secondary">
-                  {t(`why.${item}.body`, { maxProfessionals: MAX_PROFESSIONALS })}
+                  {t(`why.${item}.body`, {
+                    maxProfessionals: MAX_PROFESSIONALS,
+                    amount: formatMoney(
+                      { amount_cents: TOPUP_CENTS, currency: "EUR", formatted: "" },
+                      locale,
+                    ),
+                  })}
                 </p>
               </li>
             ))}
