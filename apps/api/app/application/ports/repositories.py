@@ -23,6 +23,8 @@ from app.domain.models import (
     PurchaseReview,
     SubscriptionPrice,
     User,
+    VerificationEvent,
+    VerificationStatus,
 )
 from app.domain.value_objects import Coordinates, PostalCode
 
@@ -45,6 +47,14 @@ class LeadSearchFilters:
     center: Coordinates | None = None
     radius_km: int | None = None
     province: str | None = None
+    service_ids: frozenset[UUID] = frozenset()
+    """Servicios que ofrece el profesional."""
+    restricted_category_ids: frozenset[UUID] = frozenset()
+    """Oficios en los que el profesional eligio servicios concretos.
+
+    En esos oficios solo ve las solicitudes de sus servicios o las que no indican
+    ninguno; en el resto, todas. Sin servicios elegidos no se restringe nada.
+    """
     limit: int = 20
     offset: int = 0
 
@@ -171,6 +181,9 @@ class UserRepositoryPort(ABC):
     async def add(self, user: User) -> User: ...
 
     @abstractmethod
+    async def get(self, user_id: UUID) -> User | None: ...
+
+    @abstractmethod
     async def get_by_firebase_uid(self, firebase_uid: str) -> User | None: ...
 
     @abstractmethod
@@ -188,18 +201,42 @@ class ProfessionalRepositoryPort(ABC):
     async def get_by_user_id(self, user_id: UUID) -> Professional | None: ...
 
     @abstractmethod
+    async def get_for_update(self, professional_id: UUID) -> Professional | None:
+        """Bloquea la fila hasta el final de la transaccion (aprobar/rechazar el alta).
+
+        Si hace falta tambien la cuenta, se bloquea DESPUES del profesional: siempre
+        en ese orden, para no interbloquear.
+        """
+
+    @abstractmethod
     async def update(self, professional: Professional) -> Professional: ...
 
     @abstractmethod
     async def list_admin(
-        self, *, query: str | None, limit: int, offset: int
-    ) -> list[Professional]: ...
+        self,
+        *,
+        query: str | None,
+        limit: int,
+        offset: int,
+        verification_status: VerificationStatus | None = None,
+    ) -> list[Professional]:
+        """Con estado `pending`, es la cola de validacion: los mas antiguos primero."""
 
     @abstractmethod
-    async def count_admin(self, *, query: str | None) -> int: ...
+    async def count_admin(
+        self, *, query: str | None, verification_status: VerificationStatus | None = None
+    ) -> int: ...
 
     @abstractmethod
     async def count_all(self) -> int: ...
+
+    @abstractmethod
+    async def add_verification_event(self, event: VerificationEvent) -> None:
+        """Auditoria append-only de la validacion."""
+
+    @abstractmethod
+    async def list_verification_events(self, professional_id: UUID) -> list[VerificationEvent]:
+        """Del mas antiguo al mas reciente."""
 
 
 class CategoryRepositoryPort(ABC):
@@ -300,6 +337,10 @@ class CreditLedgerRepositoryPort(ABC):
     @abstractmethod
     async def latest_topup(self, professional_id: UUID) -> CreditEntry | None:
         """Ultima recarga cobrada: dice cuanto paga ESTE profesional al mes."""
+
+    @abstractmethod
+    async def first_topup(self, professional_id: UUID) -> CreditEntry | None:
+        """Primera recarga cobrada: la que se reembolsa si se rechaza el alta."""
 
     @abstractmethod
     async def topup_totals(self) -> dict[str, int]:

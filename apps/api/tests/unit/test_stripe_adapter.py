@@ -385,3 +385,172 @@ class TestConfigurationGuards:
             await gateway.create_recurring_price(
                 amount=Money(2000, "EUR"), product_name="Mensualidad"
             )
+
+
+class TestInvoiceRefundTarget:
+    """El reembolso del primer cobro (rechazo del alta) sale del objeto real del SDK."""
+
+    @staticmethod
+    def invoice(payments: list[dict[str, object]]) -> object:
+        import stripe
+
+        return stripe.Invoice.construct_from(
+            {
+                "id": "in_1",
+                "object": "invoice",
+                "payments": {"object": "list", "data": payments},
+            },
+            "sk_test_x",
+        )
+
+    def test_uses_the_payment_intent_of_the_paid_payment(self) -> None:
+        from app.infrastructure.adapters.payments.stripe_adapter import _paid_invoice_payment
+
+        invoice = self.invoice(
+            [
+                {
+                    "object": "invoice_payment",
+                    "status": "canceled",
+                    "payment": {"type": "payment_intent", "payment_intent": "pi_old"},
+                },
+                {
+                    "object": "invoice_payment",
+                    "status": "paid",
+                    "payment": {"type": "payment_intent", "payment_intent": "pi_paid"},
+                },
+            ]
+        )
+        assert _paid_invoice_payment(invoice) == {"payment_intent": "pi_paid"}
+
+    def test_falls_back_to_the_charge(self) -> None:
+        from app.infrastructure.adapters.payments.stripe_adapter import _paid_invoice_payment
+
+        invoice = self.invoice(
+            [
+                {
+                    "object": "invoice_payment",
+                    "status": "paid",
+                    "payment": {"type": "charge", "charge": "ch_1"},
+                }
+            ]
+        )
+        assert _paid_invoice_payment(invoice) == {"charge": "ch_1"}
+
+    def test_nothing_to_refund_without_a_paid_payment(self) -> None:
+        from app.infrastructure.adapters.payments.stripe_adapter import _paid_invoice_payment
+
+        assert _paid_invoice_payment(self.invoice([])) is None
+
+
+class ScriptedHttpClient:
+    """Cliente HTTP del SDK que responde con JSON fijo, sin red.
+
+    Pasa por el `StripeClient` real: la traduccion de un 400 de Stripe a
+    `InvalidRequestError` (con su `code`) la hace el propio SDK, igual que en produccion.
+    """
+
+    def __init__(self, responses: dict[tuple[str, str], tuple[int, dict[str, object]]]) -> None:
+        self.responses = responses
+        self.calls: list[tuple[str, str]] = []
+
+    def build(self) -> object:
+        import stripe
+
+        scripted = self
+
+        class _Client(stripe.HTTPClient):
+            name = "scripted"
+
+            def request(  # type: ignore[override]
+                self, method: str, url: str, headers: object, post_data: object = None, **_: object
+            ) -> tuple[str, int, dict[str, str]]:
+                path = url.split("api.stripe.com", 1)[1].split("?", 1)[0]
+                scripted.calls.append((method.upper(), path))
+                status, body = scripted.responses[(method.upper(), path)]
+                return json.dumps(body), status, {"request-id": "req_test"}
+
+            def close(self) -> None:
+                return None
+
+        return _Client()
+
+
+PAID_INVOICE = {
+    "id": "in_first",
+    "object": "invoice",
+    "payments": {
+        "object": "list",
+        "data": [
+            {
+                "object": "invoice_payment",
+                "status": "paid",
+                "payment": {"type": "payment_intent", "payment_intent": "pi_first"},
+            }
+        ],
+    },
+}
+
+
+def gateway_with(http: ScriptedHttpClient) -> StripePaymentGateway:
+    import stripe
+
+    gateway = StripePaymentGateway(secret_key="sk_test_fake", webhook_secret=WEBHOOK_SECRET)
+    gateway._client = stripe.StripeClient(
+        "sk_test_fake",
+        http_client=http.build(),
+        max_network_retries=0,  # type: ignore[arg-type]
+    )
+    return gateway
+
+
+class TestInvoiceRefundRetries:
+    async def test_refunds_the_paid_payment_intent(self) -> None:
+        http = ScriptedHttpClient(
+            {
+                ("GET", "/v1/invoices/in_first"): (200, PAID_INVOICE),
+                ("POST", "/v1/refunds"): (200, {"id": "re_1", "object": "refund"}),
+            }
+        )
+        await gateway_with(http).refund_invoice(invoice_id="in_first", idempotency_key="k")
+        assert ("POST", "/v1/refunds") in http.calls
+
+    async def test_an_already_refunded_charge_counts_as_done(self) -> None:
+        # Pasadas 24 h Stripe olvida la clave de idempotencia y el reintento de un
+        # reembolso hecho responde con este error: no debe bloquear el rechazo.
+        http = ScriptedHttpClient(
+            {
+                ("GET", "/v1/invoices/in_first"): (200, PAID_INVOICE),
+                ("POST", "/v1/refunds"): (
+                    400,
+                    {
+                        "error": {
+                            "type": "invalid_request_error",
+                            "code": "charge_already_refunded",
+                            "message": "Charge ch_1 has already been refunded.",
+                        }
+                    },
+                ),
+            }
+        )
+        await gateway_with(http).refund_invoice(invoice_id="in_first", idempotency_key="k")
+
+    async def test_other_refund_errors_still_fail(self) -> None:
+        from app.domain.exceptions import PaymentGatewayError
+
+        http = ScriptedHttpClient(
+            {
+                ("GET", "/v1/invoices/in_first"): (200, PAID_INVOICE),
+                ("POST", "/v1/refunds"): (
+                    400,
+                    {
+                        "error": {
+                            "type": "invalid_request_error",
+                            "code": "charge_disputed",
+                            "message": "Charge ch_1 has been charged back.",
+                        }
+                    },
+                ),
+            }
+        )
+        with pytest.raises(PaymentGatewayError):
+            await gateway_with(http).refund_invoice(invoice_id="in_first", idempotency_key="k")

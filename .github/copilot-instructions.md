@@ -10,10 +10,13 @@ Resumen mínimo:
 - **Puertos: 8010 (API) y 3010 (web)**, no 8000/3000.
 - `app/domain/` y `app/application/` no importan `sqlalchemy`, `fastapi`, `stripe`,
   `firebase_admin`, `boto3` ni `pydantic`. mypy corre en modo estricto sobre ambos.
-- Cada solicitud se vende a un máximo de 3 profesionales. La plaza se reserva antes de
+- Cada solicitud se vende a un máximo de 5 profesionales. La plaza se reserva antes de
   cobrar y solo el webhook firmado de Stripe desbloquea el contacto del cliente.
 - Los datos de contacto del cliente nunca salen por el explorador: `LeadPublicView` no
-  tiene campos para ellos. No los añadas.
+  tiene campos para ellos. No los añadas. Antes de pagar solo se ven el nombre de pila y
+  el CP, y solo si el consentimiento lo cubre (`allows_public_preview`).
+- Compra solo un profesional con el alta aprobada por el admin. Sus documentos de alta van
+  al bucket privado y solo salen con URLs firmadas en el expediente del admin.
 - Cero cadenas de UI incrustadas: van a `apps/web/messages/es.json` y `en.json`, con las
   mismas claves en ambos.
 - Comentarios y commits en español, identificadores en inglés, código fuente ASCII.

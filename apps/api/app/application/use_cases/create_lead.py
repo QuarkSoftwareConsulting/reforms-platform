@@ -11,16 +11,20 @@ from app.application.ports import (
     ClockPort,
     IdGeneratorPort,
     LeadRepositoryPort,
+    PhoneVerificationPort,
     PostalCodeRepositoryPort,
     UnitOfWork,
 )
 from app.domain.exceptions import (
     CategoryNotFoundError,
     ConsentRequiredError,
+    PhoneNotVerifiedError,
     UnknownPostalCodeError,
     ValidationError,
 )
 from app.domain.models import (
+    DEFAULT_MAX_PURCHASES,
+    MADRID,
     ClientContact,
     ConsentRecord,
     Lead,
@@ -28,6 +32,8 @@ from app.domain.models import (
     LeadPhoto,
     LeadSource,
     LeadStatus,
+    ServiceArea,
+    policy_covers_public_preview,
 )
 from app.domain.value_objects import Email, PhoneNumber, PostalCode
 
@@ -48,7 +54,10 @@ class CreateLead:
     clock: ClockPort
     ids: IdGeneratorPort
     uow: UnitOfWork
-    max_purchases: int = 3
+    max_purchases: int = DEFAULT_MAX_PURCHASES
+    service_area: ServiceArea = MADRID
+    phone_verifier: PhoneVerificationPort | None = None
+    """`None` = verificacion por SMS desactivada (no hay proveedor configurado)."""
 
     async def execute(self, data: CreateLeadInput, *, source: LeadSource) -> Lead:
         category = await self.categories.get(data.category_id)
@@ -56,9 +65,14 @@ class CreateLead:
             raise CategoryNotFoundError()
 
         postal_code = PostalCode(data.postal_code)
+        # Antes de consultar el catalogo: un CP real pero fuera de zona debe decir
+        # "fuera de cobertura", no "no reconocido".
+        self.service_area.assert_covers(postal_code)
         location_info = await self.postal_codes.get(postal_code)
         if location_info is None:
             raise UnknownPostalCodeError(f"Codigo postal no reconocido: {postal_code}")
+
+        services = category.resolve_services(data.service_ids)
 
         now = self.clock.now()
         consent = self._build_consent(data, source=source, now=now)
@@ -90,10 +104,26 @@ class CreateLead:
                 for index, key in enumerate(data.photo_keys)
             ],
             consent=consent,
+            service_ids=[service.id for service in services],
+            property_type=data.property_type,
+            schedule=data.schedule,
         )
+
+        # Lo ultimo antes de guardar: el codigo se consume al confirmarlo, y un
+        # error en cualquier otro campo no debe obligar a pedir un SMS nuevo. Los
+        # leads del admin llegan de campanas externas: su telefono lo comprueba la
+        # llamada de verificacion, no un SMS.
+        if source is LeadSource.ORGANIC:
+            await self._confirm_phone(lead.contact.phone, data.phone_verification_code)
 
         async with self.uow:
             return await self.leads.add(lead)
+
+    async def _confirm_phone(self, phone: PhoneNumber, code: str | None) -> None:
+        if self.phone_verifier is None:
+            return
+        if not code or not await self.phone_verifier.confirm_code(phone, code.strip()):
+            raise PhoneNotVerifiedError()
 
     def _build_consent(
         self, data: CreateLeadInput, *, source: LeadSource, now: datetime
@@ -113,4 +143,8 @@ class CreateLead:
             max_recipients=self.max_purchases,
             channel=data.consent.channel,
             campaign_reference=data.consent.campaign_reference,
+            # Sale de la version aceptada, no de que el lead sea nuevo: una pestana
+            # con el formulario antiguo, o un lead del admin captado con la politica
+            # anterior, no consintieron mostrar nombre y CP antes de la compra.
+            allows_public_preview=policy_covers_public_preview(data.consent.policy_version),
         )

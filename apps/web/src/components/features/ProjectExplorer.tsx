@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 
 import { AccountStatusBanner } from "@/components/features/AccountStatusBanner";
 import { LeadCard } from "@/components/features/LeadCard";
+import { VerificationBanner } from "@/components/features/VerificationBanner";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card, Skeleton } from "@/components/ui/Card";
@@ -37,6 +38,7 @@ export function ProjectExplorer() {
         </p>
       </header>
 
+      <VerificationBanner verification={auth.me?.professional?.verification ?? null} />
       <AccountStatusBanner account={auth.me?.account ?? null} />
 
       <Card className="grid gap-4 sm:grid-cols-2">

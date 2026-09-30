@@ -24,11 +24,16 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.domain.models import (
     CreditEntryKind,
+    DocumentKind,
     LeadSource,
     LeadStatus,
+    ProfessionalType,
+    ProjectSchedule,
+    PropertyType,
     PurchaseStatus,
     SubscriptionStatus,
     UserRole,
+    VerificationStatus,
 )
 from app.infrastructure.adapters.db.models.base import (
     Base,
@@ -54,6 +59,23 @@ subscription_status_enum = Enum(
 )
 credit_entry_kind_enum = Enum(
     CreditEntryKind, name="credit_entry_kind", values_callable=lambda e: [m.value for m in e]
+)
+property_type_enum = Enum(
+    PropertyType, name="property_type", values_callable=lambda e: [m.value for m in e]
+)
+project_schedule_enum = Enum(
+    ProjectSchedule, name="project_schedule", values_callable=lambda e: [m.value for m in e]
+)
+professional_type_enum = Enum(
+    ProfessionalType, name="professional_type", values_callable=lambda e: [m.value for m in e]
+)
+verification_status_enum = Enum(
+    VerificationStatus,
+    name="verification_status",
+    values_callable=lambda e: [m.value for m in e],
+)
+document_kind_enum = Enum(
+    DocumentKind, name="document_kind", values_callable=lambda e: [m.value for m in e]
 )
 
 Point = Geography(geometry_type="POINT", srid=4326, spatial_index=False)
@@ -83,10 +105,59 @@ class CategoryRow(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     suggested_lead_price_cents: Mapped[int] = mapped_column(Integer, nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="EUR")
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    sort_order: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
+
+    # Se cargan todos, tambien los retirados: un lead antiguo sigue nombrando el suyo.
+    services: Mapped[list[ServiceRow]] = relationship(
+        back_populates="category",
+        lazy="selectin",
+        order_by="ServiceRow.sort_order",
+    )
 
     __table_args__ = (
         CheckConstraint("suggested_lead_price_cents > 0", name="suggested_lead_price_positive"),
     )
+
+
+class ServiceRow(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """Servicio dentro de una categoria (segundo nivel del catalogo)."""
+
+    __tablename__ = "services"
+
+    category_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("categories.id", ondelete="RESTRICT"), nullable=False
+    )
+    slug: Mapped[str] = mapped_column(String(80), nullable=False)
+    name_es: Mapped[str] = mapped_column(String(160), nullable=False)
+    name_en: Mapped[str] = mapped_column(String(160), nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    category: Mapped[CategoryRow] = relationship(back_populates="services")
+
+    __table_args__ = (
+        # El mismo servicio puede existir en dos categorias (Domotica esta en Seguridad
+        # Electronica y en Instaladores), pero no dos veces en la misma.
+        UniqueConstraint("category_id", "slug", name="uq_services_category_slug"),
+    )
+
+
+class LeadServiceRow(Base):
+    """Tabla puente: que servicios de su categoria eligio el cliente."""
+
+    __tablename__ = "lead_services"
+
+    lead_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("leads.id", ondelete="CASCADE"), primary_key=True
+    )
+    service_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("services.id", ondelete="RESTRICT"), primary_key=True
+    )
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    lead: Mapped[LeadRow] = relationship(back_populates="services")
 
 
 class ProfessionalCategoryRow(Base):
@@ -121,14 +192,115 @@ class ProfessionalRow(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     base_location: Mapped[object] = mapped_column(Point, nullable=False)
     service_radius_km: Mapped[int] = mapped_column(Integer, nullable=False, default=25)
 
+    # --- Alta (F02) ---
+    professional_type: Mapped[ProfessionalType | None] = mapped_column(professional_type_enum)
+    legal_name: Mapped[str | None] = mapped_column(String(200))
+    tax_id: Mapped[str | None] = mapped_column(String(20))
+    address: Mapped[str | None] = mapped_column(String(300))
+    profile_photo_key: Mapped[str | None] = mapped_column(String(500))
+    logo_key: Mapped[str | None] = mapped_column(String(500))
+
+    # --- Validacion ---
+    # Los perfiles anteriores a la Etapa 1 quedan "incompletos": tienen que aportar
+    # sus datos y documentos, como cualquier alta nueva, antes de poder comprar.
+    verification_status: Mapped[VerificationStatus] = mapped_column(
+        verification_status_enum,
+        nullable=False,
+        default=VerificationStatus.INCOMPLETE,
+        server_default=text("'incomplete'"),
+    )
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    rejection_reason: Mapped[str | None] = mapped_column(Text)
+
     user: Mapped[UserRow] = relationship(back_populates="professional")
     categories: Mapped[list[CategoryRow]] = relationship(
         secondary="professional_categories", lazy="selectin"
+    )
+    services: Mapped[list[ProfessionalServiceRow]] = relationship(
+        cascade="all, delete-orphan", lazy="selectin"
+    )
+    work_photos: Mapped[list[ProfessionalWorkPhotoRow]] = relationship(
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="ProfessionalWorkPhotoRow.sort_order",
+    )
+    documents: Mapped[list[ProfessionalDocumentRow]] = relationship(
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="ProfessionalDocumentRow.uploaded_at",
     )
 
     __table_args__ = (
         CheckConstraint("service_radius_km BETWEEN 1 AND 300", name="service_radius_in_range"),
         Index("ix_professionals_base_location", "base_location", postgresql_using="gist"),
+        Index("ix_professionals_verification_status", "verification_status"),
+    )
+
+
+class ProfessionalServiceRow(Base):
+    """Tabla puente: que servicios concretos ofrece el profesional."""
+
+    __tablename__ = "professional_services"
+
+    professional_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("professionals.id", ondelete="CASCADE"), primary_key=True
+    )
+    service_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("services.id", ondelete="RESTRICT"), primary_key=True
+    )
+
+
+class ProfessionalWorkPhotoRow(Base, UUIDPrimaryKeyMixin):
+    """Fotos de trabajos realizados (bucket publico: se ensenaran a los clientes)."""
+
+    __tablename__ = "professional_work_photos"
+
+    professional_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("professionals.id", ondelete="CASCADE"), nullable=False
+    )
+    storage_key: Mapped[str] = mapped_column(String(500), nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    __table_args__ = (Index("ix_professional_work_photos_professional_id", "professional_id"),)
+
+
+class ProfessionalDocumentRow(Base, UUIDPrimaryKeyMixin):
+    """Documento de alta. La clave apunta al bucket PRIVADO: nunca a una URL publica."""
+
+    __tablename__ = "professional_documents"
+
+    professional_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("professionals.id", ondelete="CASCADE"), nullable=False
+    )
+    kind: Mapped[DocumentKind] = mapped_column(document_kind_enum, nullable=False)
+    storage_key: Mapped[str] = mapped_column(String(500), nullable=False)
+    filename: Mapped[str] = mapped_column(String(200), nullable=False)
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (Index("ix_professional_documents_professional_id", "professional_id"),)
+
+
+class ProfessionalVerificationEventRow(Base, UUIDPrimaryKeyMixin):
+    """Auditoria de la validacion. Append-only: nunca se actualiza ni se borra."""
+
+    __tablename__ = "professional_verification_events"
+
+    professional_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("professionals.id", ondelete="CASCADE"), nullable=False
+    )
+    from_status: Mapped[VerificationStatus] = mapped_column(
+        verification_status_enum, nullable=False
+    )
+    to_status: Mapped[VerificationStatus] = mapped_column(verification_status_enum, nullable=False)
+    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
+    )
+    note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        Index("ix_professional_verification_events_professional_id", "professional_id"),
     )
 
 
@@ -157,7 +329,7 @@ class LeadRow(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     source: Mapped[LeadSource] = mapped_column(
         lead_source_enum, nullable=False, default=LeadSource.ORGANIC
     )
-    max_purchases: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
+    max_purchases: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
     purchases_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -167,11 +339,21 @@ class LeadRow(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     price_override_cents: Mapped[int | None] = mapped_column(Integer)
     price_override_currency: Mapped[str | None] = mapped_column(String(3))
 
+    # NULL en los leads anteriores al formulario de la Etapa 1.
+    property_type: Mapped[PropertyType | None] = mapped_column(property_type_enum)
+    schedule: Mapped[ProjectSchedule | None] = mapped_column(project_schedule_enum)
+
     photos: Mapped[list[LeadPhotoRow]] = relationship(
         back_populates="lead", cascade="all, delete-orphan", lazy="selectin"
     )
     consents: Mapped[list[LeadConsentRow]] = relationship(
         back_populates="lead", cascade="all, delete-orphan", lazy="selectin"
+    )
+    services: Mapped[list[LeadServiceRow]] = relationship(
+        back_populates="lead",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="LeadServiceRow.sort_order",
     )
 
     __table_args__ = (
@@ -222,10 +404,15 @@ class LeadConsentRow(Base, UUIDPrimaryKeyMixin):
     policy_version: Mapped[str] = mapped_column(String(40), nullable=False)
     ip_address: Mapped[str | None] = mapped_column(String(45))
     user_agent: Mapped[str | None] = mapped_column(String(500))
-    max_recipients: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
+    max_recipients: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
     accepted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     external_channel: Mapped[str | None] = mapped_column(String(120))
     external_campaign_reference: Mapped[str | None] = mapped_column(String(200))
+    # Los consentimientos anteriores a la politica 2026-09-v2 no cubren mostrar el
+    # nombre de pila y el CP antes de la compra: por eso el valor por defecto es false.
+    allows_public_preview: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
 
     lead: Mapped[LeadRow] = relationship(back_populates="consents")
 

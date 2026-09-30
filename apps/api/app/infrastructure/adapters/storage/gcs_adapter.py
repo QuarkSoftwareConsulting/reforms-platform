@@ -79,6 +79,10 @@ class GCSStorage(StoragePort):
         """
         return self._signed_url(storage_key.lstrip("/"), method="GET")
 
+    async def signed_download_url(self, storage_key: str, *, filename: str) -> str:
+        # En GCS toda lectura ya es una URL firmada: el nombre lo pone el navegador.
+        return await asyncio.to_thread(self._signed_url, storage_key.lstrip("/"), method="GET")
+
     async def delete(self, storage_key: str) -> None:
         try:
             await asyncio.to_thread(self._bucket.blob(storage_key).delete)

@@ -20,7 +20,12 @@ from app.infrastructure.adapters.auth.firebase_token_verifier import (
 from app.infrastructure.adapters.clock import SystemClock, Uuid4Generator
 from app.infrastructure.adapters.db.session import create_engine, create_session_factory
 from app.infrastructure.adapters.payments.stripe_adapter import StripePaymentGateway
-from app.infrastructure.api.dependencies import Infrastructure, create_storage
+from app.infrastructure.api.dependencies import (
+    Infrastructure,
+    create_document_storage,
+    create_phone_verifier,
+    create_storage,
+)
 from app.infrastructure.api.middlewares.error_handler import register_exception_handlers
 from app.infrastructure.api.middlewares.request_context import RequestContextMiddleware
 from app.infrastructure.api.schemas.common import HealthOut
@@ -36,6 +41,7 @@ def build_infrastructure(settings: Settings) -> Infrastructure:
     Sustituir cualquiera de los tres es cambiar una linea aqui.
     """
     engine = create_engine(settings)
+    clock = SystemClock()
     return Infrastructure(
         settings=settings,
         engine=engine,
@@ -45,9 +51,11 @@ def build_infrastructure(settings: Settings) -> Infrastructure:
             webhook_secret=settings.stripe_webhook_secret,
         ),
         storage=create_storage(settings),
+        document_storage=create_document_storage(settings),
         token_verifier=FirebaseTokenVerifier(init_firebase_app(settings)),
-        clock=SystemClock(),
+        clock=clock,
         ids=Uuid4Generator(),
+        phone_verifier=create_phone_verifier(settings, clock),
     )
 
 

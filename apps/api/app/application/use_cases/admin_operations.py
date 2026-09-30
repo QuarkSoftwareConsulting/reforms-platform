@@ -27,7 +27,7 @@ from app.application.ports import (
     UnitOfWork,
 )
 from app.domain.exceptions import LeadNotFoundError, PurchaseNotFoundError
-from app.domain.models import Lead, PurchaseReview
+from app.domain.models import Lead, PurchaseReview, VerificationStatus
 
 MAX_PAGE_SIZE = 100
 
@@ -154,12 +154,21 @@ class ListAdminProfessionals:
     clock: ClockPort
 
     async def execute(
-        self, *, query: str | None, limit: int, offset: int
+        self,
+        *,
+        query: str | None,
+        limit: int,
+        offset: int,
+        verification_status: VerificationStatus | None = None,
     ) -> AdminProfessionalListResult:
+        """Con `verification_status=PENDING` es la cola de validacion."""
         normalized_limit = min(max(limit, 1), MAX_PAGE_SIZE)
         normalized_offset = max(offset, 0)
         rows = await self.professionals.list_admin(
-            query=query, limit=normalized_limit, offset=normalized_offset
+            query=query,
+            limit=normalized_limit,
+            offset=normalized_offset,
+            verification_status=verification_status,
         )
         categories = {
             category.id: category
@@ -185,7 +194,9 @@ class ListAdminProfessionals:
                 )
                 for professional in rows
             ],
-            total=await self.professionals.count_admin(query=query),
+            total=await self.professionals.count_admin(
+                query=query, verification_status=verification_status
+            ),
             limit=normalized_limit,
             offset=normalized_offset,
         )

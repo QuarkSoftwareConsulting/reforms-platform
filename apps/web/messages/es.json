@@ -114,7 +114,7 @@
     "descriptionHint": "Mínimo {min} caracteres. Cuantos más detalles, mejores presupuestos.",
     "postalCodeLabel": "Código postal",
     "postalCodePlaceholder": "28001",
-    "postalCodeHint": "En el listado público solo aparecen el municipio y la provincia, nunca la dirección exacta.",
+    "postalCodeHint": "Por ahora solo en la Comunidad de Madrid. Los profesionales ven tu código postal y tu municipio, nunca tu dirección.",
     "photosLabel": "Fotos del trabajo",
     "photosHint": "Hasta {max} fotos (JPG, PNG o WEBP, máximo 10 MB cada una).",
     "photosAdd": "Añadir fotos",
@@ -125,7 +125,7 @@
     "phoneHint": "Es el dato principal. Solo lo verán los profesionales que compren tu contacto.",
     "emailLabel": "Email",
     "emailHint": "Te enviamos una copia de tu solicitud.",
-    "consentLabel": "He leído y acepto la política de tratamiento de datos. Autorizo a Voy a Reformar a tratar mis datos para validar la solicitud y a cederlos a un máximo de {maxProfessionals} profesionales que compren el contacto, conforme al RGPD (UE) 2016/679 y la LOPDGDD 3/2018.",
+    "consentLabel": "He leído y acepto la política de tratamiento de datos. Autorizo a Voy a Reformar a tratar mis datos para validar la solicitud, a mostrar mi nombre de pila y mi código postal a los profesionales registrados y a ceder mis datos de contacto a un máximo de {maxProfessionals} profesionales que compren el contacto, conforme al RGPD (UE) 2016/679 y la LOPDGDD 3/2018.",
     "policyShow": "Ver resumen de la política de datos",
     "policyHide": "Ocultar el resumen",
     "policy": {
@@ -143,7 +143,7 @@
       },
       "recipients": {
         "term": "Destinatarios",
-        "body": "Un máximo de {maxProfessionals} profesionales que compren tu contacto. Nadie más recibe tu nombre ni tu teléfono."
+        "body": "Los profesionales registrados ven tu nombre de pila, tu código postal y lo que necesitas. Tu nombre completo, tu teléfono y tu email solo los reciben, como máximo, {maxProfessionals} profesionales que compren tu contacto."
       },
       "retention": {
         "term": "Conservación",
@@ -157,8 +157,35 @@
     "submit": "Publicar solicitud",
     "submitting": "Publicando...",
     "successTitle": "Solicitud recibida",
-    "successBody": "Ya está visible para los profesionales de {city}. Te llamarán directamente al teléfono que nos has dado.",
-    "publishAnother": "Enviar otra solicitud"
+    "successBody": "Ya está visible para los profesionales de {city}. Te contactarán directamente con los datos que nos has dado.",
+    "publishAnother": "Enviar otra solicitud",
+    "propertyTypeLabel": "¿Qué tipo de inmueble es?",
+    "scheduleLabel": "¿Cuál es la programación actual de tu proyecto?",
+    "servicesLabel": "¿Qué necesitas en {category}?",
+    "servicesHint": "Opcional. Marca uno o varios servicios.",
+    "phoneCodeLabel": "Código de verificación",
+    "phoneCodeHint": "Te lo hemos enviado por SMS al {phone}. Escríbelo para publicar tu solicitud.",
+    "phoneCodeResend": "Enviar otro código"
+  },
+  "project": {
+    "propertyTypes": {
+      "flat": "Piso",
+      "house": "Casa o chalet",
+      "commercial": "Local comercial",
+      "office": "Oficina",
+      "community": "Comunidad de vecinos",
+      "industrial": "Nave o industrial",
+      "land": "Terreno o exterior"
+    },
+    "schedules": {
+      "asap": "Lo antes posible",
+      "within_weeks": "En 2-4 semanas",
+      "within_months": "En 1-3 meses",
+      "gathering_quotes": "Solo estoy pidiendo precios"
+    },
+    "propertyType": "Tipo de inmueble",
+    "schedule": "Plazo",
+    "services": "Servicios"
   },
   "projects": {
     "title": "Solicitudes en tu zona",
@@ -169,6 +196,10 @@
     "filterAll": "Todos mis oficios",
     "filterRadius": "Radio de búsqueda",
     "slotsLeft": "{count, plural, =0 {Sin plazas} one {Queda 1 plaza} other {Quedan # plazas}}",
+    "closed": "Cerrado",
+    "buyers": "{count, plural, =0 {Nadie lo ha comprado todavía} one {1 profesional ya lo compró} other {# profesionales ya lo compraron}}",
+    "vatIncluded": "IVA incluido",
+    "clientFirstName": "Cliente: {name}",
     "purchased": "Ya comprado",
     "viewDetail": "Ver el contacto",
     "contactPrice": "Contacto",
@@ -177,8 +208,15 @@
   "lead": {
     "publishedAgo": "Publicada {when}",
     "contactLocked": "Contacto bloqueado",
-    "contactLockedBody": "Desbloquea el nombre y el teléfono del cliente por {price}. Esta solicitud admite {slots} profesionales más.",
+    "contactLockedBody": "Desbloquea el nombre completo y el teléfono del cliente por {price}. Esta solicitud admite {slots} profesionales más.",
     "contactPrice": "Precio del contacto",
+    "vatIncluded": "IVA incluido",
+    "vatBreakdown": "Base imponible {net} + IVA ({rate} %) {vat}",
+    "client": "Cliente",
+    "postalCode": "Código postal",
+    "buyers": "{count, plural, =0 {Nadie lo ha comprado todavía} one {1 de {max} profesionales ya lo compró} other {# de {max} profesionales ya lo compraron}}",
+    "closedTitle": "Solicitud cerrada",
+    "closedBody": "Ya la han comprado {max} profesionales, el máximo permitido. No admite más compras.",
     "unlock": "Comprar contacto por {price}",
     "unlocking": "Redirigiendo al pago...",
     "contactUnlocked": "Contacto desbloqueado",
@@ -193,7 +231,10 @@
     "activateToBuy": "Activar mensualidad para comprar",
     "creditWillCover": "Se pagará con tu saldo ({balance}). No pasarás por la pasarela de pago.",
     "creditWillApply": "Se usarán {credit} de tu saldo y pagarás {due} en la pasarela.",
-    "paymentCancelled": "Has cancelado el pago. Si tu reserva sigue vigente, puedes completarlo antes de que caduque."
+    "paymentCancelled": "Has cancelado el pago. Si tu reserva sigue vigente, puedes completarlo antes de que caduque.",
+    "needsApproval": "Para comprar contactos tenemos que validar tu alta.",
+    "needsApprovalPending": "Tu alta está en revisión. Podrás comprar cuando la aprobemos.",
+    "completeRegistration": "Ver mi alta"
   },
   "purchases": {
     "title": "Mis contactos",
@@ -251,9 +292,9 @@
   },
   "profile": {
     "title": "Mi perfil profesional",
-    "subtitle": "Define tus oficios y tu zona de trabajo para recibir solicitudes relevantes.",
+    "subtitle": "Tus oficios, tu zona y los datos de tu alta. Cuando la aprobemos podrás comprar contactos.",
     "businessNameLabel": "Nombre comercial",
-    "phoneLabel": "Teléfono de contacto",
+    "phoneLabel": "Móvil",
     "postalCodeLabel": "Código postal de tu base",
     "radiusLabel": "Radio de trabajo",
     "radiusHint": "Solo verás solicitudes dentro de este radio.",
@@ -261,7 +302,90 @@
     "categoriesHint": "Selecciona al menos uno. Solo podrás comprar contactos de estos oficios.",
     "saved": "Perfil guardado",
     "onboardingTitle": "Completa tu perfil",
-    "onboardingSubtitle": "Un último paso antes de ver las solicitudes de tu zona."
+    "onboardingSubtitle": "Empieza por tu negocio y tus oficios. Después podrás subir tus documentos y enviar el alta a revisión.",
+    "phoneHint": "Un móvil español. No hace falta teléfono fijo.",
+    "postalCodeHint": "Por ahora solo trabajamos en la Comunidad de Madrid.",
+    "sections": {
+      "business": "Tu negocio",
+      "trades": "Oficios y servicios",
+      "registration": "Datos de alta",
+      "media": "Fotos",
+      "documents": "Documentos"
+    },
+    "servicesLabel": "Servicios que ofreces en {category}",
+    "servicesHint": "Opcional. Si no marcas ninguno, verás todas las solicitudes de este oficio.",
+    "registrationHint": "Necesitamos estos datos para validar tu alta y para facturarte.",
+    "identityLocked": "Ya enviaste tu alta a revisión: el tipo, la razón social y el NIF no se pueden cambiar.",
+    "typeLabel": "¿Cómo te das de alta?",
+    "types": {
+      "self_employed": {
+        "title": "Autónomo",
+        "subtitle": "Aportas los modelos de alta de la Agencia Tributaria."
+      },
+      "company": {
+        "title": "Empresa",
+        "subtitle": "Aportas los modelos de alta de la Agencia Tributaria y tu CIF."
+      },
+      "independent": {
+        "title": "Trabajador independiente",
+        "subtitle": "Aportas tu DNI, TIE o pasaporte."
+      }
+    },
+    "legalNameLabel": "Razón social o nombre completo",
+    "legalNameHint": "El nombre al que emitiremos las facturas.",
+    "taxIdLabel": "NIF, NIE o CIF",
+    "taxIdHint": "Si eres trabajador independiente con pasaporte, puedes dejarlo en blanco.",
+    "addressLabel": "Dirección de la empresa o domicilio",
+    "uploadsAfterSaving": "Cuando guardes el perfil podrás subir tus fotos y documentos.",
+    "create": "Crear perfil",
+    "goToProjects": "Ver solicitudes",
+    "profilePhotoLabel": "Foto de tu cara",
+    "logoLabel": "Logo",
+    "workPhotosLabel": "Fotos de trabajos realizados",
+    "workPhotosHint": "Hasta {max} fotos. Se enseñarán a los clientes.",
+    "workPhotoAlt": "Trabajo {index}",
+    "mediaAdd": "Subir foto",
+    "mediaReplace": "Cambiar foto",
+    "mediaRemove": "Quitar",
+    "documentsLabel": "Documentos de alta",
+    "documentsHint": {
+      "tax_registration": "Sube los modelos de alta de la Agencia Tributaria (036 o 037). PDF o imagen, hasta 10 MB.",
+      "identity": "Sube tu DNI, TIE o pasaporte. PDF o imagen, hasta 10 MB."
+    },
+    "documentsHintNoType": "Elige primero cómo te das de alta para saber qué documentos necesitamos.",
+    "documentKinds": {
+      "tax_registration": "Modelos de la Agencia Tributaria",
+      "identity": "DNI, TIE o pasaporte"
+    },
+    "documentKindLabel": "Tipo de documento",
+    "documentAdd": "Subir documento",
+    "documentRemove": "Quitar",
+    "documentsLocked": "Los documentos ya se enviaron a revisión.",
+    "verification": {
+      "approvedTitle": "Alta aprobada",
+      "approvedBody": "Ya puedes comprar contactos siempre que tengas la recarga mensual al día.",
+      "pendingTitle": "Alta en revisión",
+      "pendingBody": "La enviaste el {date}. Mientras la revisamos puedes ver solicitudes, pero todavía no comprarlas.",
+      "rejectedTitle": "Alta rechazada",
+      "rejectedBody": "Hemos reembolsado tu primer cobro y cancelado la recarga mensual.",
+      "reason": "Motivo",
+      "incompleteTitle": "Completa tu alta",
+      "incompleteBody": "Para comprar contactos tenemos que validar tu alta. Te falta:",
+      "readyBody": "Ya está todo. Envía tu alta y la revisaremos.",
+      "submit": "Enviar alta a revisión",
+      "missing": {
+        "categories": "Elegir al menos un oficio",
+        "professional_type": "Indicar cómo te das de alta",
+        "legal_name": "La razón social o tu nombre completo",
+        "tax_id": "El NIF, NIE o CIF",
+        "address": "La dirección",
+        "document_tax_registration": "Los modelos de la Agencia Tributaria",
+        "document_identity": "Tu DNI, TIE o pasaporte"
+      },
+      "bannerPending": "Estamos revisando tu alta. Puedes ver solicitudes, pero comprarlas solo cuando la aprobemos.",
+      "bannerIncomplete": "Completa tu alta y envíala a revisión para poder comprar contactos.",
+      "bannerCta": "Completar alta"
+    }
   },
   "auth": {
     "loginTitle": "Inicia sesión",
@@ -377,6 +501,30 @@
       "label": "Nuevo importe (€)",
       "save": "Guardar mensualidad",
       "saved": "Mensualidad actualizada a {amount} para las nuevas suscripciones."
+    },
+    "verification": {
+      "title": "Validación de altas",
+      "subtitle": "Profesionales que enviaron su alta, del más antiguo al más reciente.",
+      "empty": "No hay altas pendientes de revisar.",
+      "review": "Revisar",
+      "submittedOn": "enviada el {date}",
+      "email": "Email de la cuenta",
+      "noDocuments": "No ha subido documentos.",
+      "linksExpire": "Los enlaces de descarga caducan en pocos minutos: vuelve a abrir el expediente si hace falta.",
+      "history": "Historial",
+      "status": {
+        "incomplete": "Incompleta",
+        "pending": "Enviada a revisión",
+        "approved": "Aprobada",
+        "rejected": "Rechazada"
+      },
+      "reasonLabel": "Motivo del rechazo",
+      "reasonHint": "Obligatorio para rechazar. Lo verá el profesional.",
+      "approve": "Aprobar alta",
+      "reject": "Rechazar y reembolsar",
+      "back": "Volver a la cola",
+      "rejectedRefunded": "Alta rechazada. Se reembolsaron {amount} y se canceló la recarga.",
+      "rejectedNothingToRefund": "Alta rechazada. No había ningún cobro que reembolsar."
     }
   },
   "errors": {
@@ -390,6 +538,7 @@
     "CONTACT_LOCKED": "Compra el contacto para ver los datos del cliente.",
     "CONSENT_REQUIRED": "Debes aceptar la política de privacidad para publicar.",
     "UNKNOWN_POSTAL_CODE": "No reconocemos ese código postal.",
+    "POSTAL_CODE_NOT_COVERED": "Por ahora solo damos servicio en la Comunidad de Madrid.",
     "PROFILE_INCOMPLETE": "Completa tu perfil para continuar.",
     "PROFESSIONAL_NOT_FOUND": "Todavía no has creado tu perfil profesional.",
     "CATEGORY_NOT_FOUND": "Ese oficio no está disponible.",
@@ -408,7 +557,18 @@
     "SUBSCRIPTION_REQUIRED": "Activa tu recarga mensual para poder comprar contactos.",
     "SUBSCRIPTION_ALREADY_EXISTS": "Ya tienes una mensualidad en curso. Gestiónala desde tu cuenta.",
     "INSUFFICIENT_CREDIT": "No tienes saldo suficiente para esta operación.",
-    "ACCOUNT_NOT_FOUND": "No encontramos tu cuenta de mensualidad."
+    "ACCOUNT_NOT_FOUND": "No encontramos tu cuenta de mensualidad.",
+    "INVALID_SERVICE": "Uno de los servicios elegidos no pertenece a esa categoría.",
+    "PHONE_NOT_MOBILE": "Para verificar tu teléfono necesitamos un móvil español.",
+    "PHONE_NOT_VERIFIED": "El código no es correcto o ha caducado. Pide otro si lo necesitas.",
+    "TOO_MANY_VERIFICATION_ATTEMPTS": "Has pedido demasiados códigos. Espera unos minutos y vuelve a intentarlo.",
+    "PHONE_VERIFICATION_UNAVAILABLE": "No hemos podido enviarte el SMS. Inténtalo de nuevo en unos minutos.",
+    "PROFESSIONAL_NOT_APPROVED": "Tu alta todavía no está aprobada: podrás comprar contactos cuando la validemos.",
+    "PROFESSIONAL_REJECTED": "Tu alta fue rechazada. Si crees que es un error, escríbenos.",
+    "INVALID_VERIFICATION_TRANSITION": "Esa alta ya no está pendiente de revisión.",
+    "REJECTION_AWAITING_PAYMENT": "El primer cobro de la mensualidad de este profesional aún se está procesando (puede tardar varios días con domiciliación). Podrás rechazar el alta cuando se confirme o falle.",
+    "VERIFICATION_LOCKED": "Ya enviaste tu alta a revisión: esos datos no se pueden cambiar.",
+    "INVALID_TAX_ID": "El NIF, NIE o CIF no es válido: revisa la letra o el dígito de control."
   },
   "validation": {
     "categoryRequired": "Elige un oficio.",
@@ -418,6 +578,7 @@
     "descriptionTooLong": "La descripción es demasiado larga.",
     "postalCodeFormat": "El código postal debe tener 5 dígitos.",
     "postalCodeUnknown": "Ese código postal no existe en España.",
+    "postalCodeNotCovered": "Por ahora solo damos servicio en la Comunidad de Madrid (códigos postales 28xxx).",
     "phoneFormat": "Introduce un teléfono español válido.",
     "emailFormat": "Ese email no es válido.",
     "nameTooShort": "Escribe tu nombre.",
@@ -431,6 +592,20 @@
     "tooManyCategories": "Has seleccionado demasiados oficios.",
     "photoType": "{filename}: formato no admitido.",
     "photoSize": "{filename}: supera los 10 MB.",
-    "photoCount": "{filename}: has alcanzado el máximo de fotos."
+    "photoCount": "{filename}: has alcanzado el máximo de fotos.",
+    "propertyTypeRequired": "Elige el tipo de inmueble.",
+    "scheduleRequired": "Indica la programación de tu proyecto.",
+    "tooManyServices": "Puedes marcar como máximo 10 servicios.",
+    "phoneCodeFormat": "El código tiene 6 cifras.",
+    "mobileFormat": "Introduce un móvil español (empieza por 6 o 7).",
+    "legalNameTooLong": "Como máximo 200 caracteres.",
+    "taxIdInvalid": "El NIF, NIE o CIF no es válido: revisa la letra o el dígito de control.",
+    "addressTooLong": "Como máximo 300 caracteres.",
+    "tooManyWorkPhotos": "Como máximo 8 fotos de trabajos.",
+    "companyNeedsCif": "Una empresa se identifica con su CIF.",
+    "mediaType": "Solo se admiten fotos JPG, PNG, WEBP o HEIC.",
+    "mediaTooLarge": "La foto supera los 10 MB.",
+    "documentType": "Sube el documento en PDF o como imagen.",
+    "documentTooLarge": "El documento supera los 10 MB."
   }
 }

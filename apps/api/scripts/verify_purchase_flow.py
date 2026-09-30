@@ -42,6 +42,17 @@ CLIENT_NAME = "Verificacion Automatica"
 CLIENT_PHONE = "+34611000999"
 CLIENT_EMAIL = "verificacion@example.test"
 POSTAL_CODE = "28001"
+CATEGORY_SLUG = "obras-menores"
+# Tipo de inmueble y programacion: obligatorios en el formulario publico.
+PROJECT_DATA = {"property_type": "flat", "schedule": "within_weeks"}
+# Datos de alta del profesional (F02): sin ellos no se puede enviar a revision.
+REGISTRATION_DATA = {
+    "professional_type": "self_employed",
+    "legal_name": "Verificacion Automatica Profesional",
+    "tax_id": "12345678Z",
+    "address": "Calle de la Verificacion 1, Madrid",
+}
+DOCUMENT_BYTES = b"%PDF-1.4\n% documento de prueba de verify_purchase_flow\n"
 DESCRIPTION = (
     "Lead creado por scripts/verify_purchase_flow.py para comprobar el flujo "
     "de compra de punta a punta. Se borra al terminar."
@@ -96,6 +107,30 @@ def load_env(path: Path) -> dict[str, str]:
         key, _, raw = line.partition("=")
         values[key.strip()] = raw.strip().strip('"').strip("'")
     return values
+
+
+def upload_base(env: dict[str, str]) -> str:
+    """URL sin firma del bucket privado: tiene que responder 403."""
+    endpoint = env.get("S3_ENDPOINT_URL", "http://localhost:9000").rstrip("/")
+    return f"{endpoint}/{env.get('S3_PRIVATE_BUCKET', 'reforma-hub-private')}"
+
+
+def delete_private_objects(env: dict[str, str], keys: list[str]) -> None:
+    """Borra del bucket privado los documentos que subio este run."""
+    if not keys:
+        return
+    import boto3
+
+    client = boto3.client(
+        "s3",
+        endpoint_url=env.get("S3_ENDPOINT_URL", "http://localhost:9000"),
+        aws_access_key_id=env.get("S3_ACCESS_KEY_ID", ""),
+        aws_secret_access_key=env.get("S3_SECRET_ACCESS_KEY", ""),
+        region_name=env.get("S3_REGION", "auto"),
+    )
+    bucket = env.get("S3_PRIVATE_BUCKET", "reforma-hub-private")
+    for key in keys:
+        client.delete_object(Bucket=bucket, Key=key)
 
 
 # --------------------------------------------------------------------------
@@ -295,6 +330,7 @@ async def main() -> int:
     run_id = uuid.uuid4().hex[:8]
     created_lead_ids: list[str] = []
     created_emails: list[str] = []
+    uploaded_keys: list[str] = []
 
     dsn = env.get("DATABASE_URL", "").replace("+asyncpg", "")
     require(bool(dsn), "Falta DATABASE_URL en apps/api/.env")
@@ -337,8 +373,17 @@ async def main() -> int:
                 len(categories) > 0,
                 "No hay categorias. Carga las semillas con: pnpm api:seed",
             )
-            category = next(c for c in categories if c["slug"] == "carpinteria")
-            report.ok(f"Catalogo cargado ({len(categories)} oficios)")
+            category = next((c for c in categories if c["slug"] == CATEGORY_SLUG), None)
+            require(
+                category is not None and len(category["services"]) > 0,
+                f"Falta la categoria {CATEGORY_SLUG!r} con sus servicios: pnpm api:seed",
+            )
+            assert category is not None
+            service = category["services"][0]
+            report.ok(
+                f"Catalogo cargado ({len(categories)} categorias; "
+                f"{category['name']}: {len(category['services'])} servicios)"
+            )
 
             # ---------------- 1. El cliente publica ----------------------
             report.step("1 · El cliente publica una solicitud (sin cuenta)")
@@ -355,6 +400,8 @@ async def main() -> int:
                         "client_phone": CLIENT_PHONE,
                         "client_email": CLIENT_EMAIL,
                         "photo_keys": [],
+                        "service_ids": [service["id"]],
+                        **PROJECT_DATA,
                         "consent": {"accepted": True},
                     },
                     expect=201,
@@ -378,6 +425,7 @@ async def main() -> int:
                     "client_phone": CLIENT_PHONE,
                     "client_email": None,
                     "photo_keys": [],
+                    **PROJECT_DATA,
                     "consent": {"accepted": False},
                 },
                 expect=422,
@@ -388,6 +436,30 @@ async def main() -> int:
                 f"{rejected.json().get('code')}",
             )
             report.ok("Publicar sin consentimiento se rechaza (CONSENT_REQUIRED)")
+
+            outside = await api.request(
+                "POST",
+                "/leads",
+                json_body={
+                    "category_id": category["id"],
+                    "title": f"[verify {run_id}] fuera de Madrid",
+                    "description": DESCRIPTION,
+                    "postal_code": "08001",
+                    "client_name": CLIENT_NAME,
+                    "client_phone": CLIENT_PHONE,
+                    "client_email": None,
+                    "photo_keys": [],
+                    **PROJECT_DATA,
+                    "consent": {"accepted": True},
+                },
+                expect=422,
+            )
+            require(
+                outside.json()["code"] == "POSTAL_CODE_NOT_COVERED",
+                f"Un CP de Barcelona se esperaba POSTAL_CODE_NOT_COVERED, llego "
+                f"{outside.json().get('code')}",
+            )
+            report.ok("Fuera de la Comunidad de Madrid no se publica (POSTAL_CODE_NOT_COVERED)")
 
             # ---------------- 2. Consentimiento auditable ----------------
             report.step("2 · Registro auditable del consentimiento (RGPD)")
@@ -413,8 +485,15 @@ async def main() -> int:
             # ---------------- 3. El profesional se registra --------------
             report.step("3 · El profesional se registra y completa su perfil")
 
-            async def register_professional(label: str) -> tuple[str, uuid.UUID]:
-                """Crea cuenta en el emulador + perfil, y devuelve token e id."""
+            admin_email = f"verify-{run_id}-admin@example.test"
+            created_emails.append(admin_email)
+            admin_token = await emulator.sign_up_admin(admin_email)
+
+            async def register_professional(
+                label: str, *, approve: bool = True
+            ) -> tuple[str, uuid.UUID]:
+                """Crea cuenta en el emulador + perfil (aprobado por el admin), y devuelve
+                token e id."""
                 email = f"verify-{run_id}-{label}@example.test"
                 created_emails.append(email)
                 new_token = await emulator.sign_up(email)
@@ -429,11 +508,68 @@ async def main() -> int:
                             "postal_code": POSTAL_CODE,
                             "service_radius_km": 25,
                             "category_ids": [category["id"]],
+                            **REGISTRATION_DATA,
                         },
                         expect=200,
                     )
                 ).json()
-                return new_token, uuid.UUID(created_profile["id"])
+                professional_id = uuid.UUID(created_profile["id"])
+                if approve:
+                    await submit_registration(new_token)
+                    await admin_decides(professional_id, "approve")
+                return new_token, professional_id
+
+            async def submit_registration(professional_token: str) -> str:
+                """Sube el documento DE VERDAD al bucket privado, lo adjunta y envia el alta."""
+                upload = (
+                    await api.request(
+                        "POST",
+                        "/me/professional/uploads",
+                        token=professional_token,
+                        json_body={
+                            "purpose": "document",
+                            "filename": "036.pdf",
+                            "content_type": "application/pdf",
+                        },
+                        expect=200,
+                    )
+                ).json()
+                put = await api._client.put(
+                    upload["upload_url"], content=DOCUMENT_BYTES, headers=upload["headers"]
+                )
+                require(
+                    put.status_code in (200, 204),
+                    f"No se pudo subir el documento al bucket privado ({put.status_code}). "
+                    "Levanta MinIO con: pnpm infra:up",
+                )
+                uploaded_keys.append(upload["storage_key"])
+                await api.request(
+                    "POST",
+                    "/me/professional/documents",
+                    token=professional_token,
+                    json_body={
+                        "kind": "tax_registration",
+                        "storage_key": upload["storage_key"],
+                        "filename": "036.pdf",
+                    },
+                    expect=201,
+                )
+                await api.request(
+                    "POST", "/me/professional/submit", token=professional_token, expect=200
+                )
+                return str(upload["storage_key"])
+
+            async def admin_decides(
+                professional_id: uuid.UUID, action: str, body: dict[str, Any] | None = None
+            ) -> dict[str, Any]:
+                response = await api.request(
+                    "POST",
+                    f"/admin/professionals/{professional_id}/{action}",
+                    token=admin_token,
+                    json_body=body,
+                    expect=200,
+                )
+                return dict(response.json())
 
             async def send_signed(payload: str) -> dict[str, Any]:
                 response = await api.request(
@@ -516,6 +652,7 @@ async def main() -> int:
                         "postal_code": POSTAL_CODE,
                         "service_radius_km": 25,
                         "category_ids": [category["id"]],
+                        **REGISTRATION_DATA,
                     },
                     expect=200,
                 )
@@ -524,9 +661,72 @@ async def main() -> int:
                 f"Perfil creado en {profile['city']} con radio {profile['service_radius_km']} km"
             )
 
+            # ---------------- 3a. Validacion del alta ---------------------
+            report.step("3a · El alta la valida el admin antes de poder comprar")
+            buyer_id = uuid.UUID(profile["id"])
+            require(
+                profile["verification"]["status"] == "incomplete",
+                f"Un perfil nuevo deberia estar incompleto: {profile['verification']}",
+            )
+            unapproved = await api.request(
+                "POST", f"/leads/{lead_id}/purchase", token=token, expect=403
+            )
+            require(
+                unapproved.json()["code"] == "PROFESSIONAL_NOT_APPROVED",
+                f"Sin validar se esperaba PROFESSIONAL_NOT_APPROVED, llego "
+                f"{unapproved.json().get('code')}",
+            )
+            report.ok("Sin alta aprobada no se compra (403 PROFESSIONAL_NOT_APPROVED)")
+
+            document_key = await submit_registration(token)
+            anonymous = await api._client.get(upload_base(env) + "/" + document_key)
+            require(
+                anonymous.status_code in (401, 403),
+                f"FUGA: el documento de alta se lee sin firma ({anonymous.status_code})",
+            )
+            report.ok("Documento subido al bucket privado; sin firma responde 403")
+
+            dossier = (
+                await api.request(
+                    "GET",
+                    f"/admin/professionals/{buyer_id}/verification",
+                    token=admin_token,
+                    expect=200,
+                )
+            ).json()
+            signed = await api._client.get(dossier["documents"][0]["download_url"])
+            require(
+                signed.status_code == 200 and signed.content == DOCUMENT_BYTES,
+                f"La descarga firmada del admin no devolvio el documento ({signed.status_code})",
+            )
+            report.ok("El admin descarga el documento con la URL firmada del expediente")
+
+            approved = await admin_decides(buyer_id, "approve")
+            require(
+                approved["verification"]["status"] == "approved",
+                f"El alta no quedo aprobada: {approved['verification']}",
+            )
+            report.ok("Alta aprobada por el admin; queda en la auditoria")
+
+            rejected_token, rejected_id = await register_professional("rechazado", approve=False)
+            await submit_registration(rejected_token)
+            outcome = await admin_decides(
+                rejected_id, "reject", {"reason": "Documento de prueba, no valido"}
+            )
+            require(
+                outcome["professional"]["verification"]["status"] == "rejected"
+                and outcome["refunded"] is None,
+                f"El rechazo sin cobro no se aplico como se esperaba: {outcome}",
+            )
+            locked_out = await api.request("GET", "/leads", token=rejected_token, expect=403)
+            require(
+                locked_out.json()["code"] == "PROFESSIONAL_REJECTED",
+                f"Un rechazado no deberia ver solicitudes: {locked_out.json()}",
+            )
+            report.ok("Rechazado sin cobro previo: nada que reembolsar y deja de ver solicitudes")
+
             # ---------------- 3b. Recarga mensual -------------------------
             report.step("3b · Sin recarga mensual se ve pero no se compra")
-            buyer_id = uuid.UUID(profile["id"])
             await api.request("GET", "/leads", token=token, expect=200)
             await api.request("GET", f"/leads/{lead_id}", token=token, expect=200)
             report.ok("Sin recarga el listado y el detalle se ven (sin datos de contacto)")
@@ -578,12 +778,41 @@ async def main() -> int:
             item = next((i for i in listing.json()["items"] if i["id"] == lead_id), None)
             assert item is not None, "El lead publicado no aparece en el explorador"
             require(
-                item["remaining_slots"] == 3,
-                f"Se esperaban 3 plazas libres, hay {item['remaining_slots']}",
+                item["remaining_slots"] == 5,
+                f"Se esperaban 5 plazas libres, hay {item['remaining_slots']}",
             )
-            report.ok("Sin nombre, telefono ni email en el listado")
+            report.ok("Sin nombre completo, telefono ni email en el listado")
+            first_name, surname = CLIENT_NAME.split()[0], CLIENT_NAME.split()[-1]
+            require(
+                item["client_first_name"] == first_name and surname not in body,
+                f"Se esperaba solo el nombre de pila {first_name!r}, llego "
+                f"{item['client_first_name']!r}",
+            )
+            require(
+                item["postal_code"] == POSTAL_CODE,
+                f"Se esperaba el CP completo {POSTAL_CODE}, llego {item['postal_code']!r}",
+            )
+            breakdown = item["price_breakdown"]
+            require(
+                breakdown["net"]["amount_cents"] + breakdown["vat"]["amount_cents"]
+                == item["price"]["amount_cents"]
+                and breakdown["rate_percent"] == 21,
+                f"El desglose del IVA no cuadra con el precio: {breakdown}",
+            )
+            report.ok("Nombre de pila, CP completo y precio con IVA desglosado antes de pagar")
+            require(
+                [s["id"] for s in item["services"]] == [service["id"]]
+                and item["property_type"] == PROJECT_DATA["property_type"]
+                and item["schedule"] == PROJECT_DATA["schedule"],
+                f"El explorador no muestra servicio, inmueble y programacion: {item}",
+            )
             report.ok(
-                f"Datos visibles: {item['city']}, {item['distance_km']} km, "
+                f"Servicio ({item['services'][0]['name']}), tipo de inmueble y programacion "
+                "visibles antes de pagar"
+            )
+            report.ok(
+                f"Datos visibles: {item['client_first_name']}, {item['postal_code']} "
+                f"{item['city']}, {item['distance_km']} km, "
                 f"{item['price']['formatted']}, {item['remaining_slots']} plazas"
             )
 
@@ -748,8 +977,8 @@ async def main() -> int:
                 f"El telefono desbloqueado no coincide: {unlocked['contact']}",
             )
             require(
-                unlocked["lead"]["remaining_slots"] == 2,
-                f"Tras una venta deberian quedar 2 plazas, quedan "
+                unlocked["lead"]["remaining_slots"] == 4,
+                f"Tras una venta deberian quedar 4 plazas, quedan "
                 f"{unlocked['lead']['remaining_slots']}",
             )
             report.ok("Contacto completo visible y una plaza consumida")
@@ -777,14 +1006,14 @@ async def main() -> int:
             report.ok("El segundo profesional sigue viendo el contacto bloqueado")
 
             # ---------------- 10. Lead capping --------------------------
-            report.step("10 · El lead se agota a las 3 compras")
-            # Ya hay 1 venta pagada (la del webhook). Se rellenan las 2 restantes con
+            report.step("10 · El lead se agota a las 5 compras")
+            # Ya hay 1 venta pagada (la del webhook). Se rellenan las 4 restantes con
             # profesionales distintos: el indice unico parcial impide que un mismo
             # profesional ocupe dos plazas del mismo lead.
-            _, third_professional_id = await register_professional("tercero")
-            for index, professional in enumerate(
-                (other_professional_id, third_professional_id), start=2
-            ):
+            fillers = [other_professional_id]
+            for name in ("tercero", "cuarto", "quinto"):
+                fillers.append((await register_professional(name))[1])
+            for index, professional in enumerate(fillers, start=2):
                 await db.execute(
                     """
                     INSERT INTO lead_purchases (
@@ -817,10 +1046,10 @@ async def main() -> int:
                 "SELECT purchases_count FROM leads WHERE id = $1", uuid.UUID(lead_id)
             )
             require(
-                sold == 3,
-                f"El escenario del cap necesita 3 ventas registradas, hay {sold}",
+                sold == 5,
+                f"El escenario del cap necesita 5 ventas registradas, hay {sold}",
             )
-            report.ok("Tres plazas vendidas: el lead queda agotado")
+            report.ok("Cinco plazas vendidas: el lead queda agotado")
 
             fourth_token, fourth_professional_id = await register_professional("sobrante")
             await activate_subscription(fourth_token, fourth_professional_id)
@@ -836,11 +1065,12 @@ async def main() -> int:
             exhausted_listing = (
                 await api.request("GET", "/leads", token=fourth_token, expect=200)
             ).json()
+            closed = next((i for i in exhausted_listing["items"] if i["id"] == lead_id), None)
             require(
-                all(i["id"] != lead_id for i in exhausted_listing["items"]),
-                "Un lead agotado sigue apareciendo en el explorador",
+                closed is not None and closed["is_closed"] and closed["remaining_slots"] == 0,
+                f"El lead agotado deberia verse como cerrado en el explorador: {closed}",
             )
-            report.ok("El lead agotado desaparece del explorador")
+            report.ok("El lead agotado sigue en el explorador, marcado como cerrado")
 
             # ---------------- 11. Precio por lead (solo admin) ----------
             report.step("11 · El admin fija el precio de un contacto")
@@ -857,6 +1087,7 @@ async def main() -> int:
                         "client_phone": CLIENT_PHONE,
                         "client_email": None,
                         "photo_keys": [],
+                        **PROJECT_DATA,
                         "consent": {"accepted": True},
                     },
                     expect=201,
@@ -874,9 +1105,6 @@ async def main() -> int:
                 f"{forbidden.json().get('code')}",
             )
             report.ok("Un profesional recibe 403 en los endpoints de precio")
-
-            admin_token = await emulator.sign_up_admin(f"verify-{run_id}-admin@example.test")
-            created_emails.append(f"verify-{run_id}-admin@example.test")
 
             initial = (
                 await api.request(
@@ -1018,6 +1246,7 @@ async def main() -> int:
                 print(f"\n{DIM}--keep: se conservan los datos del run {run_id}{RESET}")
             else:
                 await cleanup(db, created_lead_ids, run_id)
+                delete_private_objects(env, uploaded_keys)
                 print(f"\n{DIM}datos de prueba del run {run_id} eliminados{RESET}")
             await db.close()
 

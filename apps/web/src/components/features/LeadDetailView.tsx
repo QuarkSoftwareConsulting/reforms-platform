@@ -17,11 +17,17 @@ import { path, type AppLocale } from "@/i18n/routing";
 import { leadsService } from "@/services/leads.service";
 import type { LeadDetail } from "@/types/api";
 
-/** Detalle de una solicitud: descripcion, fotos y bloque de compra o contacto. */
+/**
+ * Detalle de una solicitud: descripcion, fotos y bloque de compra o contacto.
+ *
+ * Antes de pagar solo se ve el nombre de pila y el CP (si el consentimiento del
+ * cliente lo cubre). Un lead cerrado se puede consultar, pero no comprar.
+ */
 export function LeadDetailView({ leadId }: { leadId: string }) {
   const locale = useLocale() as AppLocale;
   const t = useTranslations("lead");
   const tProjects = useTranslations("projects");
+  const tProject = useTranslations("project");
   const translateError = useApiError();
   // `?status=cancelled` al volver de un checkout que el profesional abandono.
   const paymentCancelled = useSearchParams().get("status") === "cancelled";
@@ -82,7 +88,11 @@ export function LeadDetailView({ leadId }: { leadId: string }) {
           <header className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <Tag>{lead.category.name}</Tag>
-              <Seal>{tProjects("slotsLeft", { count: lead.remaining_slots })}</Seal>
+              {lead.is_closed ? (
+                <Tag tone="neutral">{tProjects("closed")}</Tag>
+              ) : (
+                <Seal>{tProjects("slotsLeft", { count: lead.remaining_slots })}</Seal>
+              )}
             </div>
             <h1 className="text-h1 font-bold text-ink">{lead.title}</h1>
             <p className="text-help text-muted">
@@ -105,6 +115,56 @@ export function LeadDetailView({ leadId }: { leadId: string }) {
               {lead.description}
             </p>
           </Card>
+
+          <dl className="grid gap-3 text-[14.5px] sm:grid-cols-2">
+            {lead.client_first_name && (
+              <div>
+                <dt className="text-[11px] uppercase tracking-[0.7px] text-muted">{t("client")}</dt>
+                <dd className="font-semibold text-ink">{lead.client_first_name}</dd>
+              </div>
+            )}
+            {lead.postal_code && (
+              <div>
+                <dt className="text-[11px] uppercase tracking-[0.7px] text-muted">
+                  {t("postalCode")}
+                </dt>
+                <dd className="font-semibold text-ink">{lead.postal_code}</dd>
+              </div>
+            )}
+            {lead.property_type && (
+              <div>
+                <dt className="text-[11px] uppercase tracking-[0.7px] text-muted">
+                  {tProject("propertyType")}
+                </dt>
+                <dd className="font-semibold text-ink">
+                  {tProject(`propertyTypes.${lead.property_type}`)}
+                </dd>
+              </div>
+            )}
+            {lead.schedule && (
+              <div>
+                <dt className="text-[11px] uppercase tracking-[0.7px] text-muted">
+                  {tProject("schedule")}
+                </dt>
+                <dd className="font-semibold text-ink">
+                  {tProject(`schedules.${lead.schedule}`)}
+                </dd>
+              </div>
+            )}
+            {lead.services.length > 0 && (
+              <div className="sm:col-span-2">
+                <dt className="text-[11px] uppercase tracking-[0.7px] text-muted">
+                  {tProject("services")}
+                </dt>
+                <dd className="font-semibold text-ink">
+                  {lead.services.map((service) => service.name).join(" · ")}
+                </dd>
+              </div>
+            )}
+          </dl>
+          <p className="text-[14.5px] text-secondary">
+            {t("buyers", { count: lead.purchases_count, max: lead.max_purchases })}
+          </p>
 
           {lead.photo_urls.length > 0 && (
             <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -129,6 +189,13 @@ export function LeadDetailView({ leadId }: { leadId: string }) {
           )}
           {detail.contact ? (
             <ContactPanel contact={detail.contact} />
+          ) : lead.is_closed ? (
+            <div className="space-y-1 rounded-card border border-line bg-surface p-6">
+              <p className="text-card-title font-semibold text-ink">{t("closedTitle")}</p>
+              <p className="text-[14.5px] leading-[1.6] text-secondary">
+                {t("closedBody", { max: lead.max_purchases })}
+              </p>
+            </div>
           ) : (
             <PurchaseButton detail={detail} />
           )}

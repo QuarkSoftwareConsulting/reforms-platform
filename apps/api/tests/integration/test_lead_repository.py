@@ -24,7 +24,7 @@ from app.infrastructure.adapters.db.repositories import (
     SqlAlchemyLeadRepository,
     SqlAlchemyPurchaseRepository,
 )
-from tests.factories import BARCELONA, MADRID, make_consent, make_lead, make_lead_location
+from tests.factories import BARCELONA, MADRID, NOW, make_consent, make_lead, make_lead_location
 
 pytestmark = pytest.mark.integration
 
@@ -67,6 +67,63 @@ class TestPersistence:
         assert loaded.consent.ip_address == "83.45.12.9"
         assert loaded.consent.policy_version == "2026-01-v1"
         assert loaded.consent.max_recipients == 3
+        assert loaded.consent.allows_public_preview is False
+
+    async def test_services_property_type_and_schedule_round_trip(
+        self, session: AsyncSession, carpentry: Category
+    ) -> None:
+        from app.domain.models import ProjectSchedule, PropertyType
+
+        wardrobes, doors = carpentry.services[1], carpentry.services[0]
+        stored = await store_lead(
+            session,
+            carpentry,
+            service_ids=[wardrobes.id, doors.id],
+            property_type=PropertyType.HOUSE,
+            schedule=ProjectSchedule.ASAP,
+        )
+        repo = SqlAlchemyLeadRepository(session)
+
+        loaded = await repo.get(stored.id)
+        assert loaded is not None
+        # Se conserva el orden en que el cliente los eligio.
+        assert loaded.service_ids == [wardrobes.id, doors.id]
+        assert loaded.property_type is PropertyType.HOUSE
+        assert loaded.schedule is ProjectSchedule.ASAP
+
+        # El bloqueo de fila carga las relaciones aparte: tambien los servicios.
+        locked = await repo.get_for_update(stored.id)
+        assert locked is not None
+        assert locked.service_ids == [wardrobes.id, doors.id]
+
+        rows = await repo.search(
+            LeadSearchFilters(category_ids={carpentry.id}, center=MADRID, radius_km=25)
+        )
+        assert rows[0].lead.service_ids == [wardrobes.id, doors.id]
+
+    async def test_lead_without_new_form_fields_still_loads(
+        self, session: AsyncSession, carpentry: Category
+    ) -> None:
+        # Los leads anteriores al formulario de la Etapa 1 no tienen estos datos.
+        stored = await store_lead(session, carpentry)
+        loaded = await SqlAlchemyLeadRepository(session).get(stored.id)
+        assert loaded is not None
+        assert loaded.service_ids == []
+        assert loaded.property_type is None
+        assert loaded.schedule is None
+
+    async def test_public_preview_consent_round_trips(
+        self, session: AsyncSession, carpentry: Category
+    ) -> None:
+        stored = await store_lead(
+            session, carpentry, consent=make_consent(allows_public_preview=True)
+        )
+        loaded = await SqlAlchemyLeadRepository(session).get(stored.id)
+
+        assert loaded is not None
+        assert loaded.consent is not None
+        assert loaded.consent.allows_public_preview is True
+        assert loaded.public_view().client_first_name == "Ana"
 
     async def test_photos_keep_their_order(
         self, session: AsyncSession, carpentry: Category
@@ -215,19 +272,27 @@ class TestGeoSearch:
         assert len(narrow) == 0
         assert len(wide) == 1
 
-    async def test_only_published_leads_are_returned(
+    async def test_disabled_leads_are_hidden_and_exhausted_ones_go_last(
         self, session: AsyncSession, carpentry: Category
     ) -> None:
         await store_lead(session, carpentry, status=LeadStatus.DISABLED)
-        await store_lead(session, carpentry, status=LeadStatus.EXHAUSTED, purchases_count=3)
+        # El agotado es el mas reciente y aun asi va detras del abierto.
+        closed = await store_lead(
+            session,
+            carpentry,
+            status=LeadStatus.EXHAUSTED,
+            purchases_count=3,
+            created_at=NOW + timedelta(hours=1),
+        )
         visible = await store_lead(session, carpentry)
 
         repo = SqlAlchemyLeadRepository(session)
         filters = LeadSearchFilters(category_ids={carpentry.id}, center=MADRID, radius_km=25)
 
         rows = await repo.search(filters)
-        assert [row.lead.id for row in rows] == [visible.id]
-        assert await repo.count(filters) == 1
+        assert [row.lead.id for row in rows] == [visible.id, closed.id]
+        assert [row.lead.is_closed for row in rows] == [False, True]
+        assert await repo.count(filters) == 2
 
     async def test_search_flags_leads_already_purchased(
         self, session: AsyncSession, carpentry: Category, madrid_carpenter: Professional
@@ -306,3 +371,28 @@ class TestRowLocking:
         await asyncio.wait_for(asyncio.gather(first(), second()), timeout=10)
 
         assert order == ["primera-bloquea", "primera-commit", "segunda-obtiene-bloqueo"]
+
+
+class TestServiceFilter:
+    async def test_sql_filter_matches_the_in_memory_rule(
+        self, session: AsyncSession, carpentry: Category
+    ) -> None:
+        doors, wardrobes = carpentry.services[0], carpentry.services[1]
+        mine = await store_lead(session, carpentry, service_ids=[doors.id])
+        unspecified = await store_lead(session, carpentry)
+        await store_lead(session, carpentry, service_ids=[wardrobes.id])
+        repo = SqlAlchemyLeadRepository(session)
+
+        restricted = LeadSearchFilters(
+            category_ids={carpentry.id},
+            center=MADRID,
+            radius_km=25,
+            service_ids=frozenset({doors.id}),
+            restricted_category_ids=frozenset({carpentry.id}),
+        )
+        rows = await repo.search(restricted)
+        assert {r.lead.id for r in rows} == {mine.id, unspecified.id}
+        assert await repo.count(restricted) == 2
+
+        everything = LeadSearchFilters(category_ids={carpentry.id}, center=MADRID, radius_km=25)
+        assert await repo.count(everything) == 3

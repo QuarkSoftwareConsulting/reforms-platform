@@ -33,6 +33,7 @@ export function PurchaseButton({ detail }: { detail: LeadDetail }) {
     return null;
   }
 
+  const verification = auth.me?.professional?.verification.status ?? "incomplete";
   const reserved = detail.purchase?.status === "reserved";
   const minutesLeft = minutesUntil(detail.purchase?.reserved_until ?? null);
   const price = formatMoney(detail.lead.price, locale);
@@ -47,19 +48,43 @@ export function PurchaseButton({ detail }: { detail: LeadDetail }) {
         </p>
       </div>
 
-      {/* El precio del contacto se ve siempre antes de pagar. */}
-      <p className="flex items-baseline justify-between gap-3 border-t border-divider pt-3.5">
-        <span className="text-[11px] uppercase tracking-[0.7px] text-muted">
-          {t("contactPrice")}
-        </span>
-        <span className="text-[19px] font-bold text-brand">{price}</span>
-      </p>
+      {/* El precio del contacto se ve siempre antes de pagar, con el IVA desglosado. */}
+      <div className="space-y-1 border-t border-divider pt-3.5">
+        <p className="flex items-baseline justify-between gap-3">
+          <span className="text-[11px] uppercase tracking-[0.7px] text-muted">
+            {t("contactPrice")}
+          </span>
+          <span className="text-[19px] font-bold text-brand">{price}</span>
+        </p>
+        <p className="text-right text-[12.5px] text-muted">
+          {t("vatIncluded")} ·{" "}
+          {t("vatBreakdown", {
+            net: formatMoney(detail.lead.price_breakdown.net, locale),
+            vat: formatMoney(detail.lead.price_breakdown.vat, locale),
+            rate: detail.lead.price_breakdown.rate_percent,
+          })}
+        </p>
+      </div>
 
       {reserved && minutesLeft > 0 && (
         <Alert tone="warning">{t("reservationPending", { minutes: minutesLeft })}</Alert>
       )}
 
-      {plan.kind === "inactive" ? (
+      {verification !== "approved" ? (
+        // Compra solo quien tiene el alta aprobada (F02); se comprueba antes que la
+        // recarga porque es lo primero que tiene que resolver un profesional nuevo.
+        <>
+          <Alert tone="warning">
+            {t(verification === "pending" ? "needsApprovalPending" : "needsApproval")}
+          </Alert>
+          <Link
+            href={path(locale, "profile")}
+            className="flex min-h-[56px] w-full items-center justify-center rounded-control bg-accent px-8 text-[17px] font-semibold text-ink hover:bg-accent-hover"
+          >
+            {t("completeRegistration")}
+          </Link>
+        </>
+      ) : plan.kind === "inactive" ? (
         <>
           <Alert tone="warning">{t("needsSubscription")}</Alert>
           <Link
@@ -92,7 +117,7 @@ export function PurchaseButton({ detail }: { detail: LeadDetail }) {
             size="lg"
             fullWidth
             loading={purchase.pending}
-            disabled={detail.lead.remaining_slots === 0}
+            disabled={detail.lead.is_closed || detail.lead.remaining_slots === 0}
             onClick={() => void purchase.start(detail.lead.id)}
           >
             {purchase.pending

@@ -6,6 +6,8 @@ su precio sugerido y el lead valida el precio que el admin le fija a mano.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from app.domain.exceptions import CurrencyMismatchError, InvalidSalePriceError
 from app.domain.value_objects import Money
 
@@ -38,3 +40,29 @@ def assert_same_currency(price: Money, reference: Money) -> None:
         raise CurrencyMismatchError(
             f"El precio debe estar en {reference.currency}, no en {price.currency}"
         )
+
+
+VAT_RATE_PERCENT = 21
+"""IVA general en Espana. Los precios de los contactos se publican con el IVA incluido."""
+
+
+@dataclass(frozen=True, slots=True)
+class VatBreakdown:
+    """Desglose de un importe con IVA incluido: base imponible + cuota."""
+
+    total: Money
+    net: Money
+    vat: Money
+    rate_percent: int
+
+
+def vat_breakdown(total: Money, *, rate_percent: int = VAT_RATE_PERCENT) -> VatBreakdown:
+    """Separa base y cuota de un precio que ya incluye el IVA.
+
+    Se redondea la base al centimo y la cuota es la diferencia, para que base mas
+    cuota sumen siempre el total cobrado (redondear las dos por separado puede
+    descuadrar un centimo).
+    """
+    net_cents = round(total.amount_cents * 100 / (100 + rate_percent))
+    net = Money(net_cents, total.currency)
+    return VatBreakdown(total=total, net=net, vat=total - net, rate_percent=rate_percent)

@@ -14,8 +14,8 @@ from httpx import AsyncClient
 
 from app.application.ports import AuthenticatedIdentity, PaymentEventType
 from app.domain.models import Category
-from tests.api.conftest import PRO_TOKEN
-from tests.fakes import FakeTokenVerifier
+from tests.api.conftest import ADMIN_TOKEN, PRO_TOKEN
+from tests.fakes import FAKE_CODE, FakePhoneVerifier, FakeTokenVerifier
 from tests.fakes.payments import VALID_SIGNATURE, FakePaymentGateway
 
 pytestmark = pytest.mark.integration
@@ -35,6 +35,8 @@ LEAD_PAYLOAD = {
     "client_phone": CLIENT_PHONE,
     "client_email": CLIENT_EMAIL,
     "photo_keys": [],
+    "property_type": "flat",
+    "schedule": "within_weeks",
     "consent": {"accepted": True},
 }
 
@@ -43,7 +45,12 @@ PROFILE_PAYLOAD = {
     "phone": "+34600111222",
     "postal_code": "28001",
     "service_radius_km": 25,
+    "professional_type": "self_employed",
+    "legal_name": "Marta Ruiz Perez",
+    "tax_id": "12345678Z",
+    "address": "Calle Mayor 1, Madrid",
 }
+ADMIN_HEADERS = {"Authorization": f"Bearer {ADMIN_TOKEN}"}
 
 
 async def publish_lead(api: AsyncClient, category: Category, **overrides: object) -> dict:
@@ -59,19 +66,52 @@ async def create_profile(
     headers: dict[str, str],
     *,
     subscribed: bool = True,
+    approved: bool = True,
     **overrides: object,
 ) -> dict:
-    """Crea (o actualiza) el perfil y, por defecto, deja la recarga al dia sin saldo.
+    """Crea (o actualiza) el perfil y, por defecto, lo deja listo para comprar.
 
-    Comprar exige la recarga mensual; sin saldo, las compras siguen pasando por el
-    checkout, que es lo que prueban la mayoria de estos tests.
+    Comprar exige el alta aprobada y la recarga al dia; sin saldo, las compras siguen
+    pasando por el checkout, que es lo que prueban la mayoria de estos tests. El alta
+    se aprueba por el mismo camino que en produccion (documento, envio y admin).
     """
     payload = {**PROFILE_PAYLOAD, "category_ids": [str(category.id)], **overrides}
     response = await api.put("/me/professional", json=payload, headers=headers)
     assert response.status_code == 200, response.text
+    profile = response.json()
+    if approved and profile["verification"]["status"] != "approved":
+        profile = await approve_registration(api, headers, profile["id"])
     if subscribed:
         await activate_subscription(api, headers)
-    return response.json()
+    return profile
+
+
+async def approve_registration(
+    api: AsyncClient, headers: dict[str, str], professional_id: str
+) -> dict:
+    upload = await api.post(
+        "/me/professional/uploads",
+        json={"purpose": "document", "filename": "036.pdf", "content_type": "application/pdf"},
+        headers=headers,
+    )
+    assert upload.status_code == 200, upload.text
+    document = await api.post(
+        "/me/professional/documents",
+        json={
+            "kind": "tax_registration",
+            "storage_key": upload.json()["storage_key"],
+            "filename": "036.pdf",
+        },
+        headers=headers,
+    )
+    assert document.status_code == 201, document.text
+    submitted = await api.post("/me/professional/submit", headers=headers)
+    assert submitted.status_code == 200, submitted.text
+    approved = await api.post(
+        f"/admin/professionals/{professional_id}/approve", headers=ADMIN_HEADERS
+    )
+    assert approved.status_code == 200, approved.text
+    return approved.json()
 
 
 async def activate_subscription(
@@ -145,11 +185,50 @@ class TestPublicPublication:
             json={
                 **LEAD_PAYLOAD,
                 "category_id": str(carpentry_category.id),
-                "postal_code": "99999",
+                "postal_code": "28999",
             },
         )
         assert response.status_code == 422
         assert response.json()["code"] == "UNKNOWN_POSTAL_CODE"
+
+    async def test_postal_code_outside_madrid_is_rejected(
+        self, api: AsyncClient, carpentry_category: Category
+    ) -> None:
+        # 08001 existe en el catalogo: el rechazo es por cobertura.
+        response = await api.post(
+            "/leads",
+            json={
+                **LEAD_PAYLOAD,
+                "category_id": str(carpentry_category.id),
+                "postal_code": "08001",
+            },
+        )
+        assert response.status_code == 422
+        assert response.json()["code"] == "POSTAL_CODE_NOT_COVERED"
+
+    @pytest.mark.parametrize("field", ["property_type", "schedule"])
+    async def test_property_type_and_schedule_are_required(
+        self, api: AsyncClient, carpentry_category: Category, field: str
+    ) -> None:
+        payload = {**LEAD_PAYLOAD, "category_id": str(carpentry_category.id)}
+        del payload[field]
+        response = await api.post("/leads", json=payload)
+        assert response.status_code == 422
+        assert response.json()["code"] == "VALIDATION_ERROR"
+
+    async def test_service_from_another_category_is_rejected(
+        self, api: AsyncClient, carpentry_category: Category
+    ) -> None:
+        response = await api.post(
+            "/leads",
+            json={
+                **LEAD_PAYLOAD,
+                "category_id": str(carpentry_category.id),
+                "service_ids": [str(uuid4())],
+            },
+        )
+        assert response.status_code == 422
+        assert response.json()["code"] == "INVALID_SERVICE"
 
     async def test_photo_key_outside_the_leads_prefix_is_rejected(
         self, api: AsyncClient, carpentry_category: Category
@@ -246,9 +325,42 @@ class TestExplorerHidesPii:
         assert item["postal_code_prefix"] == "28"
         assert item["distance_km"] == pytest.approx(0, abs=1)
         assert item["price"]["amount_cents"] == 500
-        assert item["remaining_slots"] == 3
+        # El precio se publica con IVA incluido y su desglose al 21 %.
+        assert item["price_breakdown"]["net"]["amount_cents"] == 413
+        assert item["price_breakdown"]["vat"]["amount_cents"] == 87
+        assert item["price_breakdown"]["rate_percent"] == 21
+        assert item["remaining_slots"] == 5
+        assert item["purchases_count"] == 0
+        assert item["max_purchases"] == 5
+        assert item["is_closed"] is False
         assert item["masked_phone"].endswith("44")
         assert item["already_purchased"] is False
+
+    async def test_listing_shows_services_property_type_and_schedule(
+        self, api: AsyncClient, carpentry_category: Category, pro_auth: dict[str, str]
+    ) -> None:
+        wardrobes = carpentry_category.services[1]
+        await publish_lead(api, carpentry_category, service_ids=[str(wardrobes.id)])
+        await create_profile(api, carpentry_category, pro_auth)
+
+        item = (await api.get("/leads", headers=pro_auth)).json()["items"][0]
+
+        assert [s["name"] for s in item["services"]] == ["Armarios a medida"]
+        assert item["property_type"] == "flat"
+        assert item["schedule"] == "within_weeks"
+
+    async def test_listing_shows_first_name_and_postal_code_but_no_surname(
+        self, api: AsyncClient, carpentry_category: Category, pro_auth: dict[str, str]
+    ) -> None:
+        await publish_lead(api, carpentry_category)
+        await create_profile(api, carpentry_category, pro_auth)
+
+        response = await api.get("/leads", headers=pro_auth)
+        item = response.json()["items"][0]
+
+        assert item["client_first_name"] == "Ana"
+        assert item["postal_code"] == LEAD_PAYLOAD["postal_code"]
+        assert "Lopez" not in response.text
 
     async def test_detail_hides_contact_before_paying(
         self, api: AsyncClient, carpentry_category: Category, pro_auth: dict[str, str]
@@ -267,7 +379,8 @@ class TestExplorerHidesPii:
     async def test_leads_outside_the_radius_are_not_listed(
         self, api: AsyncClient, carpentry_category: Category, pro_auth: dict[str, str]
     ) -> None:
-        await publish_lead(api, carpentry_category, postal_code="08001")
+        # Alcala queda a unos 30 km de la base (28001) y el radio es de 25.
+        await publish_lead(api, carpentry_category, postal_code="28801")
         await create_profile(api, carpentry_category, pro_auth)
 
         assert (await api.get("/leads", headers=pro_auth)).json()["total"] == 0
@@ -547,7 +660,7 @@ class TestWebhookSecurity:
         assert second.json()["duplicate"] is True
 
         detail = (await api.get(f"/leads/{created['id']}", headers=pro_auth)).json()
-        assert detail["lead"]["remaining_slots"] == 2, "solo se debe contar una venta"
+        assert detail["lead"]["remaining_slots"] == 4, "solo se debe contar una venta"
 
     async def test_irrelevant_event_is_acknowledged_but_not_handled(self, api: AsyncClient) -> None:
         response = await api.post(
@@ -571,6 +684,14 @@ class TestCatalogAndProfile:
         assert response.status_code == 200
         assert [c["slug"] for c in response.json()] == ["carpinteria"]
 
+    async def test_categories_list_their_services_in_catalog_order(
+        self, api: AsyncClient, carpentry_category: Category
+    ) -> None:
+        english = await api.get("/categories", headers={"Accept-Language": "en"})
+        services = english.json()[0]["services"]
+        assert [s["slug"] for s in services] == ["puertas", "armarios"]
+        assert services[1]["name"] == "Fitted wardrobes"
+
     async def test_category_names_follow_accept_language(
         self, api: AsyncClient, carpentry_category: Category
     ) -> None:
@@ -585,12 +706,12 @@ class TestCatalogAndProfile:
     ) -> None:
         first = await create_profile(api, carpentry_category, pro_auth)
         second = await create_profile(
-            api, carpentry_category, pro_auth, service_radius_km=60, postal_code="08001"
+            api, carpentry_category, pro_auth, service_radius_km=60, postal_code="28801"
         )
 
         assert first["id"] == second["id"]
         assert second["service_radius_km"] == 60
-        assert second["city"] == "Barcelona"
+        assert second["city"] == "Alcala de Henares"
 
     async def test_invalid_radius_is_rejected_by_the_schema(
         self, api: AsyncClient, carpentry_category: Category, pro_auth: dict[str, str]
@@ -631,16 +752,16 @@ class TestCatalogAndProfile:
 
 
 class TestLeadCapOverHttp:
-    async def test_fourth_professional_gets_cap_reached(
+    async def test_sixth_professional_gets_cap_reached(
         self,
         api: AsyncClient,
         carpentry_category: Category,
         fake_tokens: FakeTokenVerifier,
     ) -> None:
-        """Tres compras agotan el lead; la cuarta recibe 409 LEAD_CAP_REACHED."""
+        """Cinco compras agotan el lead; la sexta recibe 409 LEAD_CAP_REACHED."""
         created = await publish_lead(api, carpentry_category)
 
-        for index in range(4):
+        for index in range(6):
             token = f"token-pro-{index}"
             fake_tokens.register(
                 token,
@@ -652,9 +773,55 @@ class TestLeadCapOverHttp:
             await create_profile(api, carpentry_category, headers)
 
             response = await api.post(f"/leads/{created['id']}/purchase", headers=headers)
-            if index < 3:
+            if index < 5:
                 assert response.status_code == 201, response.text
                 await pay(api, response.json()["purchase_id"], event_id=f"evt_{index}")
             else:
                 assert response.status_code == 409
                 assert response.json()["code"] == "LEAD_CAP_REACHED"
+
+        # El que se quedo sin plaza sigue viendo el lead, pero como cerrado.
+        items = (await api.get("/leads", headers=headers)).json()["items"]
+        closed = next(item for item in items if item["id"] == created["id"])
+        assert closed["is_closed"] is True
+        assert closed["remaining_slots"] == 0
+        assert closed["purchases_count"] == 5
+
+
+class TestPhoneVerificationOverHttp:
+    async def test_without_a_provider_no_code_is_required(
+        self, api: AsyncClient, carpentry_category: Category
+    ) -> None:
+        response = await api.post("/leads/phone-verification", json={"phone": CLIENT_PHONE})
+        assert response.status_code == 200
+        assert response.json() == {"required": False}
+        # Y se publica sin codigo, como hasta ahora.
+        await publish_lead(api, carpentry_category)
+
+    @pytest.mark.sms
+    async def test_publishing_needs_the_code_from_the_sms(
+        self,
+        api: AsyncClient,
+        carpentry_category: Category,
+        fake_phone_verifier: FakePhoneVerifier,
+    ) -> None:
+        sent = await api.post("/leads/phone-verification", json={"phone": CLIENT_PHONE})
+        assert sent.json() == {"required": True}
+        assert fake_phone_verifier.sent_to == [CLIENT_PHONE]
+
+        payload = {**LEAD_PAYLOAD, "category_id": str(carpentry_category.id)}
+        wrong = await api.post("/leads", json={**payload, "phone_verification_code": "000000"})
+        assert wrong.status_code == 422
+        assert wrong.json()["code"] == "PHONE_NOT_VERIFIED"
+
+        right = await api.post("/leads", json={**payload, "phone_verification_code": FAKE_CODE})
+        assert right.status_code == 201, right.text
+
+    @pytest.mark.sms
+    async def test_a_landline_is_rejected_before_sending(
+        self, api: AsyncClient, fake_phone_verifier: FakePhoneVerifier
+    ) -> None:
+        response = await api.post("/leads/phone-verification", json={"phone": "912345678"})
+        assert response.status_code == 422
+        assert response.json()["code"] == "PHONE_NOT_MOBILE"
+        assert fake_phone_verifier.sent_to == []

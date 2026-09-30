@@ -15,6 +15,7 @@ from uuid import UUID
 from app.domain.exceptions import (
     CurrencyMismatchError,
     InsufficientCreditError,
+    RejectionAwaitingPaymentError,
     SubscriptionAlreadyExistsError,
     SubscriptionRequiredError,
     ValidationError,
@@ -116,6 +117,18 @@ class ProfessionalAccount:
             SubscriptionStatus.PAST_DUE,
         }:
             raise SubscriptionAlreadyExistsError()
+
+    def assert_no_charge_in_flight(self) -> None:
+        """Rechazar el alta exige que el cobro de la recarga ya se haya resuelto.
+
+        En `PENDING` el profesional completo el checkout pero el dinero no ha llegado
+        (con SEPA, dias). Ese adeudo no se puede anular: se confirmaria despues del
+        rechazo y abonaria saldo a un rechazado sin reembolso (4.13). Con el cobro
+        confirmado se reembolsa; si falla, la cuenta pasa a `PAST_DUE` y no hay nada
+        que devolver.
+        """
+        if self.subscription_status is SubscriptionStatus.PENDING:
+            raise RejectionAwaitingPaymentError()
 
     def credit_to_apply(self, price: Money) -> Money:
         """Cuanto saldo se aplica a una compra de `price`.

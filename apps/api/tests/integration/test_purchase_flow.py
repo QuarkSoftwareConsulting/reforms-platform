@@ -33,6 +33,7 @@ from app.domain.models import (
     PurchaseStatus,
     User,
     UserRole,
+    VerificationStatus,
 )
 from app.domain.value_objects import Email, Money, PhoneNumber, PostalCode
 from app.infrastructure.adapters.clock import Uuid4Generator
@@ -159,6 +160,7 @@ async def add_professional(
             city="Madrid",
             province="Madrid",
             category_ids={category.id},
+            verification_status=VerificationStatus.APPROVED,
         )
     )
     if balance_cents is not None:

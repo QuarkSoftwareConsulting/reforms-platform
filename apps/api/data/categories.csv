@@ -1,13 +1,11 @@
-slug,name_es,name_en,suggested_lead_price_cents,currency
-albanileria,Albañilería,Masonry,500,EUR
-carpinteria,Carpintería,Carpentry,500,EUR
-cerrajeria,Cerrajería,Locksmithing,500,EUR
-climatizacion,Climatización,Heating & Air Conditioning,700,EUR
-cristaleria,Cristalería,Glazing,500,EUR
-electricidad,Electricidad,Electrical Work,600,EUR
-fontaneria,Fontanería,Plumbing,600,EUR
-jardineria,Jardinería,Gardening,400,EUR
-limpieza,Limpieza,Cleaning,300,EUR
-pintura,Pintura,Painting,500,EUR
-reforma-integral,Reforma integral,Full Renovation,1200,EUR
-tejados,Tejados y cubiertas,Roofing,800,EUR
+slug,name_es,name_en,suggested_lead_price_cents,currency,sort_order
+reformas,Reformas,Renovations,500,EUR,1
+seguridad-electronica,Seguridad electrónica,Electronic Security,500,EUR,2
+construccion,Construcción,Construction,500,EUR,3
+instaladores,Instaladores,Installers,500,EUR,4
+obras-menores,Obras menores,Minor Works,500,EUR,5
+mantenimiento,Mantenimiento,Maintenance,500,EUR,6
+tecnicos,Técnicos,Technical Services,500,EUR,7
+mudanzas,Mudanzas,Removals,500,EUR,8
+bienestar-salud,Bienestar y salud,Wellbeing & Health,500,EUR,9
+servicios-profesionales,Servicios profesionales,Professional Services,500,EUR,10
