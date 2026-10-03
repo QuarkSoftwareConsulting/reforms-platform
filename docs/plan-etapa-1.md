@@ -6,10 +6,10 @@ cualquier persona o sesión de agente retome el trabajo sin reconstruir la conve
 
 - Fuente original: documento del cliente "Etapa 1" (flujos F01–F03 con sus respuestas),
   transcrito en [`etapa-1-cliente.md`](./etapa-1-cliente.md).
-- Última actualización: 2026-09-29.
-- Una rama y un PR por fase, **apilados**: cada rama sale de la anterior y su PR se
-  integra en ella. Se revisan e integran en orden; al integrar uno, el siguiente se
-  reorienta a `develop`.
+- Última actualización: 2026-10-03.
+- **Las cuatro fases están integradas en `develop`** (PR #20 las trajo apiladas; el #21
+  añadió la revisión posterior, ver "Revisión de la Etapa 1" más abajo). Se desarrollaron
+  como una rama y un PR por fase, **apilados**; la tabla se conserva como historial.
 
   | Fase | Rama | PR | Base del PR |
   |---|---|---|---|
@@ -18,9 +18,8 @@ cualquier persona o sesión de agente retome el trabajo sin reconstruir la conve
   | 3 · Formulario del cliente | `feat/formulario-cliente` | #18 | `feat/reglas-lead` |
   | 4 · Alta y validación del profesional | `feat/validacion-profesional` | #19 | `feat/formulario-cliente` |
 
-  La CI (`.github/workflows/ci.yml`) solo corre en PR contra `develop` o `main`: los PR 2–4
-  la pasan al reorientarse a `develop`. En local, las cuatro fases pasan `pnpm lint`,
-  `pnpm test` y `pnpm verify:flow`.
+  La CI (`.github/workflows/ci.yml`) solo corre en PR contra `develop` o `main`. En local,
+  las cuatro fases pasan `pnpm lint`, `pnpm test` y `pnpm verify:flow`.
 
 ---
 
@@ -80,7 +79,7 @@ código (o volver a hablarlo con el cliente).
 Una rama y un PR por fase. Ninguna fase se da por cerrada sin `pnpm lint && pnpm test` en
 verde y, si toca leads, pagos o auth, `pnpm verify:flow`.
 
-### Fase 1 — Recarga mensual y saldo · ✅ implementada, en PR
+### Fase 1 — Recarga mensual y saldo · ✅ integrada en `develop`
 
 Hecho:
 - Dominio: `ProfessionalAccount` (estado de la suscripción + saldo), libro append-only
@@ -110,18 +109,24 @@ Pendiente dentro de la Fase 1:
 - [x] Push y PR abierto (ver la tabla del principio).
 - [ ] Configurar en Stripe: el portal de cliente (cancelación **al final del periodo**) y
       los eventos del webhook listados en el README.
-- [ ] Devolución de adeudos SEPA por el banco (`charge.dispute.created`): restar el saldo
-      y bloquear compras hasta regularizar. **No implementado.**
+- [ ] Devolución de adeudos SEPA por el banco o disputa (`charge.dispute.created`).
+      **No implementado.** Decisión (2026-09-29): se retira la recarga **entera** aunque ya
+      se gastara; lo que falte queda como **deuda** (no saldo negativo). Con deuda no se
+      compra y cualquier abono la salda primero; una disputa ganada devuelve el saldo. El
+      banco retira el dinero sin permiso nuestro: no es una devolución que decidamos.
+- [ ] Disputa de una **compra de contacto** (no de la recarga): hoy no toca el saldo.
+      Pendiente de decidir con el cliente (ver §3).
 - [ ] Formulario de ajuste manual de saldo en el panel de admin (hoy solo por API).
 
-### Fase 2 — Reglas del lead · ✅ implementada, en PR
+### Fase 2 — Reglas del lead · ✅ integrada en `develop`
 
 Hecho:
 - **5 plazas por lead** (`DEFAULT_MAX_PURCHASES`, `LEAD_MAX_PURCHASES=5`). Los leads
   existentes conservan sus 3: el consentimiento de su cliente (`max_recipients`) se dio
   para un máximo de 3 destinatarios.
-- **Precio sugerido de 5 €** en todos los oficios (`categories.csv`). Ojo: `pnpm api:seed`
-  sobrescribe el sugerido de los oficios existentes con el del CSV.
+- **Precio sugerido de 5 €** en todos los oficios (`categories.csv`). (Al principio
+  `pnpm api:seed` sobrescribía el sugerido de los oficios existentes; desde la Fase 3 ya no
+  pisa el que haya cambiado el admin.)
 - **IVA incluido** con desglose al 21 % (`vat_breakdown` en el dominio; `price_breakdown`
   en el API). La base se redondea al céntimo y la cuota es la diferencia.
 - **Leads agotados visibles como "Cerrado"**, después de los abiertos y sin compra. Quien
@@ -144,7 +149,7 @@ Pendiente o fuera de esta fase:
       profesionales).
 - [ ] Texto legal completo de la política (hoy solo existe el resumen del formulario).
 
-### Fase 3 — Catálogo, cobertura y formulario del cliente (F01) · ✅ implementada, en PR
+### Fase 3 — Catálogo, cobertura y formulario del cliente (F01) · ✅ integrada en `develop`
 
 Hecho:
 - **Catálogo de dos niveles**, categoría → servicio, con las 10 categorías y 86 servicios
@@ -187,7 +192,7 @@ Pendiente:
 - [x] Filtro por servicio en el explorador: llegó con la Fase 4.
 - [ ] Revisión visual del formulario en el navegador (no se pudo hacer en esta sesión).
 
-### Fase 4 — Registro y validación del profesional (F02) · ✅ implementada, en PR
+### Fase 4 — Registro y validación del profesional (F02) · ✅ integrada en `develop`
 
 Hecho:
 - **Alta del profesional:**
@@ -240,6 +245,22 @@ Pendiente:
       no arranca con `STORAGE_BACKEND=gcs`.
 - [ ] Revisión visual del perfil y de la cola del admin en el navegador.
 
+### Revisión de la Etapa 1 (PR #21) · ✅ integrada
+
+Correcciones tras revisar las fases 1–4; ya están en los invariantes de `AGENTS.md`:
+- **Rechazo del alta con el primer cobro SEPA en curso:** se prohíbe hasta que se confirme
+  o falle (`409 REJECTION_AWAITING_PAYMENT`), porque ese adeudo no se puede anular y
+  abonaría saldo a un rechazado sin reembolso.
+- **Rechazo sin reembolsos a medias:** `assert_can_reject` comprueba estado y motivo antes
+  de llamar a la pasarela, y el reembolso y la cancelación son idempotentes.
+- **Concurrencia en el alta:** quien escribe el perfil lo carga con `get_for_update`
+  (orden de bloqueo: profesional antes que cuenta); el rechazo mantiene el bloqueo durante
+  las llamadas a Stripe.
+- **Vista previa según la política aceptada:** `allows_public_preview` sale de la versión de
+  política aceptada (`PUBLIC_PREVIEW_POLICY_VERSIONS`), no de que el lead sea nuevo.
+- **Notas de revisión de compras** (`PurchaseReview`, append-only): el admin marca una
+  compra para revisión manual (`POST /admin/purchases/{id}/reviews`).
+
 ### Fase 5 — Notificaciones, WhatsApp, factura y navegación · ⏳ pendiente
 
 - Aviso a los profesionales de la zona al publicarse un lead (SMS, email o WhatsApp; el
@@ -265,9 +286,11 @@ Pendiente:
 4. **Texto de la landing** que sustituye "Sin cuota mensual ni permanencia" (ya retirado;
    el texto nuevo es una propuesta).
 5. **Proveedores** de SMS (ya hay puerto y adaptador de desarrollo), WhatsApp y email.
-6. **Confirmar las interpretaciones de la Fase 3** (anidación de servicios, opciones de
+6. **Disputa de una compra de contacto:** ¿devuelve saldo, queda como deuda o la resuelve
+   el admin a mano? (La de la recarga ya está decidida, ver Fase 1.)
+7. **Confirmar las interpretaciones de la Fase 3** (anidación de servicios, opciones de
    programación y de tipo de inmueble).
-7. **Confirmar las decisiones de la Fase 4**: perfiles existentes pasan a "incompletos",
+8. **Confirmar las decisiones de la Fase 4**: perfiles existentes pasan a "incompletos",
    bloqueo de los datos al enviar el alta (sin estado "devuelta para corregir"), rechazo
    definitivo que solo reembolsa el primer cobro, y fotos opcionales.
 

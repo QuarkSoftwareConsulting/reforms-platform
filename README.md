@@ -6,9 +6,13 @@ de su zona y **pagan por desbloquear el contacto** del cliente. Cada solicitud s
 un máximo de 5 profesionales, y **el precio de cada contacto lo fija el administrador**
 (la categoría solo aporta un precio sugerido).
 
-- **Fase 1 (esta):** flujo completo cliente → profesional → pago → contacto desbloqueado.
-- **Fase 2:** panel de administración, ingesta manual de leads, emails transaccionales,
-  páginas SEO por oficio + ciudad, wallet prepago.
+- **Fase 1:** flujo completo cliente → profesional → pago → contacto desbloqueado.
+- **Etapa 1 (hecha, integrada en `develop`):** recarga mensual con saldo, reglas del lead
+  (5 plazas, IVA, vista previa), formulario del cliente (catálogo, Madrid, SMS) y alta y
+  validación del profesional, con un panel de administración básico (`/admin`).
+  Estado y decisiones en [`docs/plan-etapa-1.md`](./docs/plan-etapa-1.md).
+- **Pendiente (Fase 5 de la Etapa 1 y posteriores):** notificaciones (SMS, email,
+  WhatsApp), factura, ingesta manual de leads y páginas SEO por oficio + ciudad.
 
 Documentos de producto en [`docs/`](./docs).
 
@@ -180,7 +184,9 @@ Sin clave configurada, `POST /leads/{id}/purchase` responde `503 PAYMENT_GATEWAY
 **libera la plaza reservada** en el acto, para que un fallo de infraestructura no consuma
 una de las plazas del lead.
 
-**Mensualidad.** Ver y comprar solicitudes exige la mensualidad al día. El admin fija su
+**Mensualidad.** Comprar solicitudes exige la mensualidad al día; **verlas no**: una cuenta
+inactiva ve el listado y el detalle (sin datos de contacto) pero `POST /leads/{id}/purchase`
+responde `402 SUBSCRIPTION_REQUIRED`. Además, solo compra quien tiene el alta aprobada. El admin fija su
 importe desde el panel, y eso crea el precio en Stripe. Para arrancar sin intervención del
 admin, crea en Stripe un precio recurrente mensual (EUR, IVA incluido) y ponlo en
 `STRIPE_TOPUP_PRICE_ID` junto a su importe en `SUBSCRIPTION_TOPUP_CENTS`. El webhook debe escuchar,
@@ -262,8 +268,8 @@ fijar otro para un lead concreto (`leads.price_override_cents`) desde
 `Lead.sale_price(suggested=...)`, y el importe se congela dentro del bloqueo de fila de la
 reserva: cambiar el precio después no altera compras ya creadas ni la sesión de checkout
 que se emitió. Subir el precio sugerido de un oficio tampoco toca los leads que ya tienen
-precio propio. La UI de administración llega en la Fase 2; de momento los endpoints se
-usan desde `/docs` o con un cliente HTTP.
+precio propio. El admin lo hace desde el panel (`/admin`) o con
+`PUT /api/v1/admin/leads/{id}/price`.
 
 **Compra solo un profesional con el alta aprobada.** Tras registrarse, el profesional
 aporta tipo de alta, datos fiscales y documentos y la envía a revisión; hasta que el admin

@@ -14,17 +14,19 @@ FastAPI + arquitectura hexagonal, Python 3.13, gestionado con **uv**.
 app/
 ├── domain/                 NÚCLEO. Cero imports externos.
 │   ├── value_objects/      Money, Coordinates, PostalCode, Email, PhoneNumber
-│   ├── models/             Lead, Professional, Purchase, Category, User + enums
+│   ├── models/             Lead, Professional, Purchase, Category, User, billing (cuenta,
+│   │                       saldo), coverage, pricing, purchase_review + enums
 │   └── exceptions/         DomainError y descendientes, cada uno con `code` y `status`
 ├── application/
-│   ├── ports/              Interfaces abstractas (repositorios, pagos, storage, reloj…)
+│   ├── ports/              Interfaces abstractas (repositorios, pagos, storage, reloj, SMS…)
 │   ├── use_cases/          Un archivo por interacción de negocio
 │   └── dto/                Entradas/salidas de casos de uso (dataclasses, no Pydantic)
 ├── infrastructure/
 │   ├── adapters/db/        SQLAlchemy 2.0 async + PostGIS: models, mappers, repositories
 │   ├── adapters/payments/  Stripe
 │   ├── adapters/auth/      Firebase Auth
-│   ├── adapters/storage/   S3 / MinIO / R2
+│   ├── adapters/storage/   S3 / MinIO / R2 y GCS (bucket publico y bucket privado)
+│   ├── adapters/sms/       Verificacion del movil (`console` en desarrollo)
 │   └── api/                Routers v1, schemas Pydantic, middlewares, dependencies
 ├── config/                 Settings (pydantic-settings) y logging estructurado
 ├── jobs/                   Comandos para cron

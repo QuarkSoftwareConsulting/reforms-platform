@@ -78,7 +78,7 @@ solo `lib/firebase.ts` y ese hook.
 **Cero cadenas de UI incrustadas en componentes.** Todo texto visible sale de
 `messages/es.json` / `messages/en.json`.
 
-- Los dos archivos deben tener **exactamente las mismas claves** (hoy: 484 cada uno).
+- Los dos archivos deben tener **exactamente las mismas claves** (hoy: 485 cada uno).
   Comprobación rápida:
 
   ```bash
@@ -178,7 +178,7 @@ con error (ya lo hace `components/ui/Field.tsx`, úsalo en vez de montar `<input
 
 ## Dependencias
 
-pnpm 11: los paquetes que necesitan scripts de instalación (`sharp`, `esbuild`,
+pnpm 10.34.5: los paquetes que necesitan scripts de instalación (`sharp`, `esbuild`,
 `unrs-resolver`, `@firebase/util`, `protobufjs`) se declaran en `allowBuilds` dentro de
 `pnpm-workspace.yaml` en la raíz. `onlyBuiltDependencies` y el campo `pnpm` de
 `package.json` **ya no se leen** en esta versión.
