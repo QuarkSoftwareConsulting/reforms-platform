@@ -13,6 +13,7 @@ from app.application.use_cases.admin_pricing import (
     SetCategorySuggestedPrice,
     SetLeadPrice,
 )
+from app.application.use_cases.apply_chargeback import ApplyChargeback
 from app.application.use_cases.apply_subscription_event import ApplySubscriptionEvent
 from app.application.use_cases.create_lead import CreateLead
 from app.application.use_cases.credit_ledger import CreditLedgerService
@@ -25,6 +26,7 @@ from app.application.use_cases.list_categories import ListCategories
 from app.application.use_cases.list_leads import ListLeads
 from app.application.use_cases.list_my_purchases import ListMyPurchases
 from app.application.use_cases.phone_verification import (
+    OriginLimit,
     PhoneVerificationStart,
     StartPhoneVerification,
 )
@@ -65,6 +67,7 @@ from app.application.use_cases.user_roles import (
 __all__ = [
     "AddProfessionalDocument",
     "AdjustProfessionalCredit",
+    "ApplyChargeback",
     "ApplySubscriptionEvent",
     "ApproveProfessional",
     "ChangeLeadAvailability",
@@ -90,6 +93,7 @@ __all__ = [
     "ListUserRoleEvents",
     "MarkPurchaseForReview",
     "OpenBillingPortal",
+    "OriginLimit",
     "PaymentEventOutcome",
     "PhoneVerificationStart",
     "RejectProfessional",

@@ -19,6 +19,19 @@ export function AccountStatusBanner({ account }: { account: Account | null }) {
   const t = useTranslations("subscription");
   const href = path(locale, "subscription");
 
+  if (account?.is_active && account.debt && account.debt.amount_cents > 0) {
+    return (
+      <Alert tone="warning">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span>{t("bannerDebt", { debt: formatMoney(account.debt, locale) })}</span>
+          <Link href={href} className="font-semibold text-brand hover:underline">
+            {t("bannerManage")}
+          </Link>
+        </div>
+      </Alert>
+    );
+  }
+
   if (account?.is_active) {
     return (
       <Alert tone="info">

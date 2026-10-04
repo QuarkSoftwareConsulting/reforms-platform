@@ -26,13 +26,13 @@ src/
 
 **Dónde va cada cosa:**
 
-| Si es… | va en… | y no debe… |
-|---|---|---|
-| Una URL del API | `services/` | aparecer en un componente o hook |
-| Estado, efecto o llamada | `hooks/` | vivir dentro del JSX de un componente |
-| Cálculo o formateo sin React | `helpers/` | importar nada de `react` |
-| Presentación sin dominio | `components/ui/` | conocer `Lead`, `Purchase`… |
-| Presentación con dominio | `components/features/` | hacer `fetch` directamente |
+| Si es…                       | va en…                 | y no debe…                            |
+| ---------------------------- | ---------------------- | ------------------------------------- |
+| Una URL del API              | `services/`            | aparecer en un componente o hook      |
+| Estado, efecto o llamada     | `hooks/`               | vivir dentro del JSX de un componente |
+| Cálculo o formateo sin React | `helpers/`             | importar nada de `react`              |
+| Presentación sin dominio     | `components/ui/`       | conocer `Lead`, `Purchase`…           |
+| Presentación con dominio     | `components/features/` | hacer `fetch` directamente            |
 
 Un componente que hace `fetch`, o un helper que importa React, están en la capa
 equivocada. Los componentes de `ui/` deben poder copiarse a otro proyecto sin arrastrar
@@ -164,7 +164,7 @@ Tailwind con el sistema de diseño **«Voy a Reformar»**
 - Primitivos en `components/ui/`: `Button`, `Field`, `Card`/`Panel`/`Tag`/`Seal`/`LiveDot`,
   `OptionCard`, `ChipGroup`, `ProgressBar`, `Alert`, `Container`, `Modal`. `OptionCard` envuelve un `input` nativo
   en `sr-only` para conservar rol y etiqueta accesible: no lo sustituyas por un `div` con
-  `onClick`. `ChipGroup` es el *chip de selección* del handoff (§4), con la misma técnica;
+  `onClick`. `ChipGroup` es el _chip de selección_ del handoff (§4), con la misma técnica;
   lo usan los servicios, el tipo de inmueble y la programación del formulario.
 - `Modal` (sin `<dialog>` nativo: jsdom no implementa `showModal()`) atrapa el foco, cierra
   con Escape o clic fuera y lo devuelve al cerrar; con `dismissible={false}` no se puede

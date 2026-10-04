@@ -15,6 +15,7 @@ from app.infrastructure.adapters.db.repositories.purchase_repository import (
 from app.infrastructure.adapters.db.repositories.purchase_review_repository import (
     SqlAlchemyPurchaseReviewRepository,
 )
+from app.infrastructure.adapters.db.repositories.rate_limiter import SqlAlchemyRateLimiter
 from app.infrastructure.adapters.db.repositories.user_repository import (
     SqlAlchemyProfessionalRepository,
     SqlAlchemyUserRepository,
@@ -30,6 +31,7 @@ __all__ = [
     "SqlAlchemyProfessionalRepository",
     "SqlAlchemyPurchaseRepository",
     "SqlAlchemyPurchaseReviewRepository",
+    "SqlAlchemyRateLimiter",
     "SqlAlchemySubscriptionPriceRepository",
     "SqlAlchemyUserRepository",
 ]

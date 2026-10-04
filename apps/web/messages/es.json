@@ -26,7 +26,8 @@
     "subscription": "Mi mensualidad"
   },
   "footer": {
-    "tagline": "Tus ideas. Los mejores profesionales."
+    "tagline": "Tus ideas. Los mejores profesionales.",
+    "geonames": "Códigos postales: datos de <source>GeoNames</source>, adaptados, con licencia <license>CC BY 4.0</license>."
   },
   "home": {
     "title": "Contactos de reforma verificados por teléfono en toda España",
@@ -234,7 +235,9 @@
     "paymentCancelled": "Has cancelado el pago. Si tu reserva sigue vigente, puedes completarlo antes de que caduque.",
     "needsApproval": "Para comprar contactos tenemos que validar tu alta.",
     "needsApprovalPending": "Tu alta está en revisión. Podrás comprar cuando la aprobemos.",
-    "completeRegistration": "Ver mi alta"
+    "completeRegistration": "Ver mi alta",
+    "debtBlocksPurchase": "Tienes {debt} pendientes por una mensualidad devuelta por tu banco. Podrás comprar cuando se salde con tu próxima mensualidad.",
+    "reviewAccount": "Ver mi mensualidad"
   },
   "purchases": {
     "title": "Mis contactos",
@@ -283,12 +286,17 @@
       "spend": "Compra de contacto",
       "spend_reversal": "Devolución de reserva no pagada",
       "adjustment_credit": "Abono de administración",
-      "adjustment_debit": "Cargo de administración"
+      "adjustment_debit": "Cargo de administración",
+      "verification_refund": "Reembolso del primer cobro (alta rechazada)",
+      "chargeback": "Mensualidad devuelta por el banco",
+      "chargeback_reversal": "Devolución anulada: importe recuperado"
     },
     "bannerActive": "Cuenta activa · Saldo: {balance}",
     "bannerInactive": "Cuenta inactiva: puedes ver las solicitudes, pero para comprar contactos necesitas la recarga mensual al día.",
     "bannerCta": "Activar mensualidad",
-    "bannerManage": "Ver mi mensualidad"
+    "bannerManage": "Ver mi mensualidad",
+    "bannerDebt": "Tu banco devolvió una mensualidad que ya habías gastado y tienes {debt} pendientes. Puedes ver solicitudes, pero no comprar hasta que se salde con la próxima mensualidad.",
+    "debtNotice": "Tu banco devolvió el cobro de una mensualidad que ya habías gastado en contactos. Quedan {debt} pendientes: se descontarán de tu próxima mensualidad y, hasta entonces, no podrás comprar contactos."
   },
   "profile": {
     "title": "Mi perfil profesional",
@@ -666,6 +674,8 @@
     "mediaType": "Solo se admiten fotos JPG, PNG, WEBP o HEIC.",
     "mediaTooLarge": "La foto supera los 10 MB.",
     "documentType": "Sube el documento en PDF o como imagen.",
-    "documentTooLarge": "El documento supera los 10 MB."
+    "documentTooLarge": "El documento supera los 10 MB.",
+    "adjustmentAmount": "Indica un importe mayor que 0 y de hasta 1000 €.",
+    "adjustmentNote": "Explica el motivo del ajuste (entre 3 y 500 caracteres)."
   }
 }

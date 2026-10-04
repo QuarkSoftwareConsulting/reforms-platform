@@ -8,11 +8,12 @@ from app.domain.exceptions import (
     PhoneNotMobileError,
     PhoneNotVerifiedError,
     PhoneVerificationUnavailableError,
+    TooManyVerificationAttemptsError,
     ValidationError,
 )
 from app.domain.models import Category, LeadSource
 from app.domain.value_objects import PhoneNumber
-from tests.conftest import World
+from tests.conftest import SMS_PER_ORIGIN, World
 from tests.fakes import FAKE_CODE
 from tests.unit.use_cases.test_create_lead import lead_input
 
@@ -43,6 +44,46 @@ class TestStartVerification:
         world.phone_verifier.fail_next = True
         with pytest.raises(PhoneVerificationUnavailableError):
             await world.start_phone_verification.execute(PHONE)
+
+
+class TestLimitPerOrigin:
+    """Contra el "SMS pumping": un bot que pide codigos desde el mismo origen."""
+
+    async def test_stops_sending_after_the_limit_for_the_same_ip(self, world: World) -> None:
+        for index in range(SMS_PER_ORIGIN):
+            await world.start_phone_verification.execute(f"+3461122334{index}", origin="83.45.12.9")
+
+        # Cambiar de telefono no ayuda: el limite es por origen.
+        with pytest.raises(TooManyVerificationAttemptsError):
+            await world.start_phone_verification.execute("+34699999999", origin="83.45.12.9")
+        assert len(world.phone_verifier.sent_to) == SMS_PER_ORIGIN
+
+    async def test_other_origins_keep_their_own_quota(self, world: World) -> None:
+        for _ in range(SMS_PER_ORIGIN):
+            await world.start_phone_verification.execute(PHONE, origin="83.45.12.9")
+        await world.start_phone_verification.execute(PHONE, origin="90.1.2.3")
+        assert len(world.phone_verifier.sent_to) == SMS_PER_ORIGIN + 1
+
+    async def test_the_quota_comes_back_in_the_next_window(self, world: World) -> None:
+        for _ in range(SMS_PER_ORIGIN):
+            await world.start_phone_verification.execute(PHONE, origin="83.45.12.9")
+        world.clock.advance(hours=1)
+        await world.start_phone_verification.execute(PHONE, origin="83.45.12.9")
+        assert len(world.phone_verifier.sent_to) == SMS_PER_ORIGIN + 1
+
+    async def test_an_invalid_number_does_not_use_the_quota(self, world: World) -> None:
+        for _ in range(SMS_PER_ORIGIN + 2):
+            with pytest.raises(PhoneNotMobileError):
+                await world.start_phone_verification.execute("912345678", origin="83.45.12.9")
+        await world.start_phone_verification.execute(PHONE, origin="83.45.12.9")
+        assert world.phone_verifier.sent_to == [PHONE]
+
+    async def test_a_provider_failure_still_counts(self, world: World) -> None:
+        # Si no contara, un proveedor caido dejaria reintentar sin limite al volver.
+        world.phone_verifier.fail_next = True
+        with pytest.raises(PhoneVerificationUnavailableError):
+            await world.start_phone_verification.execute(PHONE, origin="83.45.12.9")
+        assert sum(world.rate_limiter.hits.values()) == 1
 
 
 class TestPublishingRequiresTheCode:

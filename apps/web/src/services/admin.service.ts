@@ -3,6 +3,7 @@
 import type { VerificationStatus } from "@/helpers/professionalOptions";
 import { request } from "@/services/api";
 import type {
+  AdminAccount,
   AdminLeadList,
   AdminMetrics,
   AdminProfessionalList,
@@ -172,6 +173,20 @@ export const adminService = {
     return request<Rejection>(`/admin/professionals/${professionalId}/reject`, {
       method: "POST",
       body: { reason },
+      locale,
+    });
+  },
+
+  /** Abona (centimos positivos) o carga (negativos) saldo. Un abono salda antes la deuda. */
+  adjustCredit(
+    professionalId: string,
+    amountCents: number,
+    note: string,
+    locale: Locale,
+  ): Promise<AdminAccount> {
+    return request<AdminAccount>(`/admin/professionals/${professionalId}/credit-adjustments`, {
+      method: "POST",
+      body: { amount_cents: amountCents, note },
       locale,
     });
   },

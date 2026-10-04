@@ -214,6 +214,16 @@ class SubscriptionAlreadyExistsError(DomainError):
     status = 409
 
 
+class CreditDebtOutstandingError(DomainError):
+    """Una recarga tuya fue devuelta por el banco y tienes un importe pendiente.
+
+    Se salda sola con la siguiente recarga cobrada.
+    """
+
+    code = "CREDIT_DEBT_OUTSTANDING"
+    status = 402
+
+
 class InsufficientCreditError(DomainError):
     """No tienes saldo suficiente para esta operacion."""
 
@@ -297,6 +307,7 @@ __all__ = [
     "CategoryNotFoundError",
     "ConsentRequiredError",
     "ContactLockedError",
+    "CreditDebtOutstandingError",
     "CurrencyMismatchError",
     "DomainError",
     "InsufficientCreditError",

@@ -26,7 +26,8 @@
     "subscription": "My monthly fee"
   },
   "footer": {
-    "tagline": "Your ideas. The best professionals."
+    "tagline": "Your ideas. The best professionals.",
+    "geonames": "Postcodes: data from <source>GeoNames</source>, adapted, licensed under <license>CC BY 4.0</license>."
   },
   "home": {
     "title": "Phone-verified renovation contacts across Spain",
@@ -234,7 +235,9 @@
     "paymentCancelled": "You cancelled the payment. If your reservation is still valid, you can complete it before it expires.",
     "needsApproval": "To buy contacts we need to validate your registration.",
     "needsApprovalPending": "Your registration is under review. You can buy once we approve it.",
-    "completeRegistration": "See my registration"
+    "completeRegistration": "See my registration",
+    "debtBlocksPurchase": "You owe {debt} for a monthly fee your bank returned. You can buy once your next monthly fee settles it.",
+    "reviewAccount": "View my monthly fee"
   },
   "purchases": {
     "title": "My contacts",
@@ -283,12 +286,17 @@
       "spend": "Contact purchase",
       "spend_reversal": "Refund of unpaid reservation",
       "adjustment_credit": "Admin credit",
-      "adjustment_debit": "Admin charge"
+      "adjustment_debit": "Admin charge",
+      "verification_refund": "First charge refunded (registration rejected)",
+      "chargeback": "Monthly fee returned by the bank",
+      "chargeback_reversal": "Return reversed: amount recovered"
     },
     "bannerActive": "Active account · Balance: {balance}",
     "bannerInactive": "Inactive account: you can browse requests, but to buy contacts you need an up-to-date monthly top-up.",
     "bannerCta": "Activate monthly fee",
-    "bannerManage": "View my monthly fee"
+    "bannerManage": "View my monthly fee",
+    "bannerDebt": "Your bank returned a monthly fee you had already spent and you owe {debt}. You can browse requests, but not buy until your next monthly fee settles it.",
+    "debtNotice": "Your bank returned a monthly fee you had already spent on contacts. {debt} is outstanding: it will be taken from your next monthly fee and, until then, you can't buy contacts."
   },
   "profile": {
     "title": "My professional profile",
@@ -666,6 +674,8 @@
     "mediaType": "Only JPG, PNG, WEBP or HEIC photos are accepted.",
     "mediaTooLarge": "The photo is larger than 10 MB.",
     "documentType": "Upload the document as a PDF or an image.",
-    "documentTooLarge": "The document is larger than 10 MB."
+    "documentTooLarge": "The document is larger than 10 MB.",
+    "adjustmentAmount": "Enter an amount above 0 and up to €1000.",
+    "adjustmentNote": "Explain the reason for the adjustment (3 to 500 characters)."
   }
 }

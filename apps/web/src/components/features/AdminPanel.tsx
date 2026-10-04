@@ -7,6 +7,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card, Tag } from "@/components/ui/Card";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/Field";
+import { CreditAdjustmentForm } from "@/components/features/CreditAdjustmentForm";
 import { PhotoUploader } from "@/components/features/PhotoUploader";
 import { formatMoney } from "@/helpers/currency";
 import { useApiError } from "@/hooks/useApiError";
@@ -14,7 +15,12 @@ import { usePhotoUpload } from "@/hooks/usePhotoUpload";
 import { type AppLocale } from "@/i18n/routing";
 import { adminService, type AdminLeadFilters } from "@/services/admin.service";
 import { leadsService } from "@/services/leads.service";
-import type { AdminLead, AdminPurchase, Category, SubscriptionPrice } from "@/types/api";
+import type {
+  AdminLead,
+  AdminPurchase,
+  Category,
+  SubscriptionPrice,
+} from "@/types/api";
 
 const EMPTY_FILTERS: AdminLeadFilters = {};
 
@@ -36,7 +42,8 @@ export function AdminPanel() {
   const [priceDrafts, setPriceDrafts] = useState<Record<string, string>>({});
   const [categoryId, setCategoryId] = useState("");
   const [categoryPrice, setCategoryPrice] = useState("");
-  const [subscriptionPrice, setSubscriptionPrice] = useState<SubscriptionPrice | null>(null);
+  const [subscriptionPrice, setSubscriptionPrice] =
+    useState<SubscriptionPrice | null>(null);
   const [subscriptionDraft, setSubscriptionDraft] = useState("");
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -82,7 +89,9 @@ export function AdminPanel() {
     }
   }
 
-  async function submitManualLead(event: FormEvent<HTMLFormElement>): Promise<void> {
+  async function submitManualLead(
+    event: FormEvent<HTMLFormElement>,
+  ): Promise<void> {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const acceptedAt = new Date(String(form.get("accepted_at"))).toISOString();
@@ -133,9 +142,18 @@ export function AdminPanel() {
 
       <section className="grid gap-6 xl:grid-cols-2">
         <Card>
-          <h2 className="mb-4 text-card-title font-bold text-ink">{t("manual.title")}</h2>
-          <form className="grid gap-4 sm:grid-cols-2" onSubmit={(event) => void submitManualLead(event)}>
-            <SelectField label={t("manual.category")} name="category_id" required>
+          <h2 className="mb-4 text-card-title font-bold text-ink">
+            {t("manual.title")}
+          </h2>
+          <form
+            className="grid gap-4 sm:grid-cols-2"
+            onSubmit={(event) => void submitManualLead(event)}
+          >
+            <SelectField
+              label={t("manual.category")}
+              name="category_id"
+              required
+            >
               <option value="">{t("manual.categoryPlaceholder")}</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
@@ -144,14 +162,36 @@ export function AdminPanel() {
               ))}
             </SelectField>
             <TextField label={t("manual.titleLabel")} name="title" required />
-            <TextAreaField className="sm:col-span-2" label={t("manual.description")} name="description" required />
-            <TextField label={t("manual.postalCode")} name="postal_code" required />
+            <TextAreaField
+              className="sm:col-span-2"
+              label={t("manual.description")}
+              name="description"
+              required
+            />
+            <TextField
+              label={t("manual.postalCode")}
+              name="postal_code"
+              required
+            />
             <TextField label={t("manual.name")} name="client_name" required />
             <TextField label={t("manual.phone")} name="client_phone" required />
-            <TextField label={t("manual.email")} name="client_email" type="email" />
+            <TextField
+              label={t("manual.email")}
+              name="client_email"
+              type="email"
+            />
             <TextField label={t("manual.channel")} name="channel" required />
-            <TextField label={t("manual.policy")} name="policy_version" required />
-            <TextField label={t("manual.acceptedAt")} name="accepted_at" type="datetime-local" required />
+            <TextField
+              label={t("manual.policy")}
+              name="policy_version"
+              required
+            />
+            <TextField
+              label={t("manual.acceptedAt")}
+              name="accepted_at"
+              type="datetime-local"
+              required
+            />
             <TextField label={t("manual.campaign")} name="campaign_reference" />
             <div className="sm:col-span-2">
               <PhotoUploader upload={photoUpload} />
@@ -165,7 +205,9 @@ export function AdminPanel() {
         </Card>
 
         <Card className="space-y-4">
-          <h2 className="text-card-title font-bold text-ink">{t("categoryPricing.title")}</h2>
+          <h2 className="text-card-title font-bold text-ink">
+            {t("categoryPricing.title")}
+          </h2>
           <SelectField
             label={t("categoryPricing.category")}
             value={categoryId}
@@ -190,7 +232,13 @@ export function AdminPanel() {
             loading={saving}
             disabled={!categoryId || Number(categoryPrice) < 1}
             onClick={() =>
-              void run(() => adminService.setCategoryPrice(categoryId, Number(categoryPrice), locale))
+              void run(() =>
+                adminService.setCategoryPrice(
+                  categoryId,
+                  Number(categoryPrice),
+                  locale,
+                ),
+              )
             }
           >
             {t("categoryPricing.submit")}
@@ -199,8 +247,12 @@ export function AdminPanel() {
 
         <Card className="space-y-4">
           <div className="space-y-1">
-            <h2 className="text-card-title font-bold text-ink">{t("subscriptionPrice.title")}</h2>
-            <p className="text-sm text-secondary">{t("subscriptionPrice.body")}</p>
+            <h2 className="text-card-title font-bold text-ink">
+              {t("subscriptionPrice.title")}
+            </h2>
+            <p className="text-sm text-secondary">
+              {t("subscriptionPrice.body")}
+            </p>
           </div>
           {subscriptionPrice && (
             <p className="text-sm text-ink">
@@ -242,7 +294,9 @@ export function AdminPanel() {
       <section className="space-y-4">
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h2 className="text-card-title font-bold text-ink">{t("leads.title")}</h2>
+            <h2 className="text-card-title font-bold text-ink">
+              {t("leads.title")}
+            </h2>
             <p className="text-sm text-secondary">{t("leads.subtitle")}</p>
           </div>
           <div className="grid gap-2 sm:grid-cols-3">
@@ -268,7 +322,9 @@ export function AdminPanel() {
             <SelectField
               label={t("leads.category")}
               value={filters.categoryId ?? ""}
-              onChange={(event) => updateFilter("categoryId", event.target.value)}
+              onChange={(event) =>
+                updateFilter("categoryId", event.target.value)
+              }
             >
               <option value="">{t("leads.all")}</option>
               {categories.map((category) => (
@@ -287,23 +343,36 @@ export function AdminPanel() {
                 <div>
                   <h3 className="font-semibold text-ink">{lead.title}</h3>
                   <p className="text-sm text-secondary">
-                    {t("leads.location", { category: lead.category.name, city: lead.city })}
+                    {t("leads.location", {
+                      category: lead.category.name,
+                      city: lead.city,
+                    })}
                   </p>
                 </div>
                 <Tag tone={lead.status === "published" ? "trade" : "accent"}>
                   {t(`status.${lead.status}`)}
                 </Tag>
               </div>
-              <p className="line-clamp-2 text-sm text-secondary">{lead.description}</p>
+              <p className="line-clamp-2 text-sm text-secondary">
+                {lead.description}
+              </p>
               <p className="text-sm text-secondary">
-                {t("leads.slots", { sold: lead.purchases_count, max: lead.max_purchases })}
+                {t("leads.slots", {
+                  sold: lead.purchases_count,
+                  max: lead.max_purchases,
+                })}
               </p>
               <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
                 <TextField
                   label={t("leads.price")}
-                  value={priceDrafts[lead.id] ?? String(lead.price.amount_cents)}
+                  value={
+                    priceDrafts[lead.id] ?? String(lead.price.amount_cents)
+                  }
                   onChange={(event) =>
-                    setPriceDrafts((current) => ({ ...current, [lead.id]: event.target.value }))
+                    setPriceDrafts((current) => ({
+                      ...current,
+                      [lead.id]: event.target.value,
+                    }))
                   }
                   inputMode="numeric"
                   type="number"
@@ -326,14 +395,22 @@ export function AdminPanel() {
                 </Button>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="secondary" onClick={() => void showPurchases(lead)}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => void showPurchases(lead)}
+                >
                   {t("leads.purchases")}
                 </Button>
                 {lead.status === "disabled" ? (
                   <Button
                     size="sm"
                     loading={saving}
-                    onClick={() => void run(() => adminService.republishLead(lead.id, locale))}
+                    onClick={() =>
+                      void run(() =>
+                        adminService.republishLead(lead.id, locale),
+                      )
+                    }
                   >
                     {t("leads.republish")}
                   </Button>
@@ -342,7 +419,9 @@ export function AdminPanel() {
                     size="sm"
                     variant="danger"
                     loading={saving}
-                    onClick={() => void run(() => adminService.disableLead(lead.id, locale))}
+                    onClick={() =>
+                      void run(() => adminService.disableLead(lead.id, locale))
+                    }
                   >
                     {t("leads.disable")}
                   </Button>
@@ -364,10 +443,12 @@ export function AdminPanel() {
             purchases.map((entry) => (
               <Card key={entry.purchase.id} className="space-y-3">
                 <p className="font-medium text-ink">
-                  {entry.professional?.business_name ?? t("purchases.unknownProfessional")}
+                  {entry.professional?.business_name ??
+                    t("purchases.unknownProfessional")}
                 </p>
                 <p className="text-sm text-secondary">
-                  {formatMoney(entry.purchase.amount, locale)} · {t(`purchaseStatus.${entry.purchase.status}`)}
+                  {formatMoney(entry.purchase.amount, locale)} ·{" "}
+                  {t(`purchaseStatus.${entry.purchase.status}`)}
                 </p>
                 <p className="text-sm text-secondary">
                   {t("purchases.reviews", { count: entry.review_count })}
@@ -378,12 +459,17 @@ export function AdminPanel() {
                     label={t("purchases.reviewNote")}
                     value={reviewNotes[entry.purchase.id] ?? ""}
                     onChange={(event) =>
-                      setReviewNotes((current) => ({ ...current, [entry.purchase.id]: event.target.value }))
+                      setReviewNotes((current) => ({
+                        ...current,
+                        [entry.purchase.id]: event.target.value,
+                      }))
                     }
                   />
                   <Button
                     loading={saving}
-                    disabled={(reviewNotes[entry.purchase.id] ?? "").trim().length < 3}
+                    disabled={
+                      (reviewNotes[entry.purchase.id] ?? "").trim().length < 3
+                    }
                     onClick={() =>
                       void run(() =>
                         adminService.reviewPurchase(

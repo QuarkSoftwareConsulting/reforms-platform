@@ -65,6 +65,7 @@ class LeadExpiredError(DomainError):
     code = "LEAD_EXPIRED"  # estable: el frontend lo usa como clave
     status = 409  # el middleware lo traduce a HTTP
 ```
+
 ```jsonc
 // 2. apps/web/messages/es.json  →  "errors": { "LEAD_EXPIRED": "..." }
 // 3. apps/web/messages/en.json  →  la misma clave, traducida
@@ -133,7 +134,7 @@ uv run pytest tests/unit/domain -x -q  # iteración rápida sobre las reglas
   completo con adaptadores in-memory. Los atajos `world.add_lead/add_professional/…` evitan
   15 líneas de setup por test.
 - `pytest.ini_options` tiene `asyncio_mode = "auto"`: no hace falta decorar los tests async.
-  El *loop scope* es `session` porque el engine de la BD de test es de ámbito sesión.
+  El _loop scope_ es `session` porque el engine de la BD de test es de ámbito sesión.
 - Los repositorios fake hacen `await _round_trip()` al principio de cada método para ceder
   el control al event loop. Es lo que hace que los tests de concurrencia prueben algo. Si
   añades un método a un fake, añade también esa llamada.

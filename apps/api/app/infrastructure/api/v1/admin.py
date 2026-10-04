@@ -310,6 +310,8 @@ async def adjust_professional_credit(
         status=account.subscription_status.value,
         is_active=account.is_active(container.infra.clock.now()),
         balance=serializers.money_out(account.balance),
+        # Un abono salda primero la deuda: el admin tiene que ver cuanta queda.
+        debt=serializers.money_out(account.debt) if account.debt_cents else None,
         current_period_end=account.current_period_end,
     )
 

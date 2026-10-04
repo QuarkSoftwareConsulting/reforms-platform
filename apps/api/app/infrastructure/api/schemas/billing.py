@@ -29,6 +29,9 @@ class AccountOut(ApiModel):
     current_period_end: datetime | None = None
     can_manage_billing: bool
     entries: list[CreditEntryOut] = Field(default_factory=list)
+    debt: MoneyOut | None = None
+    """Recarga devuelta por el banco ya gastada. Con deuda no se compra, aunque
+    `is_active` sea verdadero; se salda con la siguiente recarga."""
 
 
 class SubscriptionCheckoutOut(ApiModel):
@@ -50,6 +53,7 @@ class AdminAccountOut(ApiModel):
     status: SubscriptionStatusOut
     is_active: bool
     balance: MoneyOut
+    debt: MoneyOut | None = None
     current_period_end: datetime | None = None
 
 

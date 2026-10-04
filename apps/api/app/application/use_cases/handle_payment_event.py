@@ -8,7 +8,8 @@ Dos garantias imprescindibles:
   ocurre en la misma transaccion, con la fila del lead bloqueada.
 
 Los eventos de la recarga mensual pasan por el mismo registro de idempotencia y
-despues se delegan en `ApplySubscriptionEvent`.
+despues se delegan en `ApplySubscriptionEvent`; las devoluciones de un cobro por el
+banco, en `ApplyChargeback`.
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ from app.application.ports import (
     PurchaseRepositoryPort,
     UnitOfWork,
 )
+from app.application.use_cases.apply_chargeback import ApplyChargeback
 from app.application.use_cases.apply_subscription_event import ApplySubscriptionEvent
 from app.application.use_cases.credit_ledger import CreditLedgerService
 from app.domain.exceptions import LeadNotFoundError, PurchaseNotFoundError
@@ -51,12 +53,22 @@ class HandlePaymentEvent:
     uow: UnitOfWork
     credit: CreditLedgerService
     subscriptions: ApplySubscriptionEvent
+    chargebacks: ApplyChargeback
 
     async def execute(self, *, payload: bytes, signature: str) -> PaymentEventOutcome:
         event = self.payments.parse_webhook_event(payload, signature)
 
         if event.type is PaymentEventType.IGNORED:
             return PaymentEventOutcome(event_id=event.id, event_type=event.raw_type, handled=False)
+
+        # La disputa no dice de quien es el cargo: se pregunta a la pasarela ANTES de
+        # abrir la transaccion, para no tener bloqueos esperando a la red. Si falla,
+        # el webhook responde error y la pasarela reintenta.
+        owner = (
+            await self.payments.describe_charge(event.charge_id)
+            if event.type.concerns_dispute and event.charge_id
+            else None
+        )
 
         async with self.uow:
             is_new = await self.processed_events.mark_processed(
@@ -77,6 +89,17 @@ class HandlePaymentEvent:
                     event_type=event.raw_type,
                     handled=True,
                     account=account,
+                )
+
+            if event.type.concerns_dispute:
+                disputed = (
+                    await self.chargebacks.execute(event, owner) if owner is not None else None
+                )
+                return PaymentEventOutcome(
+                    event_id=event.id,
+                    event_type=event.raw_type,
+                    handled=disputed is not None,
+                    account=disputed,
                 )
 
             purchase = await self._resolve_purchase(event)
