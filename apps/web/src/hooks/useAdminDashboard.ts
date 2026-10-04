@@ -3,7 +3,7 @@
 /** Metricas acumuladas y actividad diaria del dashboard del admin. */
 
 import { useLocale } from "next-intl";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { lastDaysRange } from "@/helpers/date";
 import { useApiError } from "@/hooks/useApiError";
@@ -31,8 +31,12 @@ export function useAdminDashboard(): AdminDashboardState {
   const [days, setDays] = useState<RangePreset>(30);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Solo cuenta la respuesta de la ultima peticion: al cambiar de rango rapido (30 -> 7 ->
+  // 90), una respuesta lenta anterior pintaria otro periodo con el chip de 90 marcado.
+  const latest = useRef(0);
 
   const reload = useCallback(async () => {
+    const request = ++latest.current;
     setLoading(true);
     setError(null);
     try {
@@ -41,12 +45,13 @@ export function useAdminDashboard(): AdminDashboardState {
         adminService.metrics(locale),
         adminService.metricsTimeseries(from, to, locale),
       ]);
+      if (request !== latest.current) return;
       setMetrics(nextMetrics);
       setSeries(nextSeries);
     } catch (caught) {
-      setError(translateError(caught));
+      if (request === latest.current) setError(translateError(caught));
     } finally {
-      setLoading(false);
+      if (request === latest.current) setLoading(false);
     }
   }, [days, locale, translateError]);
 

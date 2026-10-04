@@ -213,25 +213,34 @@ class ProfessionalAccount:
         self, *, subscription_id: str | None, period_end: datetime | None, at: datetime
     ) -> None:
         """Cobro de la recarga confirmado: la cuenta queda al dia."""
-        if subscription_id:
-            self.stripe_subscription_id = subscription_id
-        if period_end is not None and (
-            self.current_period_end is None or period_end > self.current_period_end
-        ):
-            self.current_period_end = period_end
         if self._is_stale(at):
             # Ya se aplico un evento posterior. Solo manda si dice algo que este cobro
             # no resuelve: cancelada, o un cobro fallido despues. Un PENDING es
             # justo "suscripcion viva sin cobro confirmado" (`sync_subscription` no
             # activa) y este evento es ese cobro: Stripe no garantiza el orden y el
             # `subscription.created` suele llegar antes que el `invoice.paid`.
+            # Pero solo si es de ESA suscripcion: un cobro reintentado de una ya
+            # cancelada no paga la nueva (ni le cambia el id o el periodo).
+            if subscription_id is None or subscription_id != self.stripe_subscription_id:
+                return
+            self._extend_period(period_end)
             if self.subscription_status is SubscriptionStatus.PENDING:
                 # Sin mover `status_synced_at` atras: lo siguiente se compara con el
                 # evento mas reciente.
                 self.subscription_status = SubscriptionStatus.ACTIVE
             return
+        if subscription_id:
+            self.stripe_subscription_id = subscription_id
+        self._extend_period(period_end)
         self.subscription_status = SubscriptionStatus.ACTIVE
         self._mark_synced(at)
+
+    def _extend_period(self, period_end: datetime | None) -> None:
+        """El periodo pagado solo avanza: un evento reenviado no lo acorta."""
+        if period_end is not None and (
+            self.current_period_end is None or period_end > self.current_period_end
+        ):
+            self.current_period_end = period_end
 
     def record_payment_failed(self, *, at: datetime) -> None:
         """Fallo el cobro: sin recarga al dia no se compra."""

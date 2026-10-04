@@ -143,7 +143,7 @@ error fuera de pantalla hace que el botón "no haga nada". El patrón (ver `Prof
 ## Tests
 
 ```bash
-pnpm test              # vitest, 200 tests
+pnpm test              # vitest, 201 tests
 pnpm test:watch
 pnpm lint              # eslint + tsc --noEmit
 ```

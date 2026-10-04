@@ -283,6 +283,42 @@ describe("AdminDashboard", () => {
       ),
     );
   });
+
+  it("ignores a slow answer for a range the admin already left", async () => {
+    const user = userEvent.setup();
+    const base = (await metricsTimeseries()) as MetricsTimeseries;
+    const withLeads = (count: number): MetricsTimeseries => ({
+      ...base,
+      points: base.points.map((point, index) =>
+        index === 1 ? { ...point, leads_created: count } : point,
+      ),
+    });
+    renderWithIntl(<AdminDashboard />);
+    const chart = async () =>
+      (await screen.findByText(messages.admin.dashboard.leadsChart)).closest(
+        "figure",
+      ) as HTMLElement;
+    await within(await chart()).findByRole("img", { name: /7$/ });
+
+    // La de 7 dias se queda colgada; la de 90 llega antes y la de 7 despues.
+    let answerSevenDays: (value: MetricsTimeseries) => void = () => undefined;
+    metricsTimeseries
+      .mockImplementationOnce(
+        () => new Promise((resolve) => (answerSevenDays = resolve)),
+      )
+      .mockResolvedValueOnce(withLeads(9));
+    const preset = (days: number) =>
+      screen.getByLabelText(messages.admin.dashboard.lastDays.replace("{days}", String(days)));
+    await user.click(preset(7));
+    await user.click(preset(90));
+    await within(await chart()).findByRole("img", { name: /9$/ });
+
+    answerSevenDays(withLeads(5));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(within(await chart()).queryByRole("img", { name: /5$/ })).toBeNull();
+    expect(within(await chart()).getByRole("img", { name: /9$/ })).toBeDefined();
+  });
 });
 
 describe("date range helpers", () => {

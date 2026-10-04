@@ -121,6 +121,28 @@ class TestActivation:
         account.record_checkout_completed(subscription_id="sub_1", at=NOW + timedelta(seconds=2))
         assert account.subscription_status is SubscriptionStatus.ACTIVE
 
+    def test_a_late_payment_of_a_canceled_subscription_does_not_activate_the_new_one(
+        self,
+    ) -> None:
+        # Revision de la PR 27: se cancela, se vuelve a suscribir con SEPA (PENDING
+        # mientras el adeudo se procesa) y Stripe reintenta un `invoice.paid` antiguo
+        # de la suscripcion cancelada. Ese dinero no paga la nueva.
+        account = make_account(
+            subscription_status=SubscriptionStatus.CANCELED, stripe_subscription_id="sub_old"
+        )
+        account.record_checkout_completed(subscription_id="sub_new", at=NOW)
+        assert account.subscription_status is SubscriptionStatus.PENDING
+
+        account.record_invoice_paid(
+            subscription_id="sub_old",
+            period_end=NOW + timedelta(days=60),
+            at=NOW - timedelta(days=2),
+        )
+
+        assert account.subscription_status is SubscriptionStatus.PENDING
+        assert account.stripe_subscription_id == "sub_new"
+        assert account.current_period_end == NOW + timedelta(days=30)
+
     @pytest.mark.parametrize("newer", [SubscriptionStatus.CANCELED, SubscriptionStatus.PAST_DUE])
     def test_an_old_payment_does_not_undo_a_newer_cancellation_or_failure(
         self, newer: SubscriptionStatus

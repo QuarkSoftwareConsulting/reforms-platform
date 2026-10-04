@@ -49,8 +49,11 @@ class ChangeUserRole:
                 raise UserNotFoundError()
             # Degradar a un admin bloquea a TODOS los admins antes que la fila objetivo:
             # con solo la objetivo, dos admins degradandose a la vez dejarian cero.
+            # Se hace en cualquier peticion que quite el rol, no solo si `current` era
+            # admin: lo pueden promover entre la lectura y el bloqueo, y bloquear a los
+            # admins despues de su fila invertiria el orden (interbloqueo en Postgres).
             other_admins: list[UUID] | None = None
-            if current.is_admin and role is not UserRole.ADMIN:
+            if role is not UserRole.ADMIN:
                 other_admins = await self.users.lock_admins()
             user = await self.users.get_for_update(user_id)
             if user is None:
@@ -65,10 +68,10 @@ class ChangeUserRole:
             if event is None:
                 return RoleChangeResult(user=user, event=None)
             if event.from_role is UserRole.ADMIN:
-                if other_admins is None:
-                    # Lo promovieron entre la lectura y el bloqueo: se bloquea ahora.
-                    other_admins = await self.users.lock_admins()
-                if not [admin_id for admin_id in other_admins if admin_id != user.id]:
+                # Quitar el rol a un admin siempre llega con los admins ya bloqueados; si
+                # no, `[]` hace que se niegue: ante la duda, no se deja sin admin.
+                remaining = [a for a in other_admins or [] if a != user.id]
+                if not remaining:
                     raise LastAdminError()
             await self.users.add_role_event(event)
             return RoleChangeResult(user=await self.users.update(user), event=event)

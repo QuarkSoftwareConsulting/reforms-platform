@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 
 import pytest
 
@@ -140,6 +141,47 @@ class TestChangeUserRole:
         )
 
         assert not [user for user in world.users.items.values() if user.is_admin]
+
+    async def test_every_demotion_locks_the_admins_before_the_target_row(
+        self, world: World, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Revision de la PR 27: un orden de bloqueo distinto puede interbloquear.
+
+        El objetivo se lee como profesional y lo promueven antes del bloqueo. El camino
+        de respaldo bloqueaba su fila y LUEGO a los admins, al reves que una degradacion
+        normal: dos transacciones asi se esperan la una a la otra en Postgres.
+        """
+        actor = _admin(world, "actor@example.com")
+        target = _admin(world, "target@example.com")
+        stale = dataclasses.replace(target, role=UserRole.PROFESSIONAL)
+        order: list[str] = []
+        original_get = world.users.get
+        original_lock_admins = world.users.lock_admins
+        original_get_for_update = world.users.get_for_update
+
+        async def stale_get(user_id):  # type: ignore[no-untyped-def]
+            user = await original_get(user_id)
+            # Lectura previa al bloqueo: aun no le habian dado el rol de admin.
+            return stale if user_id == target.id else user
+
+        async def lock_admins():  # type: ignore[no-untyped-def]
+            order.append("admins")
+            return await original_lock_admins()
+
+        async def get_for_update(user_id):  # type: ignore[no-untyped-def]
+            order.append("target")
+            return await original_get_for_update(user_id)
+
+        monkeypatch.setattr(world.users, "get", stale_get)
+        monkeypatch.setattr(world.users, "lock_admins", lock_admins)
+        monkeypatch.setattr(world.users, "get_for_update", get_for_update)
+
+        await world.change_user_role.execute(
+            user_id=target.id, role=UserRole.PROFESSIONAL, actor_user_id=actor.id
+        )
+
+        assert order == ["admins", "target"]
+        assert world.users.items[target.id].role is UserRole.PROFESSIONAL
 
 
 class TestListAdminUsers:
