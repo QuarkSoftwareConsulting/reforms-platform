@@ -1,7 +1,7 @@
 """auditoria de roles de usuario
 
 Revision ID: df74f4157f5d
-Revises: c7d7d55fbb83
+Revises: 44efc3f478b8
 Create Date: 2026-10-03 23:37:13.764228
 """
 
@@ -14,7 +14,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = "df74f4157f5d"
-down_revision: str | None = "c7d7d55fbb83"
+down_revision: str | None = "44efc3f478b8"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
