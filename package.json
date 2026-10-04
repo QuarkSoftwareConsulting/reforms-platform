@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "description": "Reforma Hub - marketplace pay-per-lead de oficios y reformas",
-  "packageManager": "pnpm@10.34.5",
+  "packageManager": "pnpm@12.9.0",
   "engines": {
     "node": ">=22.22.2 <23"
   },
