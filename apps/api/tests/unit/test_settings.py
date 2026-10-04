@@ -26,10 +26,13 @@ class TestPaymentSecrets:
             "stripe_webhook_secret": "whsec_realsecret123456",
             "firebase_project_id": "reforma-hub",
             "storage_backend": "gcs",
+            "gcs_bucket": "reforma-hub-public",
+            "gcs_private_bucket": "reforma-hub-private",
             "firebase_auth_emulator_host": "",
             **overrides,
         }
-        return Settings(**values)  # type: ignore[arg-type]
+        # Sin `.env`: en CI no existe, y en local completaba lo que el test no decia.
+        return Settings(_env_file=None, **values)  # type: ignore[arg-type]
 
     def test_real_secrets_pass(self) -> None:
         settings = self.production()
@@ -54,6 +57,7 @@ class TestPaymentSecrets:
 
     def test_development_reports_the_placeholder_without_refusing(self) -> None:
         settings = Settings(
+            _env_file=None,
             environment="development",
             stripe_secret_key="sk_test_realkey123456",
             stripe_webhook_secret="whsec_xxx",
