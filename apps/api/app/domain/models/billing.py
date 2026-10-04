@@ -220,6 +220,15 @@ class ProfessionalAccount:
         ):
             self.current_period_end = period_end
         if self._is_stale(at):
+            # Ya se aplico un evento posterior. Solo manda si dice algo que este cobro
+            # no resuelve: cancelada, o un cobro fallido despues. Un PENDING es
+            # justo "suscripcion viva sin cobro confirmado" (`sync_subscription` no
+            # activa) y este evento es ese cobro: Stripe no garantiza el orden y el
+            # `subscription.created` suele llegar antes que el `invoice.paid`.
+            if self.subscription_status is SubscriptionStatus.PENDING:
+                # Sin mover `status_synced_at` atras: lo siguiente se compara con el
+                # evento mas reciente.
+                self.subscription_status = SubscriptionStatus.ACTIVE
             return
         self.subscription_status = SubscriptionStatus.ACTIVE
         self._mark_synced(at)

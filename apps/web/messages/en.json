@@ -280,6 +280,9 @@
     "canceledNotice": "Your top-up is canceled. You can still browse requests and your balance is kept; to buy, reactivate it.",
     "checkoutSuccess": "We've received your payment details. Your account will be activated once the charge is confirmed.",
     "checkoutCancelled": "You cancelled the payment. Your monthly fee hasn't been activated.",
+    "confirming": "We're confirming your payment with Stripe. It usually takes a few seconds; there's no need to pay again.",
+    "confirmationDelayed": "Your payment hasn't been confirmed yet. Don't pay again: your plan will activate as soon as Stripe confirms it. If nothing changes in a few minutes, contact us.",
+    "checkAgain": "Check again",
     "historyTitle": "Balance history",
     "historyEmpty": "No movements yet.",
     "entry": {

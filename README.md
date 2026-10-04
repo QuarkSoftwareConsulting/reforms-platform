@@ -172,9 +172,16 @@ quitar o poner el claim a un usuario existente no cambia nada; hazlo desde el pa
 Con claves de test de Stripe:
 
 ```bash
-stripe listen --forward-to localhost:8010/api/v1/webhooks/stripe
-# copia el whsec_... que imprime a STRIPE_WEBHOOK_SECRET en apps/api/.env
+stripe listen --all-snapshot --forward-to localhost:8010/api/v1/webhooks/stripe
+# copia el whsec_... que imprime (o `stripe listen --print-secret`) a
+# STRIPE_WEBHOOK_SECRET en apps/api/.env y reinicia el API: el .env se lee al arrancar
 ```
+
+Las versiones recientes de la CLI exigen `--events <lista>` o `--all-snapshot`; sin ninguno
+no arrancan. Si al volver del checkout la cuenta no se activa, mira la terminal de
+`stripe listen`: un `[401]` en cada evento es un `STRIPE_WEBHOOK_SECRET` que no coincide
+(por ejemplo, el `whsec_xxx` de `.env.example`) y el pago queda sin aplicar. Corregido el
+secreto, `stripe events resend <evt_id>` reenvía los eventos perdidos.
 
 Sin clave configurada, `POST /leads/{id}/purchase` responde `503 PAYMENT_GATEWAY_ERROR` y
 **libera la plaza reservada** en el acto, para que un fallo de infraestructura no consuma

@@ -14,6 +14,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import logging
 import time
 from datetime import UTC, datetime
 from uuid import uuid4
@@ -315,6 +316,17 @@ class TestWebhookSecurity:
         with pytest.raises(AuthenticationError):
             gateway.parse_webhook_event(payload.encode(), sign(payload, secret="whsec_otro"))
 
+    def test_a_secret_mismatch_is_logged_as_a_warning(
+        self, gateway: StripePaymentGateway, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        # Con el secreto equivocado se rechaza cada pago: tiene que verse en los logs.
+        payload = checkout_completed_payload(str(uuid4()))
+        with caplog.at_level(logging.WARNING), pytest.raises(AuthenticationError):
+            gateway.parse_webhook_event(payload.encode(), sign(payload, secret="whsec_otro"))
+        warning = next(r for r in caplog.records if r.levelno == logging.WARNING)
+        assert "STRIPE_WEBHOOK_SECRET" in warning.getMessage()
+        assert payload not in warning.getMessage()
+
     def test_tampered_payload_is_rejected(self, gateway: StripePaymentGateway) -> None:
         """Firmar un payload y enviar otro no debe colar."""
         signed = checkout_completed_payload(str(uuid4()), event_id="evt_original")
@@ -452,6 +464,7 @@ class ScriptedHttpClient:
     def __init__(self, responses: dict[tuple[str, str], tuple[int, dict[str, object]]]) -> None:
         self.responses = responses
         self.calls: list[tuple[str, str]] = []
+        self.urls: list[str] = []
 
     def build(self) -> object:
         import stripe
@@ -466,6 +479,7 @@ class ScriptedHttpClient:
             ) -> tuple[str, int, dict[str, str]]:
                 path = url.split("api.stripe.com", 1)[1].split("?", 1)[0]
                 scripted.calls.append((method.upper(), path))
+                scripted.urls.append(url)
                 status, body = scripted.responses[(method.upper(), path)]
                 return json.dumps(body), status, {"request-id": "req_test"}
 
@@ -554,6 +568,55 @@ class TestInvoiceRefundRetries:
         )
         with pytest.raises(PaymentGatewayError):
             await gateway_with(http).refund_invoice(invoice_id="in_first", idempotency_key="k")
+
+
+def subscription_list(*statuses: str) -> dict[str, object]:
+    return {
+        "object": "list",
+        "url": "/v1/subscriptions",
+        "has_more": False,
+        "data": [
+            {"id": f"sub_{index}", "object": "subscription", "status": status}
+            for index, status in enumerate(statuses)
+        ],
+    }
+
+
+class TestLiveSubscriptionCheck:
+    """Antes de abrir otro checkout se pregunta a Stripe: el webhook puede ir tarde."""
+
+    @pytest.mark.parametrize("status", ["active", "trialing", "past_due", "unpaid", "paused"])
+    async def test_a_subscription_still_charging_counts_as_live(self, status: str) -> None:
+        http = ScriptedHttpClient(
+            {("GET", "/v1/subscriptions"): (200, subscription_list("canceled", status))}
+        )
+        assert await gateway_with(http).has_live_subscription("cus_1")
+        # Por cliente y en todos los estados: el filtro por defecto omite las pausadas.
+        assert "customer=cus_1" in http.urls[0]
+        assert "status=all" in http.urls[0]
+
+    @pytest.mark.parametrize("statuses", [(), ("canceled",), ("incomplete", "incomplete_expired")])
+    async def test_ended_or_never_paid_subscriptions_do_not_block_a_new_one(
+        self, statuses: tuple[str, ...]
+    ) -> None:
+        http = ScriptedHttpClient(
+            {("GET", "/v1/subscriptions"): (200, subscription_list(*statuses))}
+        )
+        assert not await gateway_with(http).has_live_subscription("cus_1")
+
+    async def test_a_gateway_error_is_not_read_as_no_subscription(self) -> None:
+        from app.domain.exceptions import PaymentGatewayError
+
+        http = ScriptedHttpClient(
+            {
+                ("GET", "/v1/subscriptions"): (
+                    500,
+                    {"error": {"type": "api_error", "message": "Stripe is down"}},
+                )
+            }
+        )
+        with pytest.raises(PaymentGatewayError):
+            await gateway_with(http).has_live_subscription("cus_1")
 
 
 def dispute_object(status: str = "needs_response", **overrides: object) -> dict[str, object]:

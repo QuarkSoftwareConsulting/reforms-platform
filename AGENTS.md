@@ -62,7 +62,7 @@ npx -y firebase-tools emulators:start --only auth \
 | Objetivo                                           | Comando                                                                  |
 | -------------------------------------------------- | ------------------------------------------------------------------------ |
 | Todo el lint (ruff + mypy strict + eslint + tsc)   | `pnpm lint`                                                              |
-| Todos los tests (645 back + 183 front)             | `pnpm test`                                                              |
+| Todos los tests (667 back + 188 front)             | `pnpm test`                                                              |
 | Backend rápido, **sin Docker** (536 tests)         | `cd apps/api && uv run pytest -m "not integration"`                      |
 | Backend completo (requiere `pnpm infra:up`)        | `pnpm api:test`                                                          |
 | Un solo test de backend                            | `cd apps/api && uv run pytest tests/unit/domain/test_lead.py -k capping` |
@@ -190,6 +190,13 @@ El saldo se gasta dentro del mismo bloqueo que la plaza, con la cuenta en `FOR U
 `processed_payment_events`.
 → Solo `invoice.paid` activa una cuenta. Con SEPA, Stripe marca la suscripción `active`
 mientras el adeudo se procesa: `sync_subscription` no la activa por eso.
+→ Stripe no garantiza el orden: el `customer.subscription.created` (un segundo posterior)
+suele llegar antes que el `invoice.paid`. Un evento "más viejo" se descarta, **salvo** un
+`invoice.paid` sobre una cuenta en `pending`: ese pending es justo "falta el cobro" y el
+evento es el cobro. Sin esa excepción el dinero se abonaba y la cuenta no se activaba.
+→ Antes de abrir otro checkout de la mensualidad se pregunta a Stripe
+(`has_live_subscription`): el webhook puede ir tarde y la BD decir "sin mensualidad" con la
+recarga ya cobrada. Si Stripe no responde, no se abre el checkout.
 → Todo movimiento de saldo pasa por `CreditLedgerService` (compra, caducidad, webhook, job,
 ajuste del admin). Si una reserva con saldo caduca o falla, se devuelve con `SPEND_REVERSAL`.
 → Una compra reembolsada no devuelve saldo sola (§4.6): lo decide el admin con un ajuste.
@@ -374,7 +381,7 @@ dentro de `pnpm-workspace.yaml`.
 alrededor o el `build` falla al prerenderizar. Ver `publicar/page.tsx`.
 
 **Acentos** — `apps/web/messages/*.json` es texto de cara al usuario y lleva acentos
-correctos (614 claves por idioma). La regla de ASCII puro aplica **solo al código fuente**.
+correctos (617 claves por idioma). La regla de ASCII puro aplica **solo al código fuente**.
 Lo mismo vale para `apps/api/data/categories.csv`, `services.csv`: los nombres de oficio se muestran en la
 landing y en el formulario.
 

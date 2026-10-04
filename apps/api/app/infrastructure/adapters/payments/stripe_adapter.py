@@ -79,6 +79,11 @@ SUBSCRIPTION_STATUS_MAP = {
     "incomplete_expired": SubscriptionStatus.CANCELED,
 }
 
+# Estados de Stripe en los que la suscripcion sigue cobrando (o reintentando, o en
+# pausa): abrir otro checkout crearia una segunda recarga. `incomplete` no cuenta: es un
+# primer cobro que no se completo y caduca solo; el profesional debe poder reintentar.
+LIVE_SUBSCRIPTION_STATUSES = frozenset({"active", "trialing", "past_due", "unpaid", "paused"})
+
 # Medios de pago de la recarga: tarjeta (activacion inmediata) y domiciliacion
 # SEPA (el primer cobro tarda unos dias en confirmarse).
 SUBSCRIPTION_PAYMENT_METHODS = ["card", "sepa_debit"]
@@ -167,6 +172,14 @@ class StripePaymentGateway(PaymentPort):
                 payload=payload, sig_header=signature, secret=self._webhook_secret
             )
         except stripe.SignatureVerificationError as exc:
+            # Un `warning`, no el `info` de cualquier error de negocio: o alguien forja
+            # eventos o STRIPE_WEBHOOK_SECRET no es el del emisor, y entonces se pierden
+            # TODOS los pagos sin otro sintoma (paso en local con el `whsec_xxx` de
+            # ejemplo). Ni el payload ni la firma se registran.
+            logger.warning(
+                "stripe_webhook_firma_invalida: revisa que STRIPE_WEBHOOK_SECRET sea el del "
+                "endpoint (en local, `stripe listen --print-secret`)"
+            )
             raise AuthenticationError("Firma de webhook de Stripe invalida") from exc
         except ValueError as exc:
             raise AuthenticationError("Payload de webhook malformado") from exc
@@ -289,6 +302,20 @@ class StripePaymentGateway(PaymentPort):
             logger.error("stripe_precio_fallido: %s", exc, exc_info=True)
             raise PaymentGatewayError() from exc
         return str(price.id)
+
+    async def has_live_subscription(self, customer_id: str) -> bool:
+        client = self._require_client()
+        # `status=all`: el filtro por defecto de Stripe omite las canceladas pero tambien
+        # las pausadas, que siguen siendo una recarga viva.
+        params: dict[str, Any] = {"customer": customer_id, "status": "all", "limit": 100}
+        try:
+            subscriptions = await asyncio.to_thread(
+                client.v1.subscriptions.list, params=cast(Any, params)
+            )
+        except stripe.StripeError as exc:
+            logger.error("stripe_consulta_suscripcion_fallida: %s", exc, exc_info=True)
+            raise PaymentGatewayError() from exc
+        return any(sub.status in LIVE_SUBSCRIPTION_STATUSES for sub in subscriptions.data)
 
     async def create_billing_portal_session(
         self, *, customer_id: str, return_url: str, locale: str = "es"

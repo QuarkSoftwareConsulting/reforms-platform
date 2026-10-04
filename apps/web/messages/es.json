@@ -280,6 +280,9 @@
     "canceledNotice": "Tu recarga está cancelada. Puedes seguir viendo solicitudes y tu saldo se conserva; para comprar, reactívala.",
     "checkoutSuccess": "Hemos recibido tus datos de pago. La cuenta se activará cuando se confirme el cobro.",
     "checkoutCancelled": "Has cancelado el pago. Tu mensualidad no se ha activado.",
+    "confirming": "Estamos confirmando tu pago con Stripe. Suele tardar unos segundos; no hace falta que vuelvas a pagar.",
+    "confirmationDelayed": "Tu pago todavía no se ha confirmado. No vuelvas a pagar: la mensualidad se activará en cuanto Stripe lo confirme. Si en unos minutos sigue igual, escríbenos.",
+    "checkAgain": "Comprobar de nuevo",
     "historyTitle": "Movimientos de saldo",
     "historyEmpty": "Todavía no hay movimientos.",
     "entry": {

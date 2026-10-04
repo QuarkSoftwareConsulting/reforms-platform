@@ -153,6 +153,16 @@ class PaymentPort(ABC):
         """Checkout para suscribirse a la recarga mensual (tarjeta o domiciliacion)."""
 
     @abstractmethod
+    async def has_live_subscription(self, customer_id: str) -> bool:
+        """Si el cliente ya tiene en la pasarela una recarga viva (al dia o con un cobro
+        pendiente de reintentar).
+
+        Nuestra BD se entera por el webhook, que puede llegar tarde o no llegar: sin
+        preguntar a la pasarela, volver a pulsar "Activar" abriria una segunda
+        suscripcion y un segundo cobro mensual.
+        """
+
+    @abstractmethod
     async def create_recurring_price(self, *, amount: Money, product_name: str) -> str:
         """Crea un precio mensual en la pasarela y devuelve su identificador.
 
