@@ -15,8 +15,9 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
-from app.application.ports import PaymentEventType
+from app.application.ports import ChargeOwner, PaymentEventType
 from app.application.use_cases import (
+    ApplyChargeback,
     ApplySubscriptionEvent,
     CreditLedgerService,
     HandlePaymentEvent,
@@ -121,6 +122,12 @@ def webhook_use_case(session: AsyncSession, clock: FakeClock, gateway: FakePayme
         credit=credit_service(session),
         subscriptions=ApplySubscriptionEvent(
             accounts=SqlAlchemyProfessionalAccountRepository(session),
+            credit=credit_service(session),
+            clock=clock,
+        ),
+        chargebacks=ApplyChargeback(
+            accounts=SqlAlchemyProfessionalAccountRepository(session),
+            ledger=SqlAlchemyCreditLedgerRepository(session),
             credit=credit_service(session),
             clock=clock,
         ),
@@ -468,6 +475,79 @@ class TestCreditWithRealLocking:
                 text(
                     "UPDATE professional_accounts SET balance_cents = -1 "
                     "WHERE professional_id = :pid"
+                ),
+                {"pid": buyer.id},
+            )
+        await session.rollback()
+
+
+class TestChargebackAgainstPostgres:
+    async def test_a_returned_top_up_leaves_the_debt_persisted(
+        self, session: AsyncSession, carpentry: Category
+    ) -> None:
+        clock = FakeClock(datetime(2026, 3, 1, 12, 0, tzinfo=UTC))
+        gateway = FakePaymentGateway()
+        buyer = await add_professional(session, carpentry, balance_cents=500)
+        account = await SqlAlchemyProfessionalAccountRepository(session).get(buyer.id)
+        assert account is not None
+        gateway.charge_owners["ch_topup"] = ChargeOwner(
+            customer_id=account.stripe_customer_id, purchase_id=None
+        )
+        webhook = webhook_use_case(session, clock, gateway)
+
+        # `created` y `funds_withdrawn` de la misma disputa: se retira una vez.
+        for event_id in ("evt_dp_created", "evt_dp_withdrawn"):
+            await webhook.execute(
+                payload=FakePaymentGateway.dispute_event_payload(
+                    event_id=event_id, event_type=PaymentEventType.CHARGE_DISPUTED
+                ),
+                signature="valid-signature",
+            )
+
+        session.expunge_all()
+        refreshed = await SqlAlchemyProfessionalAccountRepository(session).get(buyer.id)
+        assert refreshed is not None
+        assert refreshed.balance.amount_cents == 0
+        assert refreshed.debt_cents == 1300
+        ledger = SqlAlchemyCreditLedgerRepository(session)
+        found = await ledger.find(CreditEntryKind.CHARGEBACK, "dp_1")
+        assert found is not None
+        assert found.amount == Money(1800, "EUR")
+
+    async def test_an_unknown_customer_rolls_the_event_back_for_a_retry(
+        self, session: AsyncSession, carpentry: Category
+    ) -> None:
+        from sqlalchemy import text
+
+        from app.domain.exceptions import ProfessionalAccountNotFoundError
+
+        clock = FakeClock(datetime(2026, 3, 1, 12, 0, tzinfo=UTC))
+        gateway = FakePaymentGateway()
+        gateway.charge_owners["ch_topup"] = ChargeOwner(customer_id="cus_nadie", purchase_id=None)
+
+        with pytest.raises(ProfessionalAccountNotFoundError):
+            await webhook_use_case(session, clock, gateway).execute(
+                payload=FakePaymentGateway.dispute_event_payload(
+                    event_id="evt_dp_huerfano", event_type=PaymentEventType.CHARGE_DISPUTED
+                ),
+                signature="valid-signature",
+            )
+        stored = await session.execute(
+            text("SELECT count(*) FROM processed_payment_events WHERE event_id = :id"),
+            {"id": "evt_dp_huerfano"},
+        )
+        assert stored.scalar_one() == 0, "Stripe debe poder reintentarlo"
+
+    async def test_database_rejects_balance_and_debt_at_once(
+        self, session: AsyncSession, carpentry: Category
+    ) -> None:
+        from sqlalchemy import text
+
+        buyer = await add_professional(session, carpentry, balance_cents=100)
+        with pytest.raises(IntegrityError):
+            await session.execute(
+                text(
+                    "UPDATE professional_accounts SET debt_cents = 1 WHERE professional_id = :pid"
                 ),
                 {"pid": buyer.id},
             )

@@ -275,6 +275,8 @@ class AccountSummary:
     can_manage_billing: bool
     """Tiene cliente en la pasarela: puede abrir el portal de pagos."""
     entries: list[CreditEntry] = field(default_factory=list)
+    debt: Money | None = None
+    """Recarga devuelta por el banco que ya se habia gastado. Con deuda no se compra."""
 
 
 @dataclass(frozen=True, slots=True)

@@ -406,6 +406,7 @@ def admin_professional_out(item: AdminProfessionalItem, locale: str) -> AdminPro
                 status=item.account.subscription_status.value,
                 is_active=item.account_active,
                 balance=money_out(item.account.balance),
+                debt=money_out(item.account.debt) if item.account.debt_cents else None,
                 current_period_end=item.account.current_period_end,
             )
             if item.account is not None
@@ -483,6 +484,11 @@ def account_out(summary: AccountSummary) -> AccountOut:
         current_period_end=summary.current_period_end,
         can_manage_billing=summary.can_manage_billing,
         entries=[credit_entry_out(entry) for entry in summary.entries],
+        debt=(
+            money_out(summary.debt)
+            if summary.debt is not None and summary.debt.amount_cents
+            else None
+        ),
     )
 
 

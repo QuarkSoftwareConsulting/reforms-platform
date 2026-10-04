@@ -26,7 +26,8 @@
     "subscription": "My monthly fee"
   },
   "footer": {
-    "tagline": "Your ideas. The best professionals."
+    "tagline": "Your ideas. The best professionals.",
+    "geonames": "Postcodes: data from <source>GeoNames</source>, adapted, licensed under <license>CC BY 4.0</license>."
   },
   "home": {
     "title": "Phone-verified renovation contacts across Spain",
@@ -234,7 +235,9 @@
     "paymentCancelled": "You cancelled the payment. If your reservation is still valid, you can complete it before it expires.",
     "needsApproval": "To buy contacts we need to validate your registration.",
     "needsApprovalPending": "Your registration is under review. You can buy once we approve it.",
-    "completeRegistration": "See my registration"
+    "completeRegistration": "See my registration",
+    "debtBlocksPurchase": "You owe {debt} for a monthly fee your bank returned. You can buy once your next monthly fee settles it.",
+    "reviewAccount": "View my monthly fee"
   },
   "purchases": {
     "title": "My contacts",
@@ -283,12 +286,17 @@
       "spend": "Contact purchase",
       "spend_reversal": "Refund of unpaid reservation",
       "adjustment_credit": "Admin credit",
-      "adjustment_debit": "Admin charge"
+      "adjustment_debit": "Admin charge",
+      "verification_refund": "First charge refunded (registration rejected)",
+      "chargeback": "Monthly fee returned by the bank",
+      "chargeback_reversal": "Return reversed: amount recovered"
     },
     "bannerActive": "Active account · Balance: {balance}",
     "bannerInactive": "Inactive account: you can browse requests, but to buy contacts you need an up-to-date monthly top-up.",
     "bannerCta": "Activate monthly fee",
-    "bannerManage": "View my monthly fee"
+    "bannerManage": "View my monthly fee",
+    "bannerDebt": "Your bank returned a monthly fee you had already spent and you owe {debt}. You can browse requests, but not buy until your next monthly fee settles it.",
+    "debtNotice": "Your bank returned a monthly fee you had already spent on contacts. {debt} is outstanding: it will be taken from your next monthly fee and, until then, you can't buy contacts."
   },
   "profile": {
     "title": "My professional profile",
@@ -525,6 +533,19 @@
       "back": "Back to the queue",
       "rejectedRefunded": "Registration rejected. {amount} was refunded and the top-up cancelled.",
       "rejectedNothingToRefund": "Registration rejected. There was no charge to refund."
+    },
+    "debt": "Debt",
+    "adjustment": {
+      "open": "Adjust balance",
+      "direction": "Adjustment type",
+      "credit": "Add balance",
+      "debit": "Deduct balance",
+      "amount": "Amount (€)",
+      "note": "Reason",
+      "noteHint": "It is recorded in the professional's balance history.",
+      "submit": "Apply adjustment",
+      "done": "Adjustment applied. Balance: {balance}.",
+      "doneWithDebt": "Adjustment applied. Balance: {balance} · Outstanding debt: {debt}."
     }
   },
   "errors": {
@@ -568,7 +589,8 @@
     "INVALID_VERIFICATION_TRANSITION": "That registration is no longer waiting for review.",
     "REJECTION_AWAITING_PAYMENT": "This professional's first monthly fee payment is still processing (it can take several days with direct debit). You can reject the registration once it clears or fails.",
     "VERIFICATION_LOCKED": "You already sent your registration for review: those details can no longer change.",
-    "INVALID_TAX_ID": "The NIF, NIE or CIF is not valid: check the control letter or digit."
+    "INVALID_TAX_ID": "The NIF, NIE or CIF is not valid: check the control letter or digit.",
+    "CREDIT_DEBT_OUTSTANDING": "Your bank returned a monthly fee you had already spent. You can buy contacts once your next monthly fee settles it."
   },
   "validation": {
     "categoryRequired": "Pick a trade.",
@@ -606,6 +628,8 @@
     "mediaType": "Only JPG, PNG, WEBP or HEIC photos are accepted.",
     "mediaTooLarge": "The photo is larger than 10 MB.",
     "documentType": "Upload the document as a PDF or an image.",
-    "documentTooLarge": "The document is larger than 10 MB."
+    "documentTooLarge": "The document is larger than 10 MB.",
+    "adjustmentAmount": "Enter an amount above 0 and up to €1000.",
+    "adjustmentNote": "Explain the reason for the adjustment (3 to 500 characters)."
   }
 }

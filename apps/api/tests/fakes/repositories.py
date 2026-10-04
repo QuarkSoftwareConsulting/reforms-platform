@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 import copy
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import UUID
 
 from app.application.ports import (
@@ -29,6 +29,7 @@ from app.application.ports import (
     ProfessionalRepositoryPort,
     PurchaseRepositoryPort,
     PurchaseReviewRepositoryPort,
+    RateLimiterPort,
     SubscriptionPriceRepositoryPort,
     UnitOfWork,
     UserRepositoryPort,
@@ -649,6 +650,12 @@ class InMemoryCreditLedgerRepository(CreditLedgerRepositoryPort):
         ]
         return min(topups, key=lambda e: e.created_at) if topups else None
 
+    async def find(self, kind: CreditEntryKind, source_ref: str) -> CreditEntry | None:
+        await _round_trip()
+        return next(
+            (e for e in self.entries if e.kind is kind and e.source_ref == source_ref), None
+        )
+
     async def topup_totals(self) -> dict[str, int]:
         await _round_trip()
         totals: dict[str, int] = {}
@@ -659,7 +666,7 @@ class InMemoryCreditLedgerRepository(CreditLedgerRepositoryPort):
         return totals
 
     def balance_of(self, professional_id: UUID) -> int:
-        """Saldo recalculado desde el libro, para contrastarlo con el cacheado."""
+        """Saldo neto (saldo menos deuda) recalculado desde el libro."""
         return sum(e.signed_cents for e in self.entries if e.professional_id == professional_id)
 
 
@@ -675,3 +682,18 @@ class InMemorySubscriptionPriceRepository(SubscriptionPriceRepositoryPort):
     async def current(self) -> SubscriptionPrice | None:
         await _round_trip()
         return max(self.items, key=lambda p: p.created_at) if self.items else None
+
+
+class InMemoryRateLimiter(RateLimiterPort):
+    """Ventana fija por clave, como el adaptador de Postgres."""
+
+    def __init__(self) -> None:
+        self.hits: dict[tuple[str, datetime], int] = {}
+
+    async def allow(self, key: str, *, limit: int, window: timedelta, now: datetime) -> bool:
+        await _round_trip()
+        seconds = int(window.total_seconds())
+        start = datetime.fromtimestamp(int(now.timestamp()) // seconds * seconds, tz=now.tzinfo)
+        count = self.hits.get((key, start), 0) + 1
+        self.hits[(key, start)] = count
+        return count <= limit

@@ -14,6 +14,7 @@ from uuid import UUID
 from app.domain.models import (
     Category,
     CreditEntry,
+    CreditEntryKind,
     Lead,
     LeadSource,
     LeadStatus,
@@ -341,6 +342,10 @@ class CreditLedgerRepositoryPort(ABC):
     @abstractmethod
     async def first_topup(self, professional_id: UUID) -> CreditEntry | None:
         """Primera recarga cobrada: la que se reembolsa si se rechaza el alta."""
+
+    @abstractmethod
+    async def find(self, kind: CreditEntryKind, source_ref: str) -> CreditEntry | None:
+        """El movimiento de ese tipo para ese hecho, si ya se registro."""
 
     @abstractmethod
     async def topup_totals(self) -> dict[str, int]:

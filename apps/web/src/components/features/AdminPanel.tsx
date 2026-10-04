@@ -7,6 +7,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card, Skeleton, Tag } from "@/components/ui/Card";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/Field";
+import { CreditAdjustmentForm } from "@/components/features/CreditAdjustmentForm";
 import { PhotoUploader } from "@/components/features/PhotoUploader";
 import { formatMoney } from "@/helpers/currency";
 import { useApiError } from "@/hooks/useApiError";
@@ -473,9 +474,21 @@ export function AdminPanel() {
               <p className="text-sm text-secondary">
                 {t("account")}:{" "}
                 {professional.account
-                  ? `${tSubscription(`status.${professional.account.status}`)} · ${t("balance")} ${formatMoney(professional.account.balance, locale)}`
+                  ? `${tSubscription(`status.${professional.account.status}`)} · ${t("balance")} ${formatMoney(professional.account.balance, locale)}${professional.account.debt ? ` · ${t("debt")} ${formatMoney(professional.account.debt, locale)}` : ""}`
                   : t("noAccount")}
               </p>
+              {professional.account && (
+                <CreditAdjustmentForm
+                  professionalId={professional.id}
+                  onAdjusted={(account) =>
+                    setProfessionals((current) =>
+                      current.map((item) =>
+                        item.id === professional.id ? { ...item, account } : item,
+                      ),
+                    )
+                  }
+                />
+              )}
             </Card>
           ))}
         </div>

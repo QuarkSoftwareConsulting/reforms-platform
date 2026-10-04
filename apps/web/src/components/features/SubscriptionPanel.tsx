@@ -132,6 +132,11 @@ export function SubscriptionPanel() {
           </div>
         </dl>
 
+        {account.debt && account.debt.amount_cents > 0 && (
+          <Alert tone="warning">
+            {t("debtNotice", { debt: formatMoney(account.debt, locale) })}
+          </Alert>
+        )}
         {notice && <Alert tone="warning">{notice}</Alert>}
 
         {canStart ? (
