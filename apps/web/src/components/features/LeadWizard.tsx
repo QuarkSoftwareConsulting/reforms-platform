@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { CategoryPicker } from "@/components/features/CategoryPicker";
 import { PhotoUploader } from "@/components/features/PhotoUploader";
@@ -11,7 +11,12 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Card";
 import { ChipGroup } from "@/components/ui/ChipGroup";
-import { CheckboxField, TextAreaField, TextField } from "@/components/ui/Field";
+import {
+  CheckboxField,
+  FieldError,
+  TextAreaField,
+  TextField,
+} from "@/components/ui/Field";
 import {
   FormErrorSummary,
   type SummaryIssue,
@@ -54,6 +59,7 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
   const searchParams = useSearchParams();
   const [policyOpen, setPolicyOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  const photosErrorId = useId();
   // Campo de otro paso elegido en el resumen: se enfoca cuando ese paso ya se pinto.
   const [pendingFocus, setPendingFocus] = useState<LeadField | null>(null);
 
@@ -224,6 +230,7 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
               onChange={(event) => form.setField("title", event.target.value)}
               error={error("title")}
               fieldKey="title"
+              onBlur={() => form.checkField("title")}
               required
               maxLength={140}
             />
@@ -237,6 +244,7 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
               }
               error={error("description")}
               fieldKey="description"
+              onBlur={() => form.checkField("description")}
               required
               maxLength={4000}
             />
@@ -278,24 +286,23 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
               }
               error={error("postalCode")}
               fieldKey="postalCode"
+              onBlur={() => form.checkField("postalCode")}
               required
               inputMode="numeric"
               maxLength={5}
               autoComplete="postal-code"
             />
             <div
-              className="focus:outline-none"
+              className="space-y-1.5 focus:outline-none"
+              role="group"
+              aria-label={fieldLabels.photos}
+              aria-describedby={error("photos") ? photosErrorId : undefined}
               data-field="photos"
               tabIndex={-1}
             >
               <PhotoUploader upload={upload} />
               {error("photos") && (
-                <p
-                  role="alert"
-                  className="mt-1.5 text-help font-medium text-danger"
-                >
-                  {error("photos")}
-                </p>
+                <FieldError id={photosErrorId}>{error("photos")}</FieldError>
               )}
             </div>
           </>
@@ -311,6 +318,7 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
               }
               error={error("clientName")}
               fieldKey="clientName"
+              onBlur={() => form.checkField("clientName")}
               required
               autoComplete="name"
             />
@@ -323,6 +331,7 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
               }
               error={error("clientPhone")}
               fieldKey="clientPhone"
+              onBlur={() => form.checkField("clientPhone")}
               required
               type="tel"
               inputMode="tel"
@@ -337,6 +346,7 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
               }
               error={error("clientEmail")}
               fieldKey="clientEmail"
+              onBlur={() => form.checkField("clientEmail")}
               type="email"
               autoComplete="email"
             />

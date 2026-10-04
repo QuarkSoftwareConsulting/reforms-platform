@@ -78,7 +78,7 @@ solo `lib/firebase.ts` y ese hook.
 **Cero cadenas de UI incrustadas en componentes.** Todo texto visible sale de
 `messages/es.json` / `messages/en.json`.
 
-- Los dos archivos deben tener **exactamente las mismas claves** (hoy: 603 cada uno).
+- Los dos archivos deben tener **exactamente las mismas claves** (hoy: 614 cada uno).
   Comprobación rápida:
 
   ```bash
@@ -91,7 +91,10 @@ solo `lib/firebase.ts` y ese hook.
   console.log({es:es.size, en:en.size, falta, sobra});"
   ```
 
-- Los errores del API se traducen **por `code`**, con `useApiError()`. El `message` que
+- Los errores del API se traducen **por `code`**, con `useApiError()`. Un test
+  (`useApiError.test.tsx`) lee los códigos del backend y falla si alguno no tiene texto en
+  los dos idiomas. Una respuesta sin el JSON del API (proxy, 502) recibe un código según su
+  estado (`SERVICE_UNAVAILABLE`, `PAYLOAD_TOO_LARGE`...) en `services/api.ts`. El `message` que
   manda el backend es para desarrolladores: no lo muestres al usuario. Un código
   desconocido cae en `errors.generic` — nunca se filtra texto crudo del backend.
 - Los mensajes de validación son **claves**, no frases: los esquemas Zod de
@@ -117,7 +120,7 @@ el API rechazará.
 subida al bucket en un archivo inválido.
 
 **Errores en formularios largos.** Si el botón de enviar queda lejos del primer campo, un
-error fuera de pantalla hace que el botón "no haga nada". El patrón (ver `ProfileForm` y `LeadWizard`):
+error fuera de pantalla hace que el botón "no haga nada". El patrón (ver `ProfileForm`, `LeadWizard` y `AdminManualLeadForm`):
 
 - Cada campo lleva `fieldKey` (o `data-field` + `tabIndex={-1}` si es un grupo).
 - `FormErrorSummary` va **junto al botón**: lista los campos con error, toma el foco en
@@ -128,13 +131,19 @@ error fuera de pantalla hace que el botón "no haga nada". El patrón (ver `Prof
 - En un formulario por pasos, cada campo sabe en qué paso vive (`FIELD_STEP` en
   `useLeadForm`): un error del servidor devuelve al primer paso con error, y los errores de
   otros pasos se conservan al avanzar o retroceder.
+- Al salir de un campo de texto ya escrito se valida (`checkField`): no se marcan campos
+  vacíos ni se quitan errores del servidor. El resumen solo aparece tras un intento de
+  envío; antes, el error ya se ve en su campo.
+- Accesibilidad: los errores de campo usan `FieldError` (sin `role="alert"`, enlazado con
+  `aria-describedby`). El único aviso que interrumpe es el resumen; con un `alert` por
+  campo, el lector de pantalla leía todos los errores de golpe.
 
 ---
 
 ## Tests
 
 ```bash
-pnpm test              # vitest, 167 tests
+pnpm test              # vitest, 183 tests
 pnpm test:watch
 pnpm lint              # eslint + tsc --noEmit
 ```

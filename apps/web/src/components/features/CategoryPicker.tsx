@@ -1,7 +1,9 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useId } from "react";
 
+import { FieldError } from "@/components/ui/Field";
 import { OptionCard } from "@/components/ui/OptionCard";
 import type { Category } from "@/types/api";
 
@@ -26,6 +28,7 @@ export function CategoryPicker({
   fieldKey?: string;
 }) {
   const t = useTranslations("common");
+  const errorId = useId();
 
   const toggle = (id: string) => {
     if (!multiple) {
@@ -37,7 +40,12 @@ export function CategoryPicker({
 
   return (
     // `tabIndex={-1}`: el resumen de errores puede enfocar el grupo aunque no sea un control.
-    <fieldset className="space-y-3" data-field={fieldKey} tabIndex={fieldKey ? -1 : undefined}>
+    <fieldset
+      className="space-y-3 focus:outline-none"
+      data-field={fieldKey}
+      tabIndex={fieldKey ? -1 : undefined}
+      aria-describedby={error ? errorId : undefined}
+    >
       <legend className="text-[15px] font-semibold text-ink">
         {label}
         <span className="ml-0.5 text-danger">*</span>
@@ -58,11 +66,7 @@ export function CategoryPicker({
         ))}
       </div>
 
-      {error && (
-        <p role="alert" className="text-help font-medium text-danger">
-          {error}
-        </p>
-      )}
+      {error && <FieldError id={errorId}>{error}</FieldError>}
       {categories.length === 0 && <p className="text-help text-muted">{t("loading")}</p>}
     </fieldset>
   );

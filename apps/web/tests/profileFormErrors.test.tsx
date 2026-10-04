@@ -186,4 +186,52 @@ describe("ProfileForm: errores al guardar", () => {
     expect(await screen.findByText(messages.errors.VERIFICATION_LOCKED)).toBeTruthy();
     expect(screen.queryByText(/para continuar$/)).toBeNull();
   });
+
+  it("announces a failed save once, not once per field", async () => {
+    const user = userEvent.setup();
+    render();
+
+    await user.click(screen.getByRole("button", { name: t.create }));
+
+    // Solo el resumen interrumpe al lector de pantalla; cada campo lo dice al enfocarlo.
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    const name = field(t.businessNameLabel);
+    const description = document.getElementById(name.getAttribute("aria-describedby") ?? "");
+    expect(description?.textContent).toBe(messages.validation.businessNameTooShort);
+  });
+
+  it("reads the hint when the field has no error", () => {
+    render();
+
+    const phone = field(t.phoneLabel);
+    const hint = document.getElementById(phone.getAttribute("aria-describedby") ?? "");
+    expect(hint?.textContent).toBe(t.phoneHint);
+  });
+
+  it("flags an invalid tax id as soon as the user leaves the field", async () => {
+    const user = userEvent.setup();
+    render();
+
+    await user.type(field(t.taxIdLabel), "123");
+    await user.tab();
+
+    expect(field(t.taxIdLabel).getAttribute("aria-invalid")).toBe("true");
+    expect(screen.getByText(messages.validation.taxIdInvalid)).toBeDefined();
+  });
+
+  it("keeps a server error on blur even though the local check passes", async () => {
+    upsertProfile.mockRejectedValue(
+      new ApiError(422, { code: "UNKNOWN_POSTAL_CODE", message: "x", details: null }),
+    );
+    const user = userEvent.setup();
+    render();
+    await fillValidProfile(user);
+    await user.click(screen.getByRole("button", { name: t.create }));
+    await screen.findByText(messages.errors.UNKNOWN_POSTAL_CODE);
+
+    await user.click(field(t.postalCodeLabel));
+    await user.tab();
+
+    expect(field(t.postalCodeLabel).getAttribute("aria-invalid")).toBe("true");
+  });
 });

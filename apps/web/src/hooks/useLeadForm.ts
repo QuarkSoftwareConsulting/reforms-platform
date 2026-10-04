@@ -147,6 +147,8 @@ export interface LeadFormState {
   setCategory: (categoryId: string) => void;
   goNext: () => boolean;
   goBack: () => void;
+  /** Valida un campo al salir de el (ver `checkField` en la implementacion). */
+  checkField: (field: keyof LeadFormValues) => void;
   /** Vuelve al paso donde esta el campo, para corregirlo desde el resumen. */
   goToField: (field: LeadField) => void;
   submit: (photoKeys: string[]) => Promise<void>;
@@ -235,6 +237,22 @@ export function useLeadForm(): LeadFormState {
       return next;
     });
   }, []);
+
+  /**
+   * Al salir de un campo ya escrito se avisa si no vale, sin esperar a "Continuar".
+   * Un campo vacio no se marca (el usuario puede estar solo recorriendolos) y nunca se
+   * quita un error: el de un campo editado ya se fue al escribir, y si queda uno es
+   * del servidor, que la validacion local no ve.
+   */
+  const checkField = useCallback(
+    (field: keyof LeadFormValues) => {
+      const value = values[field];
+      if (typeof value !== "string" || value.trim() === "") return;
+      const key = validateStep(FIELD_STEP[field], values)[field];
+      if (key) setErrors((current) => ({ ...current, [field]: tValidation(key) }));
+    },
+    [values, tValidation],
+  );
 
   const goNext = useCallback((): boolean => {
     if (!applyStepValidation(step)) return false;
@@ -363,6 +381,7 @@ export function useLeadForm(): LeadFormState {
       setCategory,
       goNext,
       goBack,
+      checkField,
       goToField,
       submit,
       reset,
@@ -383,6 +402,7 @@ export function useLeadForm(): LeadFormState {
       setCategory,
       goNext,
       goBack,
+      checkField,
       goToField,
       submit,
       reset,

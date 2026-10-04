@@ -24,7 +24,7 @@ const lead = {
   province: "Madrid",
   postal_code_prefix: "28",
   category: {
-    id: "cat-1",
+    id: "6f1c2a8e-3d5b-4c7a-9e2f-1a2b3c4d5e6f",
     slug: "persianas",
     name: "Persianas",
     suggested_lead_price: { amount_cents: 500, currency: "EUR", formatted: "5,00 €" },
@@ -81,16 +81,34 @@ describe("AdminPanel", () => {
     expect(container.innerHTML).not.toContain("Ana Lopez");
   });
 
-  async function submitManualLead(acceptedAt: string): Promise<HTMLElement> {
+  const MANUAL_LEAD: Record<string, string> = {
+    category_id: lead.category.id,
+    title: "Cambiar la cerradura",
+    description: "La cerradura de la puerta principal se ha roto y no cierra bien.",
+    postal_code: "28001",
+    client_name: "Ana Lopez",
+    client_phone: "612345678",
+    channel: "Llamada",
+    policy_version: "2026-09-v2",
+    accepted_at: "2026-03-01T10:00",
+  };
+
+  /** Rellena el alta manual (con `overrides` encima) y la envia. */
+  async function submitManualLead(overrides: Record<string, string> = {}): Promise<HTMLElement> {
     const { container } = renderWithIntl(<AdminPanel />);
-    await waitFor(() => expect(container.querySelector("form")).not.toBeNull());
-    const input = container.querySelector<HTMLInputElement>('input[name="accepted_at"]');
-    fireEvent.change(input as HTMLInputElement, { target: { value: acceptedAt } });
-    fireEvent.submit(container.querySelector("form") as HTMLFormElement);
+    await waitFor(() =>
+      expect(screen.getAllByRole("option", { name: lead.category.name })).not.toHaveLength(0),
+    );
+    const form = container.querySelector("form") as HTMLFormElement;
+    for (const [name, value] of Object.entries({ ...MANUAL_LEAD, ...overrides })) {
+      const control = form.querySelector(`[name="${name}"]`) as HTMLInputElement;
+      fireEvent.change(control, { target: { value } });
+    }
+    fireEvent.submit(form);
     return container;
   }
 
-  it("shows the specific reason when the backend rejects the manual lead", async () => {
+  it("shows the specific reason on its field when the backend rejects the manual lead", async () => {
     vi.mocked(adminService.createLead).mockRejectedValueOnce(
       new ApiError(422, {
         code: "CONSENT_DATE_IN_FUTURE",
@@ -99,27 +117,43 @@ describe("AdminPanel", () => {
       }),
     );
 
-    await submitManualLead("2026-03-01T10:00");
+    const container = await submitManualLead();
 
     expect(await screen.findByText(messages.errors.CONSENT_DATE_IN_FUTURE)).toBeDefined();
     expect(screen.queryByText(messages.errors.VALIDATION_ERROR)).toBeNull();
+    const acceptedAt = container.querySelector('[name="accepted_at"]');
+    expect(acceptedAt?.getAttribute("aria-invalid")).toBe("true");
   });
 
-  it("confirms a created lead instead of reporting a connection error", async () => {
+  it("confirms a created lead next to the button instead of a connection error", async () => {
     vi.mocked(adminService.createLead).mockResolvedValueOnce({ id: "new-lead" } as never);
 
-    const container = await submitManualLead("2026-03-01T10:00");
+    const container = await submitManualLead();
 
-    expect(await screen.findByText(messages.admin.saved)).toBeDefined();
+    const created = messages.admin.manual.created.replace("{title}", MANUAL_LEAD.title!);
+    expect(await screen.findByText(created)).toBeDefined();
     expect(container.innerHTML).not.toContain(messages.errors.network);
   });
 
-  it("asks for a valid acceptance date instead of failing silently", async () => {
+  it("asks for the acceptance date instead of failing silently", async () => {
     vi.mocked(adminService.createLead).mockClear();
 
-    await submitManualLead("");
+    await submitManualLead({ accepted_at: "" });
 
-    expect(await screen.findByText(messages.admin.manual.invalidDate)).toBeDefined();
+    expect(await screen.findByText(messages.validation.acceptedAtRequired)).toBeDefined();
+    expect(adminService.createLead).not.toHaveBeenCalled();
+  });
+
+  it("lists the missing fields next to the button and moves focus there", async () => {
+    vi.mocked(adminService.createLead).mockClear();
+
+    await submitManualLead({ client_phone: "", channel: "" });
+
+    const title = await screen.findByText(/^Revisa 2 campos para continuar$/);
+    const summary = title.closest("[tabindex]");
+    await waitFor(() => expect(document.activeElement).toBe(summary));
+    expect(summary?.textContent).toContain(messages.admin.manual.phone);
+    expect(summary?.textContent).toContain(messages.admin.manual.channel);
     expect(adminService.createLead).not.toHaveBeenCalled();
   });
 });

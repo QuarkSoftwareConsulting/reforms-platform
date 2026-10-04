@@ -1,16 +1,15 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card, Tag } from "@/components/ui/Card";
-import { SelectField, TextAreaField, TextField } from "@/components/ui/Field";
-import { PhotoUploader } from "@/components/features/PhotoUploader";
+import { SelectField, TextField } from "@/components/ui/Field";
+import { AdminManualLeadForm } from "@/components/features/AdminManualLeadForm";
 import { formatMoney } from "@/helpers/currency";
 import { useApiError } from "@/hooks/useApiError";
-import { usePhotoUpload } from "@/hooks/usePhotoUpload";
 import { type AppLocale } from "@/i18n/routing";
 import { adminService, type AdminLeadFilters } from "@/services/admin.service";
 import { leadsService } from "@/services/leads.service";
@@ -32,7 +31,6 @@ export function AdminPanel() {
   const t = useTranslations("admin");
   const tCommon = useTranslations("common");
   const translateError = useApiError();
-  const photoUpload = usePhotoUpload();
   const [leads, setLeads] = useState<AdminLead[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [filters, setFilters] = useState<AdminLeadFilters>(EMPTY_FILTERS);
@@ -88,45 +86,6 @@ export function AdminPanel() {
     }
   }
 
-  async function submitManualLead(
-    event: FormEvent<HTMLFormElement>,
-  ): Promise<void> {
-    event.preventDefault();
-    // React deja `currentTarget` en null en cuanto vuelve el handler: tras el `await`
-    // de abajo ya no sirve, y el reset() fallaba con un TypeError que se mostraba
-    // como "sin conexion" aunque el lead se hubiera creado.
-    const formElement = event.currentTarget;
-    const form = new FormData(formElement);
-    const acceptedAt = new Date(String(form.get("accepted_at")));
-    if (Number.isNaN(acceptedAt.getTime())) {
-      setNotice(null);
-      setError(t("manual.invalidDate"));
-      return;
-    }
-    await run(async () => {
-      await adminService.createLead(
-        {
-          category_id: String(form.get("category_id")),
-          title: String(form.get("title")),
-          description: String(form.get("description")),
-          postal_code: String(form.get("postal_code")),
-          client_name: String(form.get("client_name")),
-          client_phone: String(form.get("client_phone")),
-          client_email: String(form.get("client_email")) || null,
-          photo_keys: photoUpload.storageKeys,
-          consent: {
-            policy_version: String(form.get("policy_version")),
-            accepted_at: acceptedAt.toISOString(),
-            channel: String(form.get("channel")),
-            campaign_reference: String(form.get("campaign_reference")) || null,
-          },
-        },
-        locale,
-      );
-      formElement.reset();
-    });
-  }
-
   async function showPurchases(lead: AdminLead): Promise<void> {
     setSelectedLead(lead);
     setPurchases([]);
@@ -149,68 +108,7 @@ export function AdminPanel() {
       {loading && <p className="text-help text-muted">{tCommon("loading")}</p>}
 
       <section className="grid gap-6 xl:grid-cols-2">
-        <Card>
-          <h2 className="mb-4 text-card-title font-bold text-ink">
-            {t("manual.title")}
-          </h2>
-          <form
-            className="grid gap-4 sm:grid-cols-2"
-            onSubmit={(event) => void submitManualLead(event)}
-          >
-            <SelectField
-              label={t("manual.category")}
-              name="category_id"
-              required
-            >
-              <option value="">{t("manual.categoryPlaceholder")}</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </SelectField>
-            <TextField label={t("manual.titleLabel")} name="title" required />
-            <TextAreaField
-              className="sm:col-span-2"
-              label={t("manual.description")}
-              name="description"
-              required
-            />
-            <TextField
-              label={t("manual.postalCode")}
-              name="postal_code"
-              required
-            />
-            <TextField label={t("manual.name")} name="client_name" required />
-            <TextField label={t("manual.phone")} name="client_phone" required />
-            <TextField
-              label={t("manual.email")}
-              name="client_email"
-              type="email"
-            />
-            <TextField label={t("manual.channel")} name="channel" required />
-            <TextField
-              label={t("manual.policy")}
-              name="policy_version"
-              required
-            />
-            <TextField
-              label={t("manual.acceptedAt")}
-              name="accepted_at"
-              type="datetime-local"
-              required
-            />
-            <TextField label={t("manual.campaign")} name="campaign_reference" />
-            <div className="sm:col-span-2">
-              <PhotoUploader upload={photoUpload} />
-            </div>
-            <div className="sm:col-span-2">
-              <Button loading={saving} type="submit">
-                {t("manual.submit")}
-              </Button>
-            </div>
-          </form>
-        </Card>
+        <AdminManualLeadForm categories={categories} onCreated={() => void reload()} />
 
         <Card className="space-y-4">
           <h2 className="text-card-title font-bold text-ink">

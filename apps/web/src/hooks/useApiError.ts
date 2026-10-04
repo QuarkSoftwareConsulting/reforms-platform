@@ -23,6 +23,15 @@ function firebaseErrorCode(error: unknown): string | null {
   return null;
 }
 
+/**
+ * El usuario cerro la ventana de Google (o abrio otra encima). No es un error: lo decidio
+ * el, y un aviso rojo por ello confunde. El formulario vuelve a su estado sin mensaje.
+ */
+export function isAuthDismissal(error: unknown): boolean {
+  const code = firebaseErrorCode(error);
+  return code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request";
+}
+
 /** Los `details` del backend que son texto o número: lo que cabe en un `{min}` del mensaje. */
 function interpolationValues(details: Record<string, unknown> | null): Values {
   const values: Values = {};

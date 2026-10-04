@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { useRef, type ReactNode } from "react";
+import { useId, useRef } from "react";
 
 import { CategoryPicker } from "@/components/features/CategoryPicker";
 import { DocumentsSection } from "@/components/features/profile/DocumentsSection";
@@ -13,7 +13,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ChipGroup } from "@/components/ui/ChipGroup";
-import { SelectField, TextField } from "@/components/ui/Field";
+import { FieldError, SelectField, TextField } from "@/components/ui/Field";
 import { FormErrorSummary, type SummaryIssue } from "@/components/ui/FormErrorSummary";
 import { OptionCard } from "@/components/ui/OptionCard";
 import { focusField } from "@/helpers/formErrors";
@@ -40,15 +40,6 @@ const FIELD_ORDER: (keyof ProfileValues)[] = [
   "workPhotos",
 ];
 
-/** Error de un grupo que no es un `Field` (oficios, servicios, tipo de alta, fotos). */
-function GroupError({ children }: { children: ReactNode }) {
-  return (
-    <p role="alert" className="text-help font-medium text-danger">
-      {children}
-    </p>
-  );
-}
-
 /**
  * Perfil profesional y alta (F02). Sirve de onboarding y de edicion.
  *
@@ -65,6 +56,7 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
   const form = useProfessionalProfile();
   const files = useProfessionalFiles();
   const formRef = useRef<HTMLFormElement>(null);
+  const uid = useId();
   const { values, professional } = form;
 
   const error = (field: keyof ProfileValues): string | undefined => form.errors[field];
@@ -84,6 +76,18 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
     logo: t("sections.media"),
     workPhotos: t("sections.media"),
   };
+  /** Error de un grupo que no es un `Field` (servicios, tipo de alta, fotos). */
+  const groupErrorId = (field: keyof ProfileValues) => `${uid}-${field}-error`;
+  const groupError = (field: keyof ProfileValues) => {
+    const message = error(field);
+    return message ? <FieldError id={groupErrorId(field)}>{message}</FieldError> : null;
+  };
+  /** Atributos del contenedor de un grupo: el resumen lo enfoca y el lector lee su error. */
+  const groupProps = (field: keyof ProfileValues) => ({
+    "data-field": field,
+    tabIndex: -1,
+    "aria-describedby": error(field) ? groupErrorId(field) : undefined,
+  });
   const summaryIssues: SummaryIssue[] = FIELD_ORDER.flatMap((field) => {
     const message = form.errors[field];
     return message ? [{ field, label: fieldLabels[field], message }] : [];
@@ -119,6 +123,7 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
           onChange={(event) => form.setField("businessName", event.target.value)}
           error={error("businessName")}
           fieldKey="businessName"
+          onBlur={() => form.checkField("businessName")}
           required
           autoComplete="organization"
         />
@@ -129,6 +134,7 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
           onChange={(event) => form.setField("phone", event.target.value)}
           error={error("phone")}
           fieldKey="phone"
+          onBlur={() => form.checkField("phone")}
           required
           type="tel"
           inputMode="tel"
@@ -141,6 +147,7 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
           onChange={(event) => form.setField("postalCode", event.target.value)}
           error={error("postalCode")}
           fieldKey="postalCode"
+          onBlur={() => form.checkField("postalCode")}
           required
           inputMode="numeric"
           maxLength={5}
@@ -175,7 +182,12 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
           fieldKey="categoryIds"
         />
         {/* Un solo hueco de error para todos los servicios: el backend los valida juntos. */}
-        <div className="space-y-5 focus:outline-none" data-field="serviceIds" tabIndex={-1}>
+        <div
+          className="space-y-5 focus:outline-none"
+          role="group"
+          aria-label={fieldLabels.serviceIds}
+          {...groupProps("serviceIds")}
+        >
           {selectedCategories
             .filter((category) => category.services.length > 0)
             .map((category) => (
@@ -200,7 +212,7 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
                 }
               />
             ))}
-          {error("serviceIds") && <GroupError>{error("serviceIds")}</GroupError>}
+          {groupError("serviceIds")}
         </div>
       </Card>
 
@@ -214,8 +226,7 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
         <fieldset
           className="space-y-3 focus:outline-none"
           disabled={form.identityLocked}
-          data-field="professionalType"
-          tabIndex={-1}
+          {...groupProps("professionalType")}
         >
           <legend className="text-[15px] font-semibold text-ink">{t("typeLabel")}</legend>
           <div className="grid gap-3 sm:grid-cols-3">
@@ -231,7 +242,7 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
               />
             ))}
           </div>
-          {error("professionalType") && <GroupError>{error("professionalType")}</GroupError>}
+          {groupError("professionalType")}
         </fieldset>
         <TextField
           label={t("legalNameLabel")}
@@ -240,6 +251,7 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
           onChange={(event) => form.setField("legalName", event.target.value)}
           error={error("legalName")}
           fieldKey="legalName"
+          onBlur={() => form.checkField("legalName")}
           disabled={form.identityLocked}
           autoComplete="name"
         />
@@ -249,6 +261,7 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
           onChange={(event) => form.setField("taxId", event.target.value)}
           error={error("taxId")}
           fieldKey="taxId"
+          onBlur={() => form.checkField("taxId")}
           disabled={form.identityLocked}
           maxLength={20}
         />
@@ -258,6 +271,7 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
           onChange={(event) => form.setField("address", event.target.value)}
           error={error("address")}
           fieldKey="address"
+          onBlur={() => form.checkField("address")}
           autoComplete="street-address"
         />
       </Card>
@@ -266,7 +280,12 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
         <>
           <Card className="space-y-5">
             <h2 className="text-card-title font-semibold text-ink">{t("sections.media")}</h2>
-            <div className="space-y-5 focus:outline-none" data-field="workPhotos" tabIndex={-1}>
+            <div
+              className="space-y-5 focus:outline-none"
+              role="group"
+              aria-label={fieldLabels.workPhotos}
+              {...groupProps("workPhotos")}
+            >
               <MediaFields
                 files={files}
                 profilePhoto={values.profilePhoto}
@@ -277,7 +296,7 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
                   else form.setField(field, value as Media | null);
                 }}
               />
-              {error("workPhotos") && <GroupError>{error("workPhotos")}</GroupError>}
+              {groupError("workPhotos")}
             </div>
           </Card>
           <Card className="space-y-5">

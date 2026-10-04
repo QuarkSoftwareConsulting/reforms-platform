@@ -43,7 +43,9 @@ export function FormErrorSummary({
     if (attempt > 0 && hasIssues.current) ref.current?.focus();
   }, [attempt]);
 
-  if (issues.length === 0) return null;
+  // Solo tras un intento de envio: un error marcado al salir de un campo ya se ve en el
+  // campo, y un aviso que aparece mientras se escribe distrae (y el lector lo anuncia).
+  if (issues.length === 0 || attempt === 0) return null;
 
   return (
     <div ref={ref} tabIndex={-1} className="rounded-control focus:outline-none focus:shadow-focus">

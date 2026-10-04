@@ -15,6 +15,25 @@ const CONTROL_CLASSES =
   "disabled:bg-page disabled:text-disabled " +
   "aria-[invalid=true]:border-danger aria-[invalid=true]:bg-danger-bg";
 
+/**
+ * Texto de error bajo un campo o un grupo. Sin `role="alert"`: tras un envio fallido lo
+ * anuncia una sola vez `FormErrorSummary`; con un `alert` por campo, el lector de
+ * pantalla leia todos los errores de golpe. El campo lo enlaza con `aria-describedby`.
+ */
+export function FieldError({ id, children }: { id?: string; children: ReactNode }) {
+  return (
+    <p id={id} className="text-help font-medium text-danger">
+      {children}
+    </p>
+  );
+}
+
+/** Lo que lee el lector de pantalla al llegar al campo: el error o, si no hay, la ayuda. */
+function describedBy(id: string, error?: string, hint?: ReactNode): string | undefined {
+  if (error) return `${id}-error`;
+  return hint ? `${id}-hint` : undefined;
+}
+
 interface FieldShellProps {
   label: string;
   htmlFor: string;
@@ -29,17 +48,24 @@ function FieldShell({ label, htmlFor, error, hint, required, children }: FieldSh
     <div className="space-y-1.5">
       <label htmlFor={htmlFor} className="block text-[15px] font-semibold text-ink">
         {label}
-        {required && <span className="ml-0.5 text-danger">*</span>}
+        {/* El asterisco es visual: el `required` del control ya dice "obligatorio". */}
+        {required && (
+          <span aria-hidden className="ml-0.5 text-danger">
+            *
+          </span>
+        )}
       </label>
       {children}
       {/* La ayuda va bajo el campo, nunca dentro del placeholder, y se oculta
           cuando hay error para no competir por la atencion. */}
       {error ? (
-        <p id={`${htmlFor}-error`} role="alert" className="text-help font-medium text-danger">
-          {error}
-        </p>
+        <FieldError id={`${htmlFor}-error`}>{error}</FieldError>
       ) : (
-        hint && <p className="text-help text-muted">{hint}</p>
+        hint && (
+          <p id={`${htmlFor}-hint`} className="text-help text-muted">
+            {hint}
+          </p>
+        )
       )}
     </div>
   );
@@ -71,7 +97,7 @@ export function TextField({
         data-field={fieldKey}
         required={required}
         aria-invalid={error ? true : undefined}
-        aria-describedby={error ? `${id}-error` : undefined}
+        aria-describedby={describedBy(id, error, hint)}
         className={cn(CONTROL_CLASSES, className)}
       />
     </FieldShell>
@@ -104,7 +130,7 @@ export function TextAreaField({
         data-field={fieldKey}
         required={required}
         aria-invalid={error ? true : undefined}
-        aria-describedby={error ? `${id}-error` : undefined}
+        aria-describedby={describedBy(id, error, hint)}
         className={cn(CONTROL_CLASSES, "min-h-32 resize-y", className)}
       />
     </FieldShell>
@@ -137,7 +163,7 @@ export function SelectField({
         data-field={fieldKey}
         required={required}
         aria-invalid={error ? true : undefined}
-        aria-describedby={error ? `${id}-error` : undefined}
+        aria-describedby={describedBy(id, error, hint)}
         className={cn(CONTROL_CLASSES, className)}
       >
         {children}
@@ -184,11 +210,7 @@ export function CheckboxField({
           {label}
         </label>
       </div>
-      {error && (
-        <p id={`${id}-error`} role="alert" className="text-help font-medium text-danger">
-          {error}
-        </p>
-      )}
+      {error && <FieldError id={`${id}-error`}>{error}</FieldError>}
     </div>
   );
 }

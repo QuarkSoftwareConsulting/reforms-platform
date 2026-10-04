@@ -442,4 +442,46 @@ describe("LeadWizard: errores de formulario", () => {
     expect(await screen.findByText(messages.errors.TOO_MANY_VERIFICATION_ATTEMPTS)).toBeDefined();
     expect(screen.queryByText(SUMMARY)).toBeNull();
   });
+
+  it("links a group's error to the group so the screen reader reads it", async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<LeadWizard categories={CATEGORIES} />);
+    await user.click(screen.getByRole("radio", { name: /Carpinteria/i }));
+    await user.click(screen.getByRole("button", { name: messages.common.next }));
+
+    await user.click(screen.getByRole("button", { name: messages.common.next }));
+
+    const schedule = document.querySelector('[data-field="schedule"]');
+    const description = document.getElementById(
+      schedule?.getAttribute("aria-describedby") ?? "",
+    );
+    expect(description?.textContent).toBe(messages.validation.scheduleRequired);
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+  });
+
+  it("flags a filled field when the user leaves it, without waiting for Next", async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<LeadWizard categories={CATEGORIES} />);
+    await user.click(screen.getByRole("radio", { name: /Carpinteria/i }));
+    await user.click(screen.getByRole("button", { name: messages.common.next }));
+
+    await user.type(screen.getByLabelText(label(messages.publish.postalCodeLabel)), "08001");
+    await user.tab();
+
+    expect(screen.getByText(messages.validation.postalCodeNotCovered)).toBeDefined();
+    // El resumen es para los intentos de envio: aqui el error ya se ve en su campo.
+    expect(screen.queryByText(/para continuar$/)).toBeNull();
+  });
+
+  it("does not flag an empty field the user only tabbed through", async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<LeadWizard categories={CATEGORIES} />);
+    await user.click(screen.getByRole("radio", { name: /Carpinteria/i }));
+    await user.click(screen.getByRole("button", { name: messages.common.next }));
+
+    await user.click(screen.getByLabelText(label(messages.publish.titleLabel)));
+    await user.tab();
+
+    expect(screen.queryByText(messages.validation.titleTooShort)).toBeNull();
+  });
 });

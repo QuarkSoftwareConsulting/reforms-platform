@@ -129,6 +129,8 @@ export interface ProfessionalProfileState {
   setField: <K extends keyof ProfileValues>(field: K, value: ProfileValues[K]) => void;
   /** Quitar un oficio quita tambien los servicios elegidos dentro de el. */
   setCategories: (categoryIds: string[], servicesOf: (categoryId: string) => string[]) => void;
+  /** Valida un campo de texto al salir de el; ver la implementacion. */
+  checkField: (field: keyof ProfileValues) => void;
   save: () => Promise<Professional | null>;
   confirmReview: () => Promise<void>;
   dismissReview: () => void;
@@ -176,6 +178,25 @@ export function useProfessionalProfile(): ProfessionalProfileState {
       setErrors((current) => withoutErrors(current, ["categoryIds", "serviceIds"]));
     },
     [],
+  );
+
+  /**
+   * Al salir de un campo ya escrito se avisa si no vale, sin esperar a "Guardar". No
+   * marca campos vacios (el usuario puede estar recorriendolos) ni quita errores: el de
+   * un campo editado se fue al escribir; si queda uno, es del servidor.
+   */
+  const checkField = useCallback(
+    (field: keyof ProfileValues) => {
+      const value = values[field];
+      if (typeof value !== "string" || value.trim() === "") return;
+      const parsed = professionalProfileSchema.safeParse({
+        ...values,
+        workPhotoKeys: values.workPhotos.map((photo) => photo.key),
+      });
+      const issue = parsed.error?.issues.find((candidate) => candidate.path[0] === field);
+      if (issue) setErrors((current) => ({ ...current, [field]: tValidation(issue.message) }));
+    },
+    [values, tValidation],
   );
 
   const save = useCallback(async (): Promise<Professional | null> => {
@@ -278,6 +299,7 @@ export function useProfessionalProfile(): ProfessionalProfileState {
       saved,
       setField,
       setCategories,
+      checkField,
       save,
       confirmReview,
       dismissReview,
@@ -295,6 +317,7 @@ export function useProfessionalProfile(): ProfessionalProfileState {
       saved,
       setField,
       setCategories,
+      checkField,
       save,
       confirmReview,
       dismissReview,
