@@ -7,7 +7,7 @@ seria la puerta de entrada de los errores de coma flotante.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from pydantic import Field, field_validator
@@ -17,6 +17,7 @@ from app.domain.models import (
     MAX_SERVICES_PER_LEAD,
     ProjectSchedule,
     PropertyType,
+    UserRole,
     VerificationStatus,
 )
 from app.infrastructure.api.schemas.billing import AdminAccountOut
@@ -188,10 +189,77 @@ class AdminProfessionalListOut(ApiModel):
     offset: int
 
 
+class AdminPurchaseLeadOut(ApiModel):
+    """Lo justo para saber que se vendio. Sin datos de contacto del cliente."""
+
+    id: UUID
+    title: str
+    city: str | None = None
+    province: str | None = None
+    category: CategoryOut | None = None
+
+
 class AdminPurchaseOut(ApiModel):
     purchase: PurchaseOut
     professional: AdminProfessionalOut | None = None
     review_count: int
+    lead: AdminPurchaseLeadOut | None = Field(
+        default=None, description="Solo en el listado global de compras"
+    )
+
+
+class AdminPurchaseListOut(ApiModel):
+    items: list[AdminPurchaseOut]
+    total: int
+    limit: int
+    offset: int
+
+
+class AdminUserOut(ApiModel):
+    id: UUID
+    email: str
+    display_name: str | None = None
+    role: UserRole
+    created_at: datetime
+    professional: AdminProfessionalOut | None = Field(
+        default=None, description="Resumen del perfil profesional, si lo tiene"
+    )
+
+
+class AdminUserListOut(ApiModel):
+    items: list[AdminUserOut]
+    total: int
+    limit: int
+    offset: int
+
+
+class SetUserRoleIn(ApiModel):
+    role: UserRole
+    note: str | None = Field(default=None, max_length=500)
+
+
+class UserRoleEventOut(ApiModel):
+    from_role: UserRole
+    to_role: UserRole
+    actor_user_id: UUID | None = None
+    note: str | None = None
+    created_at: datetime
+
+
+class DailyMetricsOut(ApiModel):
+    day: date
+    leads_created: int
+    paid_purchases: int
+    revenue_by_currency: dict[str, MoneyOut]
+    topups: int
+    topup_revenue_by_currency: dict[str, MoneyOut]
+
+
+class MetricsTimeseriesOut(ApiModel):
+    start: date
+    end: date
+    timezone: str
+    points: list[DailyMetricsOut]
 
 
 class PurchaseReviewIn(ApiModel):
@@ -213,11 +281,19 @@ __all__ = [
     "AdminMetricsOut",
     "AdminProfessionalListOut",
     "AdminProfessionalOut",
+    "AdminPurchaseLeadOut",
+    "AdminPurchaseListOut",
     "AdminPurchaseOut",
+    "AdminUserListOut",
+    "AdminUserOut",
     "CreateLeadOut",
+    "DailyMetricsOut",
     "LeadPricingOut",
+    "MetricsTimeseriesOut",
     "PurchaseReviewIn",
     "PurchaseReviewOut",
     "SetCategoryPriceIn",
     "SetLeadPriceIn",
+    "SetUserRoleIn",
+    "UserRoleEventOut",
 ]

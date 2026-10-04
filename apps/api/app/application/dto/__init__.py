@@ -7,7 +7,7 @@ dependa del framework web.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from app.domain.models import (
@@ -26,7 +26,10 @@ from app.domain.models import (
     PropertyType,
     Purchase,
     PurchaseReview,
+    PurchaseStatus,
     SubscriptionStatus,
+    User,
+    UserRoleEvent,
     VerificationEvent,
 )
 from app.domain.value_objects import Money
@@ -216,6 +219,77 @@ class AdminPurchaseItem:
     purchase: Purchase
     professional: Professional | None
     review_count: int
+    lead: LeadPublicView | None = None
+    """Solo en el listado global: el de un lead ya sabe de que lead se trata."""
+    category: Category | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class AdminPurchaseQuery:
+    """Filtros del listado global de compras tal como los pide el admin.
+
+    Los dias son dias naturales en la zona horaria del negocio, ambos incluidos: el
+    caso de uso los traduce a instantes. Asi el listado corta los dias igual que las
+    graficas del dashboard, sea cual sea la zona horaria del servidor.
+    """
+
+    status: PurchaseStatus | None = None
+    professional_id: UUID | None = None
+    from_day: date | None = None
+    to_day: date | None = None
+    limit: int = 20
+    offset: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class AdminPurchaseListResult:
+    items: list[AdminPurchaseItem]
+    total: int
+    limit: int
+    offset: int
+
+
+@dataclass(frozen=True, slots=True)
+class AdminUserItem:
+    user: User
+    professional: Professional | None
+    account: ProfessionalAccount | None = None
+    account_active: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class AdminUserListResult:
+    items: list[AdminUserItem]
+    total: int
+    limit: int
+    offset: int
+
+
+@dataclass(frozen=True, slots=True)
+class RoleChangeResult:
+    user: User
+    event: UserRoleEvent | None
+    """`None` si el usuario ya tenia ese rol."""
+
+
+@dataclass(frozen=True, slots=True)
+class DailyMetricsPoint:
+    day: date
+    leads_created: int
+    paid_purchases: int
+    revenue_by_currency: dict[str, int]
+    topups: int
+    topup_revenue_by_currency: dict[str, int]
+
+
+@dataclass(frozen=True, slots=True)
+class MetricsTimeseries:
+    """Un punto por dia de `[start, end]`, tambien los dias sin actividad."""
+
+    start: date
+    end: date
+    timezone: str
+    points: list[DailyMetricsPoint]
 
 
 @dataclass(frozen=True, slots=True)

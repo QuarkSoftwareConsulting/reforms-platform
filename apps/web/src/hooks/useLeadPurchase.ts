@@ -17,7 +17,17 @@ export interface LeadPurchaseState {
   reset: () => void;
 }
 
-export function useLeadPurchase(): LeadPurchaseState {
+export interface LeadPurchaseOptions {
+  /**
+   * El saldo cubrio el contacto y ya esta desbloqueado. Quien muestra la solicitud lo
+   * recarga ahi mismo: el profesional ve el contacto donde lo compro, sin recargar la
+   * pagina (antes se iba a "Mis contactos" y una carrera de la sesion lo mandaba al
+   * perfil).
+   */
+  onUnlocked?: (purchaseId: string) => void;
+}
+
+export function useLeadPurchase({ onUnlocked }: LeadPurchaseOptions = {}): LeadPurchaseState {
   const locale = useLocale() as Locale;
   const translateError = useApiError();
   const [pending, setPending] = useState(false);
@@ -30,10 +40,15 @@ export function useLeadPurchase(): LeadPurchaseState {
       try {
         const result = await paymentService.startPurchase(leadId, locale);
         if (result.checkout_url === null) {
-          // Pagada con saldo: ya esta desbloqueada, se lleva a "Mis contactos".
-          window.location.assign(
-            path(locale, "myContacts", `?purchase=${result.purchase_id}&status=success`),
-          );
+          // Pagada con saldo: ya esta desbloqueada. `pending` sigue activo hasta que el
+          // contacto reemplaza al boton, para que no haya un segundo click.
+          if (onUnlocked) {
+            onUnlocked(result.purchase_id);
+          } else {
+            window.location.assign(
+              path(locale, "projects", `/${leadId}?purchase=${result.purchase_id}&status=success`),
+            );
+          }
           return;
         }
         // Navegacion completa (no router.push): el checkout esta en otro dominio.
@@ -46,7 +61,7 @@ export function useLeadPurchase(): LeadPurchaseState {
         setPending(false);
       }
     },
-    [locale, translateError],
+    [locale, translateError, onUnlocked],
   );
 
   return {

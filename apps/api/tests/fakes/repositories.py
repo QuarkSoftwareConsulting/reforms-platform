@@ -9,14 +9,18 @@ from __future__ import annotations
 
 import asyncio
 import copy
-from collections.abc import Callable
-from datetime import datetime, timedelta
+from collections.abc import Callable, Iterable
+from datetime import date, datetime, timedelta
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from app.application.ports import (
     AdminLeadFilters,
+    AdminPurchaseFilters,
+    AdminUserFilters,
     CategoryRepositoryPort,
     CreditLedgerRepositoryPort,
+    DailyCount,
     LeadDashboardCounts,
     LeadRepositoryPort,
     LeadSearchFilters,
@@ -49,6 +53,8 @@ from app.domain.models import (
     PurchaseStatus,
     SubscriptionPrice,
     User,
+    UserRole,
+    UserRoleEvent,
     VerificationEvent,
     VerificationStatus,
 )
@@ -64,6 +70,31 @@ async def _round_trip() -> None:
     nada.
     """
     await asyncio.sleep(0)
+
+
+def _daily(
+    rows: Iterable[tuple[datetime, str | None, int]],
+    *,
+    start: datetime,
+    end: datetime,
+    tz: str,
+) -> list[DailyCount]:
+    """Agrupa `(instante, divisa, importe)` por dia local, como `date_trunc` en Postgres."""
+    zone = ZoneInfo(tz)
+    counts: dict[date, int] = {}
+    amounts: dict[date, dict[str, int]] = {}
+    for at, currency, amount in rows:
+        if not start <= at < end:
+            continue
+        day = at.astimezone(zone).date()
+        counts[day] = counts.get(day, 0) + 1
+        bucket = amounts.setdefault(day, {})
+        if currency is not None:
+            bucket[currency] = bucket.get(currency, 0) + amount
+    return [
+        DailyCount(day=day, count=counts[day], amount_by_currency=amounts[day])
+        for day in sorted(counts)
+    ]
 
 
 class InMemoryUnitOfWork(UnitOfWork):
@@ -223,6 +254,15 @@ class InMemoryLeadRepository(LeadRepositoryPort):
             ]
         )
 
+    async def daily_created(self, *, start: datetime, end: datetime, tz: str) -> list[DailyCount]:
+        await _round_trip()
+        return _daily(
+            ((lead.created_at, None, 0) for lead in self.items.values()),
+            start=start,
+            end=end,
+            tz=tz,
+        )
+
     async def dashboard_counts(self) -> LeadDashboardCounts:
         await _round_trip()
         values = list(self.items.values())
@@ -316,6 +356,44 @@ class InMemoryPurchaseRepository(PurchaseRepositoryPort):
         )
         return rows[offset : offset + limit]
 
+    async def daily_paid(self, *, start: datetime, end: datetime, tz: str) -> list[DailyCount]:
+        await _round_trip()
+        return _daily(
+            (
+                (purchase.paid_at, purchase.price.currency, purchase.price.amount_cents)
+                for purchase in self.items.values()
+                if purchase.status is PurchaseStatus.PAID and purchase.paid_at is not None
+            ),
+            start=start,
+            end=end,
+            tz=tz,
+        )
+
+    def _admin_rows(self, filters: AdminPurchaseFilters) -> list[Purchase]:
+        return sorted(
+            (
+                purchase
+                for purchase in self.items.values()
+                if (filters.status is None or purchase.status is filters.status)
+                and (
+                    filters.professional_id is None
+                    or purchase.professional_id == filters.professional_id
+                )
+                and (filters.created_from is None or purchase.created_at >= filters.created_from)
+                and (filters.created_to is None or purchase.created_at < filters.created_to)
+            ),
+            key=lambda purchase: purchase.created_at,
+            reverse=True,
+        )
+
+    async def list_admin(self, filters: AdminPurchaseFilters) -> list[Purchase]:
+        await _round_trip()
+        return self._admin_rows(filters)[filters.offset : filters.offset + filters.limit]
+
+    async def count_admin(self, filters: AdminPurchaseFilters) -> int:
+        await _round_trip()
+        return len(self._admin_rows(filters))
+
     async def paid_metrics(self) -> PaidPurchaseMetrics:
         await _round_trip()
         rows = [
@@ -333,8 +411,33 @@ class InMemoryPurchaseRepository(PurchaseRepositoryPort):
 
 
 class InMemoryUserRepository(UserRepositoryPort):
-    def __init__(self, users: list[User] | None = None) -> None:
+    """Usuarios. Los bloqueos imitan el `FOR UPDATE` de Postgres.
+
+    `lock_admins` usa un unico lock para "las filas de todos los admins": basta para
+    serializar dos degradaciones simultaneas, que es la carrera que importa.
+    """
+
+    def __init__(
+        self, users: list[User] | None = None, *, uow: InMemoryUnitOfWork | None = None
+    ) -> None:
         self.items: dict[UUID, User] = {u.id: u for u in (users or [])}
+        self.role_events: list[UserRoleEvent] = []
+        self.uow = uow
+        self.professional_index: InMemoryProfessionalRepository | None = None
+        """Para filtrar por estado del alta y nombre comercial, como el JOIN real."""
+        self._locks: dict[UUID, asyncio.Lock] = {}
+        self._admins_lock = asyncio.Lock()
+        self.locking_enabled = True
+        """Solo para comprobar que el test de carrera falla sin el bloqueo."""
+
+    async def _acquire(self, lock: asyncio.Lock) -> None:
+        if not self.locking_enabled:
+            return
+        await lock.acquire()
+        if self.uow is not None:
+            self.uow.register_release(lock.release)
+        else:
+            lock.release()
 
     async def add(self, user: User) -> User:
         await _round_trip()
@@ -349,10 +452,77 @@ class InMemoryUserRepository(UserRepositoryPort):
         await _round_trip()
         return next((u for u in self.items.values() if u.firebase_uid == firebase_uid), None)
 
+    async def get_by_email(self, email: str) -> User | None:
+        await _round_trip()
+        wanted = email.strip().lower()
+        return next((u for u in self.items.values() if u.email.value.lower() == wanted), None)
+
     async def update(self, user: User) -> User:
         await _round_trip()
         self.items[user.id] = user
         return user
+
+    async def get_for_update(self, user_id: UUID) -> User | None:
+        await _round_trip()
+        if user_id not in self.items:
+            return None
+        await self._acquire(self._locks.setdefault(user_id, asyncio.Lock()))
+        # Copia leida tras el bloqueo: ve lo que confirmo quien lo tenia.
+        return copy.copy(self.items[user_id])
+
+    async def lock_admins(self) -> list[UUID]:
+        await _round_trip()
+        await self._acquire(self._admins_lock)
+        return [user.id for user in self.items.values() if user.role is UserRole.ADMIN]
+
+    def _admin_rows(self, filters: AdminUserFilters) -> list[User]:
+        profiles = (
+            {p.user_id: p for p in self.professional_index.items.values()}
+            if self.professional_index is not None
+            else {}
+        )
+        query = filters.query.lower() if filters.query else None
+
+        def matches(user: User) -> bool:
+            profile = profiles.get(user.id)
+            if filters.role is not None and user.role is not filters.role:
+                return False
+            if filters.verification_status is not None and (
+                profile is None or profile.verification_status is not filters.verification_status
+            ):
+                return False
+            if query is None:
+                return True
+            haystack = [user.email.value, user.display_name or ""]
+            if profile is not None:
+                haystack += [profile.business_name, profile.legal_name or ""]
+            return any(query in value.lower() for value in haystack)
+
+        return sorted(
+            (user for user in self.items.values() if matches(user)),
+            key=lambda user: user.created_at,
+            reverse=True,
+        )
+
+    async def list_admin(self, filters: AdminUserFilters) -> list[User]:
+        await _round_trip()
+        return self._admin_rows(filters)[filters.offset : filters.offset + filters.limit]
+
+    async def count_admin(self, filters: AdminUserFilters) -> int:
+        await _round_trip()
+        return len(self._admin_rows(filters))
+
+    async def add_role_event(self, event: UserRoleEvent) -> None:
+        await _round_trip()
+        self.role_events.append(event)
+
+    async def list_role_events(self, user_id: UUID) -> list[UserRoleEvent]:
+        await _round_trip()
+        return sorted(
+            (event for event in self.role_events if event.user_id == user_id),
+            key=lambda event: event.created_at,
+            reverse=True,
+        )
 
 
 class InMemoryProfessionalRepository(ProfessionalRepositoryPort):
@@ -403,6 +573,10 @@ class InMemoryProfessionalRepository(ProfessionalRepositoryPort):
     async def get_by_user_id(self, user_id: UUID) -> Professional | None:
         await _round_trip()
         return next((p for p in self.items.values() if p.user_id == user_id), None)
+
+    async def get_many_by_user_ids(self, user_ids: set[UUID]) -> dict[UUID, Professional]:
+        await _round_trip()
+        return {p.user_id: p for p in self.items.values() if p.user_id in user_ids}
 
     async def update(self, professional: Professional) -> Professional:
         await _round_trip()
@@ -654,6 +828,19 @@ class InMemoryCreditLedgerRepository(CreditLedgerRepositoryPort):
         await _round_trip()
         return next(
             (e for e in self.entries if e.kind is kind and e.source_ref == source_ref), None
+        )
+
+    async def daily_topups(self, *, start: datetime, end: datetime, tz: str) -> list[DailyCount]:
+        await _round_trip()
+        return _daily(
+            (
+                (entry.created_at, entry.amount.currency, entry.amount.amount_cents)
+                for entry in self.entries
+                if entry.kind is CreditEntryKind.TOPUP
+            ),
+            start=start,
+            end=end,
+            tz=tz,
         )
 
     async def topup_totals(self) -> dict[str, int]:

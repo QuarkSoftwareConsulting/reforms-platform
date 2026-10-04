@@ -9,9 +9,9 @@ from uuid import UUID
 from fastapi import APIRouter, Query, Request, status
 
 from app.application.dto import ConsentInput, CreateLeadInput
+from app.application.parsing import parse_postal_code
 from app.domain.exceptions import UnknownPostalCodeError
 from app.domain.models import LeadSource
-from app.domain.value_objects import PostalCode
 from app.infrastructure.api import serializers
 from app.infrastructure.api.dependencies import (
     ContainerDep,
@@ -190,7 +190,7 @@ async def start_purchase(
     summary="Resolver ciudad y provincia de un codigo postal",
 )
 async def get_postal_code(code: str, container: ContainerDep) -> PostalCodeOut:
-    info = await container.postal_codes.get(PostalCode(code))
+    info = await container.postal_codes.get(parse_postal_code(code))
     if info is None:
         raise UnknownPostalCodeError(f"Codigo postal no reconocido: {code}")
     return PostalCodeOut(

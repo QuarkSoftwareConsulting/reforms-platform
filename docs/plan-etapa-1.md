@@ -6,30 +6,29 @@ cualquier persona o sesión de agente retome el trabajo sin reconstruir la conve
 
 - Fuente original: documento del cliente "Etapa 1" (flujos F01–F03 con sus respuestas),
   transcrito en [`etapa-1-cliente.md`](./etapa-1-cliente.md).
-- Última actualización: 2026-09-29.
-- Una rama y un PR por fase, **apilados**: cada rama sale de la anterior y su PR se
-  integra en ella. Se revisan e integran en orden; al integrar uno, el siguiente se
-  reorienta a `develop`.
+- Última actualización: 2026-10-03.
+- **Las cuatro fases están integradas en `develop`** (PR #20 las trajo apiladas; el #21
+  añadió la revisión posterior, ver "Revisión de la Etapa 1" más abajo). Se desarrollaron
+  como una rama y un PR por fase, **apilados**; la tabla se conserva como historial.
 
-  | Fase | Rama | PR | Base del PR |
-  |---|---|---|---|
-  | 1 · Recarga mensual y saldo | `suscriptions` | #16 | `develop` |
-  | 2 · Reglas del lead | `feat/reglas-lead` | #17 | `suscriptions` |
-  | 3 · Formulario del cliente | `feat/formulario-cliente` | #18 | `feat/reglas-lead` |
+  | Fase                                  | Rama                          | PR  | Base del PR               |
+  | ------------------------------------- | ----------------------------- | --- | ------------------------- |
+  | 1 · Recarga mensual y saldo           | `suscriptions`                | #16 | `develop`                 |
+  | 2 · Reglas del lead                   | `feat/reglas-lead`            | #17 | `suscriptions`            |
+  | 3 · Formulario del cliente            | `feat/formulario-cliente`     | #18 | `feat/reglas-lead`        |
   | 4 · Alta y validación del profesional | `feat/validacion-profesional` | #19 | `feat/formulario-cliente` |
 
-  La CI (`.github/workflows/ci.yml`) solo corre en PR contra `develop` o `main`: los PR 2–4
-  la pasan al reorientarse a `develop`. En local, las cuatro fases pasan `pnpm lint`,
-  `pnpm test` y `pnpm verify:flow`.
+  La CI (`.github/workflows/ci.yml`) solo corre en PR contra `develop` o `main`. En local,
+  las cuatro fases pasan `pnpm lint`, `pnpm test` y `pnpm verify:flow`.
 
   **Estado (2026-09-29):** los PR #16–#19 se integraron en cadena en `suscriptions`, que va a
   `develop` en el PR #20. Encima, también contra `suscriptions`:
 
-  | Cambio | Rama | PR |
-  |---|---|---|
-  | Revisión de la Etapa 1 (5 puntos: vista previa, rechazo, concurrencia) | `fix/revision-etapa-1` | #21 |
-  | Devolución de recargas por el banco (SEPA / disputa) | `feat/devolucion-sepa` | #22 (sobre #21) |
-  | Ajuste de saldo en el admin, GeoNames y límite de SMS por IP | `feat/pendientes-etapa-1` | #23 (sobre #22) |
+  | Cambio                                                                 | Rama                      | PR              |
+  | ---------------------------------------------------------------------- | ------------------------- | --------------- |
+  | Revisión de la Etapa 1 (5 puntos: vista previa, rechazo, concurrencia) | `fix/revision-etapa-1`    | #21             |
+  | Devolución de recargas por el banco (SEPA / disputa)                   | `feat/devolucion-sepa`    | #22 (sobre #21) |
+  | Ajuste de saldo en el admin, GeoNames y límite de SMS por IP           | `feat/pendientes-etapa-1` | #23 (sobre #22) |
 
 ---
 
@@ -40,11 +39,11 @@ código (o volver a hablarlo con el cliente).
 
 ### Recarga mensual y acceso
 
-| Estado del profesional | ¿Ve solicitudes? | ¿Compra? |
-|---|---|---|
-| Registrado, sin recarga o con la recarga vencida (inactivo) | **Sí**, sin datos de contacto | **No** |
-| Recarga al día pero "En revisión" (no aprobado) | **Sí**, sin datos de contacto | **No** |
-| Recarga al día **y** aprobado | Sí | **Sí** |
+| Estado del profesional                                      | ¿Ve solicitudes?              | ¿Compra? |
+| ----------------------------------------------------------- | ----------------------------- | -------- |
+| Registrado, sin recarga o con la recarga vencida (inactivo) | **Sí**, sin datos de contacto | **No**   |
+| Recarga al día pero "En revisión" (no aprobado)             | **Sí**, sin datos de contacto | **No**   |
+| Recarga al día **y** aprobado                               | Sí                            | **Sí**   |
 
 - Confirmado por el cliente: "La cuenta inactiva permite visualizar Leads, más no
   comprarlos hasta no estar al día con la recarga mínima mensual."
@@ -89,9 +88,10 @@ código (o volver a hablarlo con el cliente).
 Una rama y un PR por fase. Ninguna fase se da por cerrada sin `pnpm lint && pnpm test` en
 verde y, si toca leads, pagos o auth, `pnpm verify:flow`.
 
-### Fase 1 — Recarga mensual y saldo · ✅ implementada, en PR
+### Fase 1 — Recarga mensual y saldo · ✅ integrada en `develop`
 
 Hecho:
+
 - Dominio: `ProfessionalAccount` (estado de la suscripción + saldo), libro append-only
   `credit_entries`, `SubscriptionPrice` (historial de importes de la recarga).
 - `StartLeadPurchase` exige la recarga al día (`402 SUBSCRIPTION_REQUIRED`). El saldo se
@@ -109,33 +109,37 @@ Hecho:
 - Tests de concurrencia vistos fallar sin el bloqueo, en memoria y contra Postgres.
 
 Sin verificar contra Stripe real (falta una clave de test en `apps/api/.env`):
+
 - Checkout de la recarga.
 - Creación de precios desde el admin.
 - Checkout de la compra.
 - Portal de cliente.
 
 Pendiente dentro de la Fase 1:
+
 - [x] Commit en `suscriptions`.
 - [x] Push y PR abierto (ver la tabla del principio).
 - [ ] Configurar en Stripe: el portal de cliente (cancelación **al final del periodo**) y
       los eventos del webhook listados en el README.
-- [x] Devolución de adeudos SEPA por el banco (`charge.dispute.*`): se retira el saldo y lo
-      ya gastado queda como **deuda** (`debt_cents`); con deuda no se compra y la siguiente
-      recarga la salda primero. Disputa ganada: se devuelve. Migración `af5e07db6017`.
-      Decidido el 2026-09-29. Sin verificar contra Stripe real.
-- [ ] Qué hacer con la **disputa de una compra de contacto** (no de la recarga): hoy no toca
-      el saldo y queda en Stripe para que el admin decida. Confirmar con el cliente.
-- [x] Formulario de ajuste manual de saldo en el panel de admin (abonar o cargar, con motivo;
-      un abono salda antes la deuda).
+- [ ] Devolución de adeudos SEPA por el banco o disputa (`charge.dispute.created`).
+      **No implementado.** Decisión (2026-09-29): se retira la recarga **entera** aunque ya
+      se gastara; lo que falte queda como **deuda** (no saldo negativo). Con deuda no se
+      compra y cualquier abono la salda primero; una disputa ganada devuelve el saldo. El
+      banco retira el dinero sin permiso nuestro: no es una devolución que decidamos.
+- [ ] Disputa de una **compra de contacto** (no de la recarga): hoy no toca el saldo.
+      Pendiente de decidir con el cliente (ver §3).
+- [ ] Formulario de ajuste manual de saldo en el panel de admin (hoy solo por API).
 
-### Fase 2 — Reglas del lead · ✅ implementada, en PR
+### Fase 2 — Reglas del lead · ✅ integrada en `develop`
 
 Hecho:
+
 - **5 plazas por lead** (`DEFAULT_MAX_PURCHASES`, `LEAD_MAX_PURCHASES=5`). Los leads
   existentes conservan sus 3: el consentimiento de su cliente (`max_recipients`) se dio
   para un máximo de 3 destinatarios.
-- **Precio sugerido de 5 €** en todos los oficios (`categories.csv`). Ojo: `pnpm api:seed`
-  sobrescribe el sugerido de los oficios existentes con el del CSV.
+- **Precio sugerido de 5 €** en todos los oficios (`categories.csv`). (Al principio
+  `pnpm api:seed` sobrescribía el sugerido de los oficios existentes; desde la Fase 3 ya no
+  pisa el que haya cambiado el admin.)
 - **IVA incluido** con desglose al 21 % (`vat_breakdown` en el dominio; `price_breakdown`
   en el API). La base se redondea al céntimo y la cuota es la diferencia.
 - **Leads agotados visibles como "Cerrado"**, después de los abiertos y sin compra. Quien
@@ -148,6 +152,7 @@ Hecho:
   Invariante §4.4 de `AGENTS.md` reescrito.
 
 Pendiente o fuera de esta fase:
+
 - [x] Commit en `feat/reglas-lead`.
 - [x] Push y PR abierto (ver la tabla del principio).
 - [ ] Subir `LEAD_MAX_PURCHASES=5` y `PRIVACY_POLICY_VERSION=2026-09-v2` en el entorno de
@@ -158,9 +163,10 @@ Pendiente o fuera de esta fase:
       profesionales).
 - [ ] Texto legal completo de la política (hoy solo existe el resumen del formulario).
 
-### Fase 3 — Catálogo, cobertura y formulario del cliente (F01) · ✅ implementada, en PR
+### Fase 3 — Catálogo, cobertura y formulario del cliente (F01) · ✅ integrada en `develop`
 
 Hecho:
+
 - **Catálogo de dos niveles**, categoría → servicio, con las 10 categorías y 86 servicios
   del documento (`categories.csv`, `services.csv`). El cliente elige una categoría y, de
   forma opcional, varios servicios suyos. Los servicios se ven **junto al botón
@@ -180,6 +186,7 @@ Hecho:
 - Migración `3a35d15d30d7`.
 
 Interpretaciones que conviene confirmar con el cliente:
+
 - [ ] **Anidación de servicios:** en la transcripción algunos servicios cuelgan de otros
       ("Alicatador" bajo "Cerramiento de terrazas", "Cambiar encimera de cocina" bajo
       "Cambiar plato de ducha"), lo que parece un error de la transcripción. Se han dejado
@@ -192,6 +199,7 @@ Interpretaciones que conviene confirmar con el cliente:
       comunidad, nave, terreno).
 
 Pendiente:
+
 - [x] Commit en `feat/formulario-cliente`.
 - [x] Push y PR abierto (ver la tabla del principio).
 - [ ] **Proveedor de SMS** (§3): adaptador real del puerto y `PHONE_VERIFICATION_BACKEND`.
@@ -203,9 +211,10 @@ Pendiente:
 - [x] Filtro por servicio en el explorador: llegó con la Fase 4.
 - [ ] Revisión visual del formulario en el navegador (no se pudo hacer en esta sesión).
 
-### Fase 4 — Registro y validación del profesional (F02) · ✅ implementada, en PR
+### Fase 4 — Registro y validación del profesional (F02) · ✅ integrada en `develop`
 
 Hecho:
+
 - **Alta del profesional:**
   - tipo (autónomo, empresa o trabajador independiente);
   - razón social y NIF/NIE/CIF, validado con su letra o dígito de control;
@@ -220,6 +229,9 @@ Hecho:
   - estados `incomplete` → `pending` (el profesional envía) → `approved` / `rejected` (el admin);
   - cada paso queda auditado en `professional_verification_events`;
   - cola en el panel del admin (lo más antiguo primero) con el expediente.
+- **Envío del alta:** no hay botón de envío aparte. El profesional pulsa "Guardar" y, si
+  el alta queda completa, un diálogo pide confirmar el envío a revisión (avisa de que tipo,
+  razón social, NIF y documentos quedarán fijos). Cancelar deja el alta sin enviar.
 - **Acceso:**
   - incompleto o en revisión ve solicitudes, pero no compra (`403 PROFESSIONAL_NOT_APPROVED`);
   - el estado se muestra en "Solicitudes en tu zona" y en el botón de compra.
@@ -234,6 +246,7 @@ Hecho:
 - Migración `c7d7d55fbb83`.
 
 Decisiones tomadas en la implementación (confirmar si no encajan):
+
 - [ ] **Perfiles existentes:** quedan "incompletos" y tienen que aportar datos y documentos
       como un alta nueva antes de poder comprar.
 - [ ] **Bloqueo al enviar:** una vez enviada el alta, tipo, razón social, NIF y documentos
@@ -242,19 +255,64 @@ Decisiones tomadas en la implementación (confirmar si no encajan):
 - [ ] **Rechazo definitivo:** no hay reapertura. Solo se reembolsa el **primer** cobro,
       como dice el documento; si la revisión tarda más de un mes y hay un segundo cobro,
       ese no se reembolsa solo.
-- [ ] **Fotos opcionales**, documentos obligatorios. El NIF es opcional para el trabajador
-      independiente que se identifica con pasaporte.
+- [ ] **Fotos opcionales**, documentos obligatorios.
+- [x] **El NIF/NIE/CIF es obligatorio para los tres tipos** (2026-10-03, decidido por el
+      equipo al probar el alta; el documento del cliente no exime a nadie y el pasaporte es
+      un documento que se adjunta, no un identificador fiscal). Antes se dejaba en blanco
+      al independiente con pasaporte: era una interpretación nuestra, no una regla del
+      cliente (pregunta 1 de [`preguntas-cliente.md`](./preguntas-cliente.md)).
+      **Consecuencia a confirmar:** un independiente que solo tenga pasaporte y no
+      NIE no puede completar el alta. Si el cliente quiere admitirlo, hará falta un campo o
+      un tipo de identificador propio, no dejarlo vacío.
 
 Sin verificar contra Stripe real (falta una clave de test):
+
 - El reembolso de la factura (`invoice.payments` → PaymentIntent) y la cancelación de la
   suscripción. Probado con el objeto real del SDK, pero sin llamar a Stripe.
 
 Pendiente:
+
 - [x] Commit en `feat/validacion-profesional`.
 - [x] Push y PR abierto (ver la tabla del principio).
 - [ ] Crear el bucket privado en GCS (`GCS_PRIVATE_BUCKET`) para Cloud Run: sin él el API
       no arranca con `STORAGE_BACKEND=gcs`.
 - [ ] Revisión visual del perfil y de la cola del admin en el navegador.
+
+### Revisión de la Etapa 1 (PR #21) · ✅ integrada
+
+Correcciones tras revisar las fases 1–4; ya están en los invariantes de `AGENTS.md`:
+
+- **Rechazo del alta con el primer cobro SEPA en curso:** se prohíbe hasta que se confirme
+  o falle (`409 REJECTION_AWAITING_PAYMENT`), porque ese adeudo no se puede anular y
+  abonaría saldo a un rechazado sin reembolso.
+- **Rechazo sin reembolsos a medias:** `assert_can_reject` comprueba estado y motivo antes
+  de llamar a la pasarela, y el reembolso y la cancelación son idempotentes.
+- **Concurrencia en el alta:** quien escribe el perfil lo carga con `get_for_update`
+  (orden de bloqueo: profesional antes que cuenta); el rechazo mantiene el bloqueo durante
+  las llamadas a Stripe.
+- **Vista previa según la política aceptada:** `allows_public_preview` sale de la versión de
+  política aceptada (`PUBLIC_PREVIEW_POLICY_VERSIONS`), no de que el lead sea nuevo.
+- **Notas de revisión de compras** (`PurchaseReview`, append-only): el admin marca una
+  compra para revisión manual (`POST /admin/purchases/{id}/reviews`).
+
+### Roles y panel de admin · ✅ hecho en `improvements-1` (sin integrar)
+
+Pedido interno: asignar admins desde la consola no es viable para el cliente.
+
+- **Roles:** `professional` y `admin`, guardados en `users.role`. El cliente sigue sin
+  cuenta (publica como invitado, como se acordó). El admin cambia roles desde el panel;
+  surte efecto en la siguiente petición. El claim de Firebase solo crea el primer admin y
+  la CLI `manage_admin` escribe en la BD. Invariante §4.14 de `AGENTS.md`.
+- **Auditoría:** `user_role_events` (append-only, con el admin que hizo el cambio).
+- **Panel:** dashboard con métricas y gráficas diarias (7/30/90 días, hora de Madrid),
+  directorio de usuarios con filtros y expediente de alta, y listado global de compras
+  (sin PII del cliente), todo paginado.
+- `pnpm verify:flow` incluye el paso 13 (roles con token real de Firebase).
+
+Pendiente:
+
+- [ ] Revisión visual del panel en el navegador.
+- [ ] Dividir el panel en secciones o pestañas si la página única se hace larga.
 
 ### Fase 5 — Notificaciones, WhatsApp, factura y navegación · ⏳ pendiente
 
@@ -281,9 +339,11 @@ Pendiente:
 4. **Texto de la landing** que sustituye "Sin cuota mensual ni permanencia" (ya retirado;
    el texto nuevo es una propuesta).
 5. **Proveedores** de SMS (ya hay puerto y adaptador de desarrollo), WhatsApp y email.
-6. **Confirmar las interpretaciones de la Fase 3** (anidación de servicios, opciones de
+6. **Disputa de una compra de contacto:** ¿devuelve saldo, queda como deuda o la resuelve
+   el admin a mano? (La de la recarga ya está decidida, ver Fase 1.)
+7. **Confirmar las interpretaciones de la Fase 3** (anidación de servicios, opciones de
    programación y de tipo de inmueble).
-7. **Confirmar las decisiones de la Fase 4**: perfiles existentes pasan a "incompletos",
+8. **Confirmar las decisiones de la Fase 4**: perfiles existentes pasan a "incompletos",
    bloqueo de los datos al enviar el alta (sin estado "devuelta para corregir"), rechazo
    definitivo que solo reembolsa el primer cobro, y fotos opcionales.
 

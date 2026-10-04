@@ -26,13 +26,13 @@ src/
 
 **Dónde va cada cosa:**
 
-| Si es… | va en… | y no debe… |
-|---|---|---|
-| Una URL del API | `services/` | aparecer en un componente o hook |
-| Estado, efecto o llamada | `hooks/` | vivir dentro del JSX de un componente |
-| Cálculo o formateo sin React | `helpers/` | importar nada de `react` |
-| Presentación sin dominio | `components/ui/` | conocer `Lead`, `Purchase`… |
-| Presentación con dominio | `components/features/` | hacer `fetch` directamente |
+| Si es…                       | va en…                 | y no debe…                            |
+| ---------------------------- | ---------------------- | ------------------------------------- |
+| Una URL del API              | `services/`            | aparecer en un componente o hook      |
+| Estado, efecto o llamada     | `hooks/`               | vivir dentro del JSX de un componente |
+| Cálculo o formateo sin React | `helpers/`             | importar nada de `react`              |
+| Presentación sin dominio     | `components/ui/`       | conocer `Lead`, `Purchase`…           |
+| Presentación con dominio     | `components/features/` | hacer `fetch` directamente            |
 
 Un componente que hace `fetch`, o un helper que importa React, están en la capa
 equivocada. Los componentes de `ui/` deben poder copiarse a otro proyecto sin arrastrar
@@ -78,7 +78,7 @@ solo `lib/firebase.ts` y ese hook.
 **Cero cadenas de UI incrustadas en componentes.** Todo texto visible sale de
 `messages/es.json` / `messages/en.json`.
 
-- Los dos archivos deben tener **exactamente las mismas claves** (hoy: 484 cada uno).
+- Los dos archivos deben tener **exactamente las mismas claves** (hoy: 631 cada uno).
   Comprobación rápida:
 
   ```bash
@@ -91,7 +91,10 @@ solo `lib/firebase.ts` y ese hook.
   console.log({es:es.size, en:en.size, falta, sobra});"
   ```
 
-- Los errores del API se traducen **por `code`**, con `useApiError()`. El `message` que
+- Los errores del API se traducen **por `code`**, con `useApiError()`. Un test
+  (`useApiError.test.tsx`) lee los códigos del backend y falla si alguno no tiene texto en
+  los dos idiomas. Una respuesta sin el JSON del API (proxy, 502) recibe un código según su
+  estado (`SERVICE_UNAVAILABLE`, `PAYLOAD_TOO_LARGE`...) en `services/api.ts`. El `message` que
   manda el backend es para desarrolladores: no lo muestres al usuario. Un código
   desconocido cae en `errors.generic` — nunca se filtra texto crudo del backend.
 - Los mensajes de validación son **claves**, no frases: los esquemas Zod de
@@ -116,12 +119,31 @@ el API rechazará.
 `validatePhotos()` filtra en cliente lo que el backend rechazaría, para no gastar una
 subida al bucket en un archivo inválido.
 
+**Errores en formularios largos.** Si el botón de enviar queda lejos del primer campo, un
+error fuera de pantalla hace que el botón "no haga nada". El patrón (ver `ProfileForm`, `LeadWizard` y `AdminManualLeadForm`):
+
+- Cada campo lleva `fieldKey` (o `data-field` + `tabIndex={-1}` si es un grupo).
+- `FormErrorSummary` va **junto al botón**: lista los campos con error, toma el foco en
+  cada envío fallido (`attempt`) y cada entrada lleva al campo con `focusField`.
+- `useApiFormErrors(map)` reparte el error del backend: un código de negocio
+  (`INVALID_TAX_ID`) o un campo del esquema (`tax_id`) va a su campo; lo que no tiene campo
+  queda como `Alert` general. El `map` es una constante de módulo, no un literal en render.
+- En un formulario por pasos, cada campo sabe en qué paso vive (`FIELD_STEP` en
+  `useLeadForm`): un error del servidor devuelve al primer paso con error, y los errores de
+  otros pasos se conservan al avanzar o retroceder.
+- Al salir de un campo de texto ya escrito se valida (`checkField`): no se marcan campos
+  vacíos ni se quitan errores del servidor. El resumen solo aparece tras un intento de
+  envío; antes, el error ya se ve en su campo.
+- Accesibilidad: los errores de campo usan `FieldError` (sin `role="alert"`, enlazado con
+  `aria-describedby`). El único aviso que interrumpe es el resumen; con un `alert` por
+  campo, el lector de pantalla leía todos los errores de golpe.
+
 ---
 
 ## Tests
 
 ```bash
-pnpm test              # vitest, 126 tests
+pnpm test              # vitest, 201 tests
 pnpm test:watch
 pnpm lint              # eslint + tsc --noEmit
 ```
@@ -162,10 +184,15 @@ Tailwind con el sistema de diseño **«Voy a Reformar»**
   (nunca blanco: no cumple AA), sin degradados y **sin sombra en tarjetas de listado** — la
   elevación se reserva a menús y modales.
 - Primitivos en `components/ui/`: `Button`, `Field`, `Card`/`Panel`/`Tag`/`Seal`/`LiveDot`,
-  `OptionCard`, `ChipGroup`, `ProgressBar`, `Alert`, `Container`. `OptionCard` envuelve un `input` nativo
+  `OptionCard`, `ChipGroup`, `ProgressBar`, `Alert`, `Container`, `Modal`. `OptionCard` envuelve un `input` nativo
   en `sr-only` para conservar rol y etiqueta accesible: no lo sustituyas por un `div` con
-  `onClick`. `ChipGroup` es el *chip de selección* del handoff (§4), con la misma técnica;
+  `onClick`. `ChipGroup` es el _chip de selección_ del handoff (§4), con la misma técnica;
   lo usan los servicios, el tipo de inmueble y la programación del formulario.
+- `Modal` (sin `<dialog>` nativo: jsdom no implementa `showModal()`) atrapa el foco, cierra
+  con Escape o clic fuera y lo devuelve al cerrar; con `dismissible={false}` no se puede
+  cerrar mientras hay una petición en curso.
+- Tras guardar un formulario, refresca la sesión con `auth.refreshMe({ silent: true })`:
+  sin `silent`, `AuthGate` marca `loading` y desmonta la página (parpadeo).
 - Clases condicionales con `cn()` (`helpers/cn.ts`), que resuelve conflictos de Tailwind.
 - La tipografía es Poppins autohospedada con `next/font/google` en el layout de idioma. No
   la sirvas desde `fonts.googleapis.com`: bloquearía el primer render.
@@ -178,7 +205,7 @@ con error (ya lo hace `components/ui/Field.tsx`, úsalo en vez de montar `<input
 
 ## Dependencias
 
-pnpm 11: los paquetes que necesitan scripts de instalación (`sharp`, `esbuild`,
+pnpm 10.34.5: los paquetes que necesitan scripts de instalación (`sharp`, `esbuild`,
 `unrs-resolver`, `@firebase/util`, `protobufjs`) se declaran en `allowBuilds` dentro de
 `pnpm-workspace.yaml` en la raíz. `onlyBuiltDependencies` y el campo `pnpm` de
 `package.json` **ya no se leen** en esta versión.

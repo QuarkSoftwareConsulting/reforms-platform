@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from app.domain.models import (
@@ -22,8 +22,11 @@ from app.domain.models import (
     ProfessionalAccount,
     Purchase,
     PurchaseReview,
+    PurchaseStatus,
     SubscriptionPrice,
     User,
+    UserRole,
+    UserRoleEvent,
     VerificationEvent,
     VerificationStatus,
 )
@@ -97,6 +100,41 @@ class PaidPurchaseMetrics:
     revenue_by_currency: dict[str, int]
 
 
+@dataclass(frozen=True, slots=True)
+class AdminPurchaseFilters:
+    """Filtros del listado global de compras. Las fechas acotan `created_at`."""
+
+    status: PurchaseStatus | None = None
+    professional_id: UUID | None = None
+    created_from: datetime | None = None
+    created_to: datetime | None = None
+    """Exclusivo: `created_at < created_to`."""
+    limit: int = 20
+    offset: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class AdminUserFilters:
+    """Filtros del directorio de usuarios del admin."""
+
+    query: str | None = None
+    """Busca en email, nombre visible y nombre comercial."""
+    role: UserRole | None = None
+    verification_status: VerificationStatus | None = None
+    """Solo usuarios con perfil profesional en ese estado del alta."""
+    limit: int = 20
+    offset: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class DailyCount:
+    """Cuantos hubo un dia (en la zona horaria pedida) y cuanto sumaron, por divisa."""
+
+    day: date
+    count: int
+    amount_by_currency: dict[str, int]
+
+
 class LeadRepositoryPort(ABC):
     @abstractmethod
     async def add(self, lead: Lead) -> Lead: ...
@@ -131,6 +169,13 @@ class LeadRepositoryPort(ABC):
 
     @abstractmethod
     async def dashboard_counts(self) -> LeadDashboardCounts: ...
+
+    @abstractmethod
+    async def daily_created(self, *, start: datetime, end: datetime, tz: str) -> list[DailyCount]:
+        """Leads creados por dia en `[start, end)`, agrupados en la zona `tz`.
+
+        Solo devuelve los dias con datos; `amount_by_currency` va vacio.
+        """
 
 
 class PurchaseRepositoryPort(ABC):
@@ -176,6 +221,17 @@ class PurchaseRepositoryPort(ABC):
     @abstractmethod
     async def paid_metrics(self) -> PaidPurchaseMetrics: ...
 
+    @abstractmethod
+    async def daily_paid(self, *, start: datetime, end: datetime, tz: str) -> list[DailyCount]:
+        """Compras pagadas por dia de `paid_at` en `[start, end)`, con su importe."""
+
+    @abstractmethod
+    async def list_admin(self, filters: AdminPurchaseFilters) -> list[Purchase]:
+        """Todas las compras, las mas recientes primero."""
+
+    @abstractmethod
+    async def count_admin(self, filters: AdminPurchaseFilters) -> int: ...
+
 
 class UserRepositoryPort(ABC):
     @abstractmethod
@@ -188,7 +244,40 @@ class UserRepositoryPort(ABC):
     async def get_by_firebase_uid(self, firebase_uid: str) -> User | None: ...
 
     @abstractmethod
+    async def get_by_email(self, email: str) -> User | None:
+        """Sin distinguir mayusculas. Firebase no repite emails dentro de un proyecto."""
+
+    @abstractmethod
     async def update(self, user: User) -> User: ...
+
+    @abstractmethod
+    async def get_for_update(self, user_id: UUID) -> User | None:
+        """Bloquea la fila del usuario hasta el final de la transaccion."""
+
+    @abstractmethod
+    async def lock_admins(self) -> list[UUID]:
+        """Bloquea las filas de todos los admins y devuelve sus ids.
+
+        Lo usa quien degrada a un admin: bloquear solo la fila objetivo no basta,
+        porque dos admins degradandose el uno al otro bloquearian filas distintas y
+        ambos verian "queda otro admin". Si ademas hace falta la fila objetivo, se
+        bloquea DESPUES de esta llamada.
+        """
+
+    @abstractmethod
+    async def list_admin(self, filters: AdminUserFilters) -> list[User]:
+        """Los mas recientes primero."""
+
+    @abstractmethod
+    async def count_admin(self, filters: AdminUserFilters) -> int: ...
+
+    @abstractmethod
+    async def add_role_event(self, event: UserRoleEvent) -> None:
+        """Auditoria append-only de los cambios de rol."""
+
+    @abstractmethod
+    async def list_role_events(self, user_id: UUID) -> list[UserRoleEvent]:
+        """Del mas reciente al mas antiguo."""
 
 
 class ProfessionalRepositoryPort(ABC):
@@ -200,6 +289,10 @@ class ProfessionalRepositoryPort(ABC):
 
     @abstractmethod
     async def get_by_user_id(self, user_id: UUID) -> Professional | None: ...
+
+    @abstractmethod
+    async def get_many_by_user_ids(self, user_ids: set[UUID]) -> dict[UUID, Professional]:
+        """Perfiles indexados por `user_id`; los usuarios sin perfil no aparecen."""
 
     @abstractmethod
     async def get_for_update(self, professional_id: UUID) -> Professional | None:
@@ -350,6 +443,10 @@ class CreditLedgerRepositoryPort(ABC):
     @abstractmethod
     async def topup_totals(self) -> dict[str, int]:
         """Suma de recargas cobradas por divisa (en centimos)."""
+
+    @abstractmethod
+    async def daily_topups(self, *, start: datetime, end: datetime, tz: str) -> list[DailyCount]:
+        """Recargas cobradas por dia en `[start, end)`, con su importe."""
 
 
 class SubscriptionPriceRepositoryPort(ABC):

@@ -36,7 +36,7 @@ bloquean la terminal. Espera a que `/health` devuelva `database: true` antes de 
 ## 2 · Ejecutar
 
 ```bash
-pnpm verify:flow                # 44 comprobaciones (2 se omiten sin clave de Stripe)
+pnpm verify:flow                # 15 pasos (2 comprobaciones se omiten sin clave de Stripe)
 pnpm verify:flow -- --verbose   # muestra cada peticion y respuesta
 pnpm verify:flow -- --keep      # conserva los datos de prueba para inspeccionarlos
 ```
@@ -53,6 +53,7 @@ tantas veces como quieras.
 | 2 | `lead_consents` guarda politica, IP y user-agent **tomados del servidor** |
 | 3 | El backend verifica un ID token real de Firebase |
 | 3a | Sin alta aprobada no se compra; el documento va al bucket privado (403 sin firma) y el admin lo descarga firmado; un rechazado deja de ver solicitudes |
+| 3b | Sin recarga mensual el profesional **ve** solicitudes pero comprar da `402 SUBSCRIPTION_REQUIRED` |
 | 4 | El explorador **no** expone nombre completo, telefono ni email; si muestra nombre de pila, CP e IVA desglosado; el detalle sigue bloqueado |
 | 5 | Si la pasarela falla: 503 y la plaza se libera al instante |
 | 6 | Firma forjada → 401. Solo el webhook firmado desbloquea |
@@ -61,14 +62,17 @@ tantas veces como quieras.
 | 9 | La compra de un profesional **no** desbloquea para otro |
 | 10 | A las 5 ventas el lead se agota: el sexto recibe `409 LEAD_CAP_REACHED` y lo ve como cerrado |
 | 11 | Solo el admin fija precios; el override manda sobre el sugerido y se puede borrar |
+| 12 | La recarga (`invoice.paid`) activa la cuenta y abona saldo; el saldo paga contactos |
+| 13 | El rol se cambia desde el panel y surte efecto con el mismo token; nadie se cambia el suyo |
 
 ## 4 · Interpretar el resultado
 
-**Todo OK con 1 `SKIP`** — es lo normal sin clave de Stripe. El skip es la creacion de la
-sesion de Checkout; el resto del camino de pago sí se verifica firmando el webhook con
-HMAC. **Reporta el skip explicitamente al usuario**, no lo presentes como cobertura total.
+**Todo OK con 2 `SKIP`** — es lo normal sin clave de Stripe. Los skips son el Checkout de la
+recarga (paso 3b, tambien sin `STRIPE_TOPUP_PRICE_ID`) y la sesion de Checkout de la compra
+(paso 5); el resto del camino de pago sí se verifica firmando el webhook con
+HMAC. **Reporta los skips explicitamente al usuario**, no lo presentes como cobertura total.
 
-Para cubrirlo tambien: pon una clave de test (`sk_test_...`) en `STRIPE_SECRET_KEY` de
+Para cubrirlos tambien: pon una clave de test (`sk_test_...`) en `STRIPE_SECRET_KEY` de
 `apps/api/.env` y vuelve a ejecutar. El script la detecta y pasa por Stripe de verdad.
 
 **Un `FALLO`** — el mensaje dice qué invariante se rompio y con qué cuerpo de respuesta.

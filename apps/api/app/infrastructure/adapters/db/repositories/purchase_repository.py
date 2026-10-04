@@ -3,14 +3,21 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TypeVar
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, func, or_, select
+from sqlalchemy import ColumnElement, Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.ports import PaidPurchaseMetrics, PurchaseRepositoryPort
+from app.application.ports import (
+    AdminPurchaseFilters,
+    DailyCount,
+    PaidPurchaseMetrics,
+    PurchaseRepositoryPort,
+)
 from app.domain.exceptions import PurchaseNotFoundError
 from app.domain.models import Purchase, PurchaseStatus
+from app.infrastructure.adapters.db.aggregates import daily_counts
 from app.infrastructure.adapters.db.mappers import apply_purchase, purchase_to_domain
 from app.infrastructure.adapters.db.models import LeadPurchaseRow
 
@@ -21,6 +28,9 @@ SLOT_OCCUPYING_STATUSES = (
     PurchaseStatus.REFUNDED,
     PurchaseStatus.RESERVED,
 )
+
+
+T = TypeVar("T", bound=tuple[object, ...])
 
 
 class SqlAlchemyPurchaseRepository(PurchaseRepositoryPort):
@@ -154,3 +164,40 @@ class SqlAlchemyPurchaseRepository(PurchaseRepositoryPort):
             lead_count=int(count_row[1] or 0),
             revenue_by_currency={currency: int(amount) for currency, amount in revenue_rows},
         )
+
+    async def daily_paid(self, *, start: datetime, end: datetime, tz: str) -> list[DailyCount]:
+        return await daily_counts(
+            self._session,
+            at=LeadPurchaseRow.paid_at,
+            start=start,
+            end=end,
+            tz=tz,
+            where=LeadPurchaseRow.status == PurchaseStatus.PAID,
+            currency=LeadPurchaseRow.currency,
+            amount=LeadPurchaseRow.amount_cents,
+        )
+
+    def _admin_filters(self, stmt: Select[T], filters: AdminPurchaseFilters) -> Select[T]:
+        if filters.status is not None:
+            stmt = stmt.where(LeadPurchaseRow.status == filters.status)
+        if filters.professional_id is not None:
+            stmt = stmt.where(LeadPurchaseRow.professional_id == filters.professional_id)
+        if filters.created_from is not None:
+            stmt = stmt.where(LeadPurchaseRow.created_at >= filters.created_from)
+        if filters.created_to is not None:
+            stmt = stmt.where(LeadPurchaseRow.created_at < filters.created_to)
+        return stmt
+
+    async def list_admin(self, filters: AdminPurchaseFilters) -> list[Purchase]:
+        stmt = (
+            self._admin_filters(select(LeadPurchaseRow), filters)
+            .order_by(LeadPurchaseRow.created_at.desc(), LeadPurchaseRow.id)
+            .limit(filters.limit)
+            .offset(filters.offset)
+        )
+        rows = (await self._session.execute(stmt)).scalars().all()
+        return [purchase_to_domain(row) for row in rows]
+
+    async def count_admin(self, filters: AdminPurchaseFilters) -> int:
+        stmt = self._admin_filters(select(func.count(LeadPurchaseRow.id)), filters)
+        return (await self._session.execute(stmt)).scalar_one()

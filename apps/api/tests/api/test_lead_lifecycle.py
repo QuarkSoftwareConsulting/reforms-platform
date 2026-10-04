@@ -289,7 +289,7 @@ class TestAuthorization:
         assert body["role"] == "professional"
         assert body["professional"] is None
 
-    async def test_admin_claim_is_mirrored_as_admin_role(
+    async def test_admin_claim_creates_the_account_as_admin(
         self, api: AsyncClient, admin_auth: dict[str, str]
     ) -> None:
         response = await api.get("/me", headers=admin_auth)

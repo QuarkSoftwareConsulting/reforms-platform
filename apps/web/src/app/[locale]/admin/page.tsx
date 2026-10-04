@@ -1,29 +1,16 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { setRequestLocale } from "next-intl/server";
 
-import { AdminGate } from "@/components/features/AdminGate";
-import { AdminPanel } from "@/components/features/AdminPanel";
-import { AdminVerificationQueue } from "@/components/features/AdminVerificationQueue";
-import { Container } from "@/components/ui/Container";
+import { AdminDashboard } from "@/components/features/AdminDashboard";
 import { isAppLocale, type AppLocale } from "@/i18n/routing";
 
-export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
-  const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: "admin" });
-  return { title: t("title"), robots: { index: false, follow: false } };
+import { adminSectionMetadata } from "./metadata";
+
+export function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
+  return adminSectionMetadata(params, "overview");
 }
 
-export default async function AdminPage({ params }: { params: Promise<{ locale: string }> }) {
+export default async function AdminOverviewPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: raw } = await params;
-  const locale = (isAppLocale(raw) ? raw : "es") as AppLocale;
-  setRequestLocale(locale);
-  return (
-    <Container className="py-10">
-      <AdminGate>
-        <div className="space-y-8">
-          <AdminVerificationQueue />
-          <AdminPanel />
-        </div>
-      </AdminGate>
-    </Container>
-  );
+  setRequestLocale((isAppLocale(raw) ? raw : "es") as AppLocale);
+  return <AdminDashboard />;
 }

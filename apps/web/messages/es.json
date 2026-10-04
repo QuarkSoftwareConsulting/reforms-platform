@@ -127,6 +127,7 @@
     "emailLabel": "Email",
     "emailHint": "Te enviamos una copia de tu solicitud.",
     "consentLabel": "He leído y acepto la política de tratamiento de datos. Autorizo a Voy a Reformar a tratar mis datos para validar la solicitud, a mostrar mi nombre de pila y mi código postal a los profesionales registrados y a ceder mis datos de contacto a un máximo de {maxProfessionals} profesionales que compren el contacto, conforme al RGPD (UE) 2016/679 y la LOPDGDD 3/2018.",
+    "consentShortLabel": "Consentimiento",
     "policyShow": "Ver resumen de la política de datos",
     "policyHide": "Ocultar el resumen",
     "policy": {
@@ -237,7 +238,11 @@
     "needsApprovalPending": "Tu alta está en revisión. Podrás comprar cuando la aprobemos.",
     "completeRegistration": "Ver mi alta",
     "debtBlocksPurchase": "Tienes {debt} pendientes por una mensualidad devuelta por tu banco. Podrás comprar cuando se salde con tu próxima mensualidad.",
-    "reviewAccount": "Ver mi mensualidad"
+    "reviewAccount": "Ver mi mensualidad",
+    "purchaseConfirmed": "Pago confirmado. Ya puedes contactar con el cliente.",
+    "purchaseConfirming": "Estamos confirmando tu pago. El contacto aparecerá aquí en unos segundos; no hace falta que vuelvas a pagar.",
+    "purchaseDelayed": "Tu pago todavía no se ha confirmado. No vuelvas a pagar: el contacto se desbloqueará en cuanto Stripe lo confirme y también lo verás en «Mis contactos».",
+    "checkAgain": "Comprobar de nuevo"
   },
   "purchases": {
     "title": "Mis contactos",
@@ -279,6 +284,9 @@
     "canceledNotice": "Tu recarga está cancelada. Puedes seguir viendo solicitudes y tu saldo se conserva; para comprar, reactívala.",
     "checkoutSuccess": "Hemos recibido tus datos de pago. La cuenta se activará cuando se confirme el cobro.",
     "checkoutCancelled": "Has cancelado el pago. Tu mensualidad no se ha activado.",
+    "confirming": "Estamos confirmando tu pago con Stripe. Suele tardar unos segundos; no hace falta que vuelvas a pagar.",
+    "confirmationDelayed": "Tu pago todavía no se ha confirmado. No vuelvas a pagar: la mensualidad se activará en cuanto Stripe lo confirme. Si en unos minutos sigue igual, escríbenos.",
+    "checkAgain": "Comprobar de nuevo",
     "historyTitle": "Movimientos de saldo",
     "historyEmpty": "Todavía no hay movimientos.",
     "entry": {
@@ -325,6 +333,8 @@
     "registrationHint": "Necesitamos estos datos para validar tu alta y para facturarte.",
     "identityLocked": "Ya enviaste tu alta a revisión: el tipo, la razón social y el NIF no se pueden cambiar.",
     "typeLabel": "¿Cómo te das de alta?",
+    "typeShortLabel": "Tipo de alta",
+    "servicesShortLabel": "Servicios",
     "types": {
       "self_employed": {
         "title": "Autónomo",
@@ -342,7 +352,13 @@
     "legalNameLabel": "Razón social o nombre completo",
     "legalNameHint": "El nombre al que emitiremos las facturas.",
     "taxIdLabel": "NIF, NIE o CIF",
-    "taxIdHint": "Si eres trabajador independiente con pasaporte, puedes dejarlo en blanco.",
+    "reviewDialog": {
+      "title": "¿Enviar tu alta a revisión?",
+      "body": "Revisaremos tu perfil y tus documentos. Mientras tanto puedes ver solicitudes, pero solo podrás comprarlas cuando aprobemos tu alta.",
+      "warning": "Una vez enviada no podrás cambiar el tipo de alta, la razón social, el NIF ni los documentos.",
+      "confirm": "Confirmar y enviar",
+      "cancel": "Revisar antes"
+    },
     "addressLabel": "Dirección de la empresa o domicilio",
     "uploadsAfterSaving": "Cuando guardes el perfil podrás subir tus fotos y documentos.",
     "create": "Crear perfil",
@@ -379,8 +395,7 @@
       "reason": "Motivo",
       "incompleteTitle": "Completa tu alta",
       "incompleteBody": "Para comprar contactos tenemos que validar tu alta. Te falta:",
-      "readyBody": "Ya está todo. Envía tu alta y la revisaremos.",
-      "submit": "Enviar alta a revisión",
+      "readyBody": "Ya está todo. Al guardar te pediremos confirmar el envío a revisión.",
       "missing": {
         "categories": "Elegir al menos un oficio",
         "professional_type": "Indicar cómo te das de alta",
@@ -442,6 +457,7 @@
       "policy": "Versión de política",
       "acceptedAt": "Fecha y hora de aceptación",
       "campaign": "Referencia de campaña",
+      "created": "Lead «{title}» publicado.",
       "submit": "Publicar lead manual"
     },
     "categoryPricing": {
@@ -464,7 +480,10 @@
       "savePrice": "Guardar precio",
       "purchases": "Ver compras",
       "disable": "Deshabilitar",
-      "republish": "Republicar"
+      "republish": "Republicar",
+      "showManual": "Crear solicitud manual",
+      "hideManual": "Ocultar formulario",
+      "empty": "No hay solicitudes con estos filtros."
     },
     "status": {
       "published": "Publicado",
@@ -489,12 +508,6 @@
       "expired": "Caducado",
       "failed": "Fallido",
       "refunded": "Reembolsado"
-    },
-    "professionals": {
-      "title": "Directorio de profesionales",
-      "subtitle": "Consulta los perfiles profesionales registrados.",
-      "search": "Buscar por negocio o zona",
-      "location": "{city} · {distance} km"
     },
     "account": "Mensualidad",
     "balance": "Saldo",
@@ -534,6 +547,64 @@
       "rejectedRefunded": "Alta rechazada. Se reembolsaron {amount} y se canceló la recarga.",
       "rejectedNothingToRefund": "Alta rechazada. No había ningún cobro que reembolsar."
     },
+    "dashboard": {
+      "title": "Resumen",
+      "range": "Periodo",
+      "lastDays": "Últimos {days} días",
+      "leadsChart": "Solicitudes publicadas por día",
+      "purchasesChart": "Contactos vendidos por día",
+      "revenueChart": "Ingresos por contactos por día ({currency})",
+      "topupsChart": "Recargas cobradas por día ({currency})",
+      "showTable": "Ver los datos en una tabla",
+      "day": "Día",
+      "value": "Valor",
+      "published": "Publicados",
+      "exhausted": "Agotados",
+      "paidLeads": "Leads con alguna venta",
+      "topupRevenue": "Recargas cobradas"
+    },
+    "users": {
+      "title": "Usuarios",
+      "subtitle": "Todos los usuarios con cuenta. Los clientes no tienen cuenta: publican como invitados.",
+      "search": "Buscar por email o negocio",
+      "role": "Rol",
+      "verificationStatus": "Estado del alta",
+      "all": "Todos",
+      "empty": "No hay usuarios con esos filtros.",
+      "noProfile": "Sin perfil profesional",
+      "since": "Alta en la plataforma: {date}",
+      "roles": {
+        "professional": "Profesional",
+        "admin": "Administrador"
+      },
+      "makeAdmin": "Hacer administrador",
+      "makeProfessional": "Quitar administrador",
+      "viewDossier": "Ver expediente",
+      "confirmTitle": "Cambiar el rol de {email}",
+      "confirmPromote": "Podrá ver compras, datos de los profesionales y cambiar precios y roles. Surte efecto en su siguiente acción, sin volver a iniciar sesión.",
+      "confirmDemote": "Dejará de acceder a la administración en su siguiente acción. Si tiene perfil profesional, lo conserva.",
+      "noteLabel": "Motivo (opcional)",
+      "noteHint": "Queda en el historial de cambios de rol.",
+      "confirm": "Confirmar cambio",
+      "roleChanged": "Rol actualizado."
+    },
+    "allPurchases": {
+      "title": "Compras",
+      "subtitle": "Quién compró cada contacto, cuándo y por cuánto. Sin datos del cliente.",
+      "status": "Estado",
+      "from": "Desde",
+      "to": "Hasta",
+      "all": "Todas",
+      "empty": "No hay compras con esos filtros.",
+      "professional": "Profesional",
+      "paidWithCredit": "{amount} con saldo",
+      "unknownLead": "Solicitud eliminada"
+    },
+    "pagination": {
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "page": "Página {page} de {pages}"
+    },
     "debt": "Deuda",
     "adjustment": {
       "open": "Ajustar saldo",
@@ -546,6 +617,15 @@
       "submit": "Aplicar ajuste",
       "done": "Ajuste aplicado. Saldo: {balance}.",
       "doneWithDebt": "Ajuste aplicado. Saldo: {balance} · Deuda pendiente: {debt}."
+    },
+    "nav": {
+      "label": "Secciones de administración",
+      "overview": "Resumen",
+      "professionals": "Profesionales",
+      "leads": "Solicitudes",
+      "purchases": "Compras",
+      "pricing": "Precios",
+      "pending": "{count, plural, one {alta pendiente} other {altas pendientes}}"
     }
   },
   "errors": {
@@ -569,12 +649,24 @@
     "UNAUTHENTICATED": "Tu sesión ha caducado. Vuelve a iniciar sesión.",
     "PERMISSION_DENIED": "No tienes permiso para esta acción.",
     "INTERNAL_ERROR": "Error del servidor. Estamos en ello.",
+    "DOMAIN_ERROR": "No se ha podido completar la operación. Vuelve a intentarlo.",
+    "SERVICE_UNAVAILABLE": "El servicio no está disponible ahora mismo. Inténtalo de nuevo en unos minutos.",
+    "PAYLOAD_TOO_LARGE": "El archivo o los datos enviados son demasiado grandes.",
+    "TOO_MANY_REQUESTS": "Demasiadas peticiones seguidas. Espera un momento y vuelve a intentarlo.",
     "PAYMENT_GATEWAY_ERROR": "No hemos podido iniciar el pago. Inténtalo de nuevo en unos minutos.",
     "auth/invalid-credential": "Email o contraseña incorrectos.",
     "auth/email-already-in-use": "Ya existe una cuenta con ese email.",
     "auth/weak-password": "La contraseña debe tener al menos 6 caracteres.",
     "auth/invalid-email": "Ese email no es válido.",
     "auth/too-many-requests": "Demasiados intentos. Prueba en unos minutos.",
+    "auth/network-request-failed": "No hemos podido conectar. Revisa tu conexión a internet.",
+    "auth/missing-password": "Escribe tu contraseña.",
+    "auth/missing-email": "Escribe tu email.",
+    "auth/user-disabled": "Esta cuenta está desactivada. Escríbenos si crees que es un error.",
+    "auth/user-not-found": "Email o contraseña incorrectos.",
+    "auth/wrong-password": "Email o contraseña incorrectos.",
+    "auth/popup-blocked": "El navegador ha bloqueado la ventana de Google. Permite las ventanas emergentes e inténtalo de nuevo.",
+    "auth/account-exists-with-different-credential": "Ya tienes una cuenta con ese email. Entra con tu email y contraseña.",
     "SUBSCRIPTION_REQUIRED": "Activa tu recarga mensual para poder comprar contactos.",
     "SUBSCRIPTION_ALREADY_EXISTS": "Ya tienes una mensualidad en curso. Gestiónala desde tu cuenta.",
     "INSUFFICIENT_CREDIT": "No tienes saldo suficiente para esta operación.",
@@ -590,7 +682,49 @@
     "REJECTION_AWAITING_PAYMENT": "El primer cobro de la mensualidad de este profesional aún se está procesando (puede tardar varios días con domiciliación). Podrás rechazar el alta cuando se confirme o falle.",
     "VERIFICATION_LOCKED": "Ya enviaste tu alta a revisión: esos datos no se pueden cambiar.",
     "INVALID_TAX_ID": "El NIF, NIE o CIF no es válido: revisa la letra o el dígito de control.",
-    "CREDIT_DEBT_OUTSTANDING": "Tu banco devolvió una mensualidad que ya habías gastado. Podrás comprar contactos cuando se salde con tu próxima mensualidad."
+    "USER_NOT_FOUND": "Ese usuario ya no existe.",
+    "CANNOT_CHANGE_OWN_ROLE": "No puedes cambiar tu propio rol: pídeselo a otro administrador.",
+    "LAST_ADMIN": "No puedes quitar el último administrador: antes nombra a otro.",
+    "CREDIT_DEBT_OUTSTANDING": "Tu banco devolvió una mensualidad que ya habías gastado. Podrás comprar contactos cuando se salde con tu próxima mensualidad.",
+    "INVALID_PHONE": "El teléfono no es válido. Revisa que esté completo y sin letras.",
+    "INVALID_EMAIL": "El email no es válido. Revisa que tenga la forma nombre@dominio.com.",
+    "INVALID_POSTAL_CODE": "El código postal no es válido. Escríbelo con sus 5 dígitos.",
+    "CLIENT_NAME_REQUIRED": "Indica el nombre del cliente.",
+    "CONSENT_DATE_IN_FUTURE": "La fecha del consentimiento no puede ser posterior al momento actual. Revisa la fecha y la hora.",
+    "TITLE_LENGTH_INVALID": "El título debe tener entre {min} y {max} caracteres, sin contar los espacios del principio y del final.",
+    "DESCRIPTION_LENGTH_INVALID": "La descripción debe tener entre {min} y {max} caracteres, sin contar los espacios del principio y del final.",
+    "PURCHASE_NOT_FOUND": "No encontramos esa compra.",
+    "PURCHASE_NOT_PAYABLE": "Esta compra ya no admite el pago. Empieza de nuevo desde la solicitud.",
+    "NOT_FOUND": "No hemos encontrado lo que buscas.",
+    "fields": {
+      "category_id": "Oficio",
+      "title": "Título",
+      "description": "Descripción",
+      "postal_code": "Código postal",
+      "client_name": "Nombre del cliente",
+      "client_phone": "Teléfono",
+      "client_email": "Email",
+      "photo_keys": "Fotos",
+      "service_ids": "Servicios",
+      "property_type": "Tipo de inmueble",
+      "schedule": "Programación",
+      "phone_verification_code": "Código SMS",
+      "consent_policy_version": "Versión de política",
+      "consent_accepted_at": "Fecha de aceptación",
+      "consent_channel": "Canal de captura",
+      "consent_campaign_reference": "Referencia de campaña"
+    },
+    "fieldError": {
+      "intro": "Revisa el formulario: {details}.",
+      "item": "{field}: {issue}"
+    },
+    "issue": {
+      "missing": "obligatorio",
+      "tooShort": "mínimo {min} caracteres",
+      "tooLong": "máximo {max} caracteres",
+      "invalid": "valor no válido"
+    },
+    "summary": "Revisa {count, plural, one {# campo} other {# campos}} para continuar"
   },
   "validation": {
     "categoryRequired": "Elige un oficio.",
@@ -630,6 +764,14 @@
     "documentType": "Sube el documento en PDF o como imagen.",
     "documentTooLarge": "El documento supera los 10 MB.",
     "adjustmentAmount": "Indica un importe mayor que 0 y de hasta 1000 €.",
-    "adjustmentNote": "Explica el motivo del ajuste (entre 3 y 500 caracteres)."
+    "adjustmentNote": "Explica el motivo del ajuste (entre 3 y 500 caracteres).",
+    "channelRequired": "Indica el canal donde se recogió el consentimiento.",
+    "channelTooLong": "El canal no puede superar los 120 caracteres.",
+    "policyRequired": "Indica la versión de la política que aceptó el cliente.",
+    "policyTooLong": "La versión de la política no puede superar los 40 caracteres.",
+    "campaignTooLong": "La referencia de campaña no puede superar los 200 caracteres.",
+    "acceptedAtRequired": "Indica la fecha y la hora en que el cliente aceptó.",
+    "acceptedAtInvalid": "La fecha de aceptación no es válida.",
+    "acceptedAtFuture": "La fecha de aceptación no puede ser posterior a ahora."
   }
 }

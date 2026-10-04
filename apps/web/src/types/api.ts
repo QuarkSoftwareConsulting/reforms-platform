@@ -362,8 +362,71 @@ export interface AdminProfessionalList {
   offset: number;
 }
 
+/** Lo justo para saber que se vendio: nunca datos de contacto del cliente. */
+export interface AdminPurchaseLead {
+  id: string;
+  title: string;
+  city: string | null;
+  province: string | null;
+  category: Category | null;
+}
+
 export interface AdminPurchase {
   purchase: Purchase;
   professional: AdminProfessional | null;
   review_count: number;
+  /** Solo en el listado global de compras. */
+  lead?: AdminPurchaseLead | null;
+}
+
+export interface AdminPurchaseList {
+  items: AdminPurchase[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+/** El cliente no tiene cuenta: publica como invitado. Solo hay estos dos roles. */
+export type UserRole = Me["role"];
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  display_name: string | null;
+  role: UserRole;
+  created_at: string;
+  /** Resumen del perfil profesional, si lo tiene. */
+  professional: AdminProfessional | null;
+}
+
+export interface AdminUserList {
+  items: AdminUser[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface UserRoleEvent {
+  from_role: UserRole;
+  to_role: UserRole;
+  actor_user_id: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+export interface DailyMetrics {
+  /** `YYYY-MM-DD`, en la zona horaria del negocio. */
+  day: string;
+  leads_created: number;
+  paid_purchases: number;
+  revenue_by_currency: Record<string, Money>;
+  topups: number;
+  topup_revenue_by_currency: Record<string, Money>;
+}
+
+export interface MetricsTimeseries {
+  start: string;
+  end: string;
+  timezone: string;
+  points: DailyMetrics[];
 }

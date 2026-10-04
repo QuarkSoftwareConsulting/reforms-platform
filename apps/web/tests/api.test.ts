@@ -61,18 +61,14 @@ describe("api client", () => {
   });
 
   it("does not retry forever on a persistent 401", async () => {
-    fetchMock.mockResolvedValue(
-      jsonResponse({ code: "UNAUTHENTICATED", message: "expired" }, 401),
-    );
+    fetchMock.mockResolvedValue(jsonResponse({ code: "UNAUTHENTICATED", message: "expired" }, 401));
 
     await expect(request("/leads")).rejects.toBeInstanceOf(ApiError);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("preserves the backend error code", async () => {
-    fetchMock.mockResolvedValue(
-      jsonResponse({ code: "LEAD_CAP_REACHED", message: "full" }, 409),
-    );
+    fetchMock.mockResolvedValue(jsonResponse({ code: "LEAD_CAP_REACHED", message: "full" }, 409));
 
     await expect(request("/leads/x/purchase", { method: "POST" })).rejects.toMatchObject({
       code: "LEAD_CAP_REACHED",
@@ -80,12 +76,19 @@ describe("api client", () => {
     });
   });
 
-  it("degrades gracefully when the error body is not JSON", async () => {
-    fetchMock.mockResolvedValue(new Response("<html>502</html>", { status: 502 }));
+  it.each([
+    [502, "SERVICE_UNAVAILABLE"],
+    [503, "SERVICE_UNAVAILABLE"],
+    [413, "PAYLOAD_TOO_LARGE"],
+    [429, "TOO_MANY_REQUESTS"],
+    [404, "UNEXPECTED_RESPONSE"],
+  ])("names a %i without the backend's JSON after its status", async (status, code) => {
+    // La escribe un proxy o el balanceador, no nuestra API: no trae `code`.
+    fetchMock.mockResolvedValue(new Response("<html>error</html>", { status }));
 
     const error = await request("/leads").catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(ApiError);
-    expect((error as ApiError).code).toBe("NETWORK_ERROR");
+    expect((error as ApiError).code).toBe(code);
   });
 
   it("flags 4xx errors as business errors", async () => {

@@ -39,7 +39,7 @@ class TestIdentityMirror:
         assert first.id == second.id
         assert len(world.users.items) == 1
 
-    async def test_admin_custom_claim_promotes_the_role(self, world: World) -> None:
+    async def test_admin_custom_claim_creates_the_first_admin(self, world: World) -> None:
         user = await world.sync_user.execute(
             AuthenticatedIdentity(
                 provider_uid="fb-admin", email="admin@example.com", is_admin_claim=True
@@ -47,22 +47,32 @@ class TestIdentityMirror:
         )
         assert user.role is UserRole.ADMIN
 
-    async def test_removing_admin_custom_claim_revokes_the_role(self, world: World) -> None:
-        promoted = await world.sync_user.execute(
+    async def test_claim_does_not_override_the_role_of_an_existing_user(self, world: World) -> None:
+        """El rol vive en la BD: lo cambia un admin, no el claim de Firebase."""
+        admin = await world.sync_user.execute(
             AuthenticatedIdentity(
                 provider_uid="fb-admin", email="admin@example.com", is_admin_claim=True
             )
         )
-        assert promoted.role is UserRole.ADMIN
-
-        demoted = await world.sync_user.execute(
-            AuthenticatedIdentity(
-                provider_uid="fb-admin", email="admin@example.com", is_admin_claim=False
-            )
+        professional = await world.sync_user.execute(
+            AuthenticatedIdentity(provider_uid="fb-pro", email="pro@example.com")
         )
 
-        assert demoted.id == promoted.id
-        assert demoted.role is UserRole.PROFESSIONAL
+        # Un admin degradado desde el panel que aun conserva el claim no lo recupera...
+        admin.role = UserRole.PROFESSIONAL
+        still_demoted = await world.sync_user.execute(
+            AuthenticatedIdentity(
+                provider_uid="fb-admin", email="admin@example.com", is_admin_claim=True
+            )
+        )
+        # ...y uno promovido desde el panel no lo pierde por no tener el claim.
+        professional.role = UserRole.ADMIN
+        still_promoted = await world.sync_user.execute(
+            AuthenticatedIdentity(provider_uid="fb-pro", email="pro@example.com")
+        )
+
+        assert still_demoted.role is UserRole.PROFESSIONAL
+        assert still_promoted.role is UserRole.ADMIN
 
     async def test_email_change_in_firebase_is_mirrored(self, world: World) -> None:
         await world.sync_user.execute(

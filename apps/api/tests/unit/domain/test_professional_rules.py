@@ -80,13 +80,19 @@ class TestRequirements:
         )
         assert professional.missing_for_review() == [missing]
 
-    def test_an_independent_worker_may_use_a_passport_instead_of_a_tax_id(self) -> None:
-        professional = complete(
-            professional_type=ProfessionalType.INDEPENDENT,
-            tax_id=None,
-            documents=[document(DocumentKind.IDENTITY)],
+    @pytest.mark.parametrize("kind", list(ProfessionalType))
+    def test_every_type_needs_a_tax_id_even_with_an_identity_document(
+        self, kind: ProfessionalType
+    ) -> None:
+        document_kind = (
+            DocumentKind.IDENTITY
+            if kind is ProfessionalType.INDEPENDENT
+            else DocumentKind.TAX_REGISTRATION
         )
-        assert professional.missing_for_review() == []
+        professional = complete(
+            professional_type=kind, tax_id=None, documents=[document(document_kind)]
+        )
+        assert professional.missing_for_review() == ["tax_id"]
 
     def test_a_company_is_identified_by_its_cif(self) -> None:
         with pytest.raises(ValidationError):

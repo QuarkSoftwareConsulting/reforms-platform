@@ -66,6 +66,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_logging(level=settings.log_level, json_output=settings.is_production)
 
     # ADC puede consultar el metadata server durante la inicializacion.
+    # En produccion ya no se llega aqui sin ellos; en local se arranca, pero avisando:
+    # con el `whsec_xxx` de ejemplo ningun pago se aplica y no hay otro sintoma.
+    for name in settings.unconfigured_payment_secrets():
+        logger.warning(
+            "stripe_sin_configurar",
+            variable=name,
+            consecuencia="los pagos no se cobran o sus webhooks se rechazan (401)",
+            ayuda="README, seccion 'Pagos en local' (stripe listen --print-secret)",
+        )
     app.state.infrastructure = await asyncio.to_thread(build_infrastructure, settings)
     logger.info(
         "api_iniciada",

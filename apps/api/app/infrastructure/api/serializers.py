@@ -14,10 +14,14 @@ from app.application.dto import (
     AdminProfessionalItem,
     AdminProfessionalListResult,
     AdminPurchaseItem,
+    AdminPurchaseListResult,
+    AdminUserItem,
+    AdminUserListResult,
     LeadDetail,
     LeadListItem,
     LeadListResult,
     LeadPricing,
+    MetricsTimeseries,
     PurchasedContact,
     SubscriptionPriceInfo,
     VerificationDossier,
@@ -35,6 +39,7 @@ from app.domain.models import (
     PurchaseReview,
     Service,
     User,
+    UserRoleEvent,
     VatBreakdown,
     vat_breakdown,
 )
@@ -45,10 +50,17 @@ from app.infrastructure.api.schemas.admin import (
     AdminMetricsOut,
     AdminProfessionalListOut,
     AdminProfessionalOut,
+    AdminPurchaseLeadOut,
+    AdminPurchaseListOut,
     AdminPurchaseOut,
+    AdminUserListOut,
+    AdminUserOut,
+    DailyMetricsOut,
     DocumentDownloadOut,
     LeadPricingOut,
+    MetricsTimeseriesOut,
     PurchaseReviewOut,
+    UserRoleEventOut,
     VerificationDossierOut,
     VerificationEventOut,
 )
@@ -434,10 +446,97 @@ def admin_purchase_out(item: AdminPurchaseItem, locale: str) -> AdminPurchaseOut
         if item.professional is not None
         else None
     )
+    lead = (
+        AdminPurchaseLeadOut(
+            id=item.lead.id,
+            title=item.lead.title,
+            city=item.lead.city,
+            province=item.lead.province,
+            category=category_out(item.category, locale) if item.category is not None else None,
+        )
+        if item.lead is not None
+        else None
+    )
     return AdminPurchaseOut(
         purchase=purchase_out(item.purchase),
         professional=professional,
         review_count=item.review_count,
+        lead=lead,
+    )
+
+
+def admin_purchase_list_out(result: AdminPurchaseListResult, locale: str) -> AdminPurchaseListOut:
+    return AdminPurchaseListOut(
+        items=[admin_purchase_out(item, locale) for item in result.items],
+        total=result.total,
+        limit=result.limit,
+        offset=result.offset,
+    )
+
+
+def admin_user_out(item: AdminUserItem, locale: str) -> AdminUserOut:
+    user = item.user
+    return AdminUserOut(
+        id=user.id,
+        email=user.email.value,
+        display_name=user.display_name,
+        role=user.role,
+        created_at=user.created_at,
+        professional=(
+            admin_professional_out(
+                AdminProfessionalItem(
+                    professional=item.professional,
+                    categories=[],
+                    account=item.account,
+                    account_active=item.account_active,
+                ),
+                locale,
+            )
+            if item.professional is not None
+            else None
+        ),
+    )
+
+
+def admin_user_list_out(result: AdminUserListResult, locale: str) -> AdminUserListOut:
+    return AdminUserListOut(
+        items=[admin_user_out(item, locale) for item in result.items],
+        total=result.total,
+        limit=result.limit,
+        offset=result.offset,
+    )
+
+
+def user_role_event_out(event: UserRoleEvent) -> UserRoleEventOut:
+    return UserRoleEventOut(
+        from_role=event.from_role,
+        to_role=event.to_role,
+        actor_user_id=event.actor_user_id,
+        note=event.note,
+        created_at=event.created_at,
+    )
+
+
+def _money_by_currency(amounts: dict[str, int]) -> dict[str, MoneyOut]:
+    return {currency: money_out(Money(amount, currency)) for currency, amount in amounts.items()}
+
+
+def metrics_timeseries_out(series: MetricsTimeseries) -> MetricsTimeseriesOut:
+    return MetricsTimeseriesOut(
+        start=series.start,
+        end=series.end,
+        timezone=series.timezone,
+        points=[
+            DailyMetricsOut(
+                day=point.day,
+                leads_created=point.leads_created,
+                paid_purchases=point.paid_purchases,
+                revenue_by_currency=_money_by_currency(point.revenue_by_currency),
+                topups=point.topups,
+                topup_revenue_by_currency=_money_by_currency(point.topup_revenue_by_currency),
+            )
+            for point in series.points
+        ],
     )
 
 

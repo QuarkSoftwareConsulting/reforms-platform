@@ -102,6 +102,63 @@ class TestActivation:
         account.record_payment_failed(at=NOW - timedelta(minutes=5))
         assert account.subscription_status is SubscriptionStatus.CANCELED
 
+    def test_payment_activates_even_if_a_later_subscription_sync_arrived_first(self) -> None:
+        # Orden real de un pago con tarjeta (4 de octubre): `invoice.paid` a las :09,
+        # `customer.subscription.created` (active) a las :10. Stripe no garantiza el
+        # orden de entrega: si el segundo llega antes deja la cuenta en PENDING
+        # (sincronizar no activa) y el cobro, un segundo "mas viejo", se descartaba
+        # como obsoleto. El dinero se abonaba y la cuenta no se activaba en un mes.
+        account = make_account(subscription_status=SubscriptionStatus.NONE)
+        account.sync_subscription(
+            status=SubscriptionStatus.ACTIVE,
+            subscription_id="sub_1",
+            period_end=None,
+            at=NOW + timedelta(seconds=1),
+        )
+        account.record_invoice_paid(subscription_id="sub_1", period_end=None, at=NOW)
+        assert account.subscription_status is SubscriptionStatus.ACTIVE
+        # Y lo que llegue despues sigue comparandose con el evento mas reciente.
+        account.record_checkout_completed(subscription_id="sub_1", at=NOW + timedelta(seconds=2))
+        assert account.subscription_status is SubscriptionStatus.ACTIVE
+
+    def test_a_late_payment_of_a_canceled_subscription_does_not_activate_the_new_one(
+        self,
+    ) -> None:
+        # Revision de la PR 27: se cancela, se vuelve a suscribir con SEPA (PENDING
+        # mientras el adeudo se procesa) y Stripe reintenta un `invoice.paid` antiguo
+        # de la suscripcion cancelada. Ese dinero no paga la nueva.
+        account = make_account(
+            subscription_status=SubscriptionStatus.CANCELED, stripe_subscription_id="sub_old"
+        )
+        account.record_checkout_completed(subscription_id="sub_new", at=NOW)
+        assert account.subscription_status is SubscriptionStatus.PENDING
+
+        account.record_invoice_paid(
+            subscription_id="sub_old",
+            period_end=NOW + timedelta(days=60),
+            at=NOW - timedelta(days=2),
+        )
+
+        assert account.subscription_status is SubscriptionStatus.PENDING
+        assert account.stripe_subscription_id == "sub_new"
+        assert account.current_period_end == NOW + timedelta(days=30)
+
+    @pytest.mark.parametrize("newer", [SubscriptionStatus.CANCELED, SubscriptionStatus.PAST_DUE])
+    def test_an_old_payment_does_not_undo_a_newer_cancellation_or_failure(
+        self, newer: SubscriptionStatus
+    ) -> None:
+        account = make_account(subscription_status=SubscriptionStatus.ACTIVE)
+        if newer is SubscriptionStatus.CANCELED:
+            account.sync_subscription(
+                status=newer, subscription_id="sub_1", period_end=None, at=NOW
+            )
+        else:
+            account.record_payment_failed(at=NOW)
+        account.record_invoice_paid(
+            subscription_id="sub_1", period_end=None, at=NOW - timedelta(days=30)
+        )
+        assert account.subscription_status is newer
+
     def test_checkout_completed_after_payment_does_not_go_back_to_pending(self) -> None:
         account = make_account(subscription_status=SubscriptionStatus.NONE)
         account.record_invoice_paid(subscription_id="sub_1", period_end=None, at=NOW)

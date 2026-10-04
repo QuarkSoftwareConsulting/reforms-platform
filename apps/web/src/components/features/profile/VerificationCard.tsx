@@ -3,21 +3,17 @@
 import { useLocale, useTranslations } from "next-intl";
 
 import { Alert } from "@/components/ui/Alert";
-import { Button } from "@/components/ui/Button";
 import { formatDate } from "@/helpers/date";
 import type { AppLocale } from "@/i18n/routing";
 import type { Verification } from "@/types/api";
 
 /**
  * Estado del alta (F02). Mientras falten datos o documentos lista que falta; con
- * todo completo ofrece enviarla a revision. En revision se pueden ver solicitudes,
- * pero comprar solo cuando el admin la apruebe.
+ * todo completo avisa de que al guardar se pedira confirmar el envio (no hay boton
+ * de envio aparte: lo ofrece `ReviewConfirmDialog` tras guardar). En revision se
+ * pueden ver solicitudes, pero comprar solo cuando el admin la apruebe.
  */
-export function VerificationCard({ verification, onSubmit, submitting }: {
-  verification: Verification;
-  onSubmit: () => void;
-  submitting: boolean;
-}) {
+export function VerificationCard({ verification }: { verification: Verification }) {
   const locale = useLocale() as AppLocale;
   const t = useTranslations("profile.verification");
 
@@ -58,15 +54,6 @@ export function VerificationCard({ verification, onSubmit, submitting }: {
             ))}
           </ul>
         )}
-        <Button
-          type="button"
-          variant="accent"
-          disabled={!ready}
-          loading={submitting}
-          onClick={onSubmit}
-        >
-          {t("submit")}
-        </Button>
       </div>
     </Alert>
   );

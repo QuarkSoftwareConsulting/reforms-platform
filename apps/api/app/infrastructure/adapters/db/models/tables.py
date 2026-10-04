@@ -96,6 +96,25 @@ class UserRow(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
 
 
+class UserRoleEventRow(Base, UUIDPrimaryKeyMixin):
+    """Auditoria de los cambios de rol. Append-only: nunca se actualiza ni se borra."""
+
+    __tablename__ = "user_role_events"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    from_role: Mapped[UserRole] = mapped_column(user_role_enum, nullable=False)
+    to_role: Mapped[UserRole] = mapped_column(user_role_enum, nullable=False)
+    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
+    )
+    note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (Index("ix_user_role_events_user_id", "user_id"),)
+
+
 class CategoryRow(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "categories"
 

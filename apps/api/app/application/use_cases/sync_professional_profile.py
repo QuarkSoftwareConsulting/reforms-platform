@@ -2,7 +2,8 @@
 
 Firebase es la fuente de verdad de la autenticacion; nosotros mantenemos un
 espejo local (`users`) para poder relacionar compras, leads y roles sin depender
-de llamadas al proveedor en cada peticion.
+de llamadas al proveedor en cada peticion. El rol, en cambio, es nuestro: Firebase
+solo lo propone al crear la cuenta.
 """
 
 from __future__ import annotations
@@ -11,6 +12,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from app.application.dto import ProfessionalProfile, UpsertProfessionalInput
+from app.application.parsing import parse_postal_code
 from app.application.ports import (
     AuthenticatedIdentity,
     CategoryRepositoryPort,
@@ -32,7 +34,7 @@ from app.domain.exceptions import (
     ValidationError,
 )
 from app.domain.models import MADRID, Professional, ServiceArea, User, UserRole
-from app.domain.value_objects import Email, PostalCode, TaxId
+from app.domain.value_objects import Email, TaxId
 
 
 @dataclass(slots=True)
@@ -56,11 +58,9 @@ class SyncUserFromIdentity:
             if identity.display_name and existing.display_name != identity.display_name:
                 existing.display_name = identity.display_name
                 changed = True
-            # El claim de admin manda: se gestiona desde la consola de Firebase.
-            desired_role = UserRole.ADMIN if identity.is_admin_claim else UserRole.PROFESSIONAL
-            if desired_role is not existing.role:
-                existing.role = desired_role
-                changed = True
+            # El rol NO se sincroniza: vive en nuestra BD y lo cambia un admin desde el
+            # panel (`ChangeUserRole`). Si el claim mandara, un admin degradado
+            # recuperaria el acceso en su siguiente peticion.
             if changed:
                 async with self.uow:
                     return await self.users.update(existing)
@@ -73,6 +73,7 @@ class SyncUserFromIdentity:
             id=self.ids.new_id(),
             firebase_uid=identity.provider_uid,
             email=email,
+            # El claim solo cuenta al crear la cuenta: es como se da de alta el primer admin.
             role=UserRole.ADMIN if identity.is_admin_claim else UserRole.PROFESSIONAL,
             created_at=self.clock.now(),
             display_name=identity.display_name,
@@ -98,7 +99,7 @@ class UpsertProfessionalProfile:
     service_area: ServiceArea = MADRID
 
     async def execute(self, *, user_id: UUID, data: UpsertProfessionalInput) -> Professional:
-        postal_code = PostalCode(data.postal_code)
+        postal_code = parse_postal_code(data.postal_code)
         # Cobertura de la Etapa 1 tambien para la base del profesional (F02).
         self.service_area.assert_covers(postal_code)
         info = await self.postal_codes.get(postal_code)

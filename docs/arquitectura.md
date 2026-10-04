@@ -1,5 +1,10 @@
 # Arquitectura Técnica - Reforma Hub
 
+> **Documento de diseño original.** Sirve para entender la intención; el código ha
+> evolucionado (p. ej. la ruta es `[locale]`, no `[lang]`, y el saldo prepago se llama
+> recarga mensual). Las reglas vigentes están en [`AGENTS.md`](../AGENTS.md) y el estado
+> de la Etapa 1 en [`plan-etapa-1.md`](./plan-etapa-1.md); si discrepan, mandan esos.
+
 ## 1. Visión General de Arquitectura
 
 El sistema adopta una arquitectura desacoplada basada en microservicios/módulos limpios, optimizada para rendimiento SEO en el cliente y mantenibilidad/testabilidad en el servidor.

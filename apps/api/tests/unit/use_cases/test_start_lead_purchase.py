@@ -58,8 +58,10 @@ class TestReservation:
         await world.start_purchase.execute(lead_id=lead.id, professional_id=madrid_carpenter.id)
 
         request = world.payments.requests[0]
-        assert request.success_url.startswith(f"{WEB_URL}/es/mis-contactos")
-        assert str(request.purchase_id) in request.success_url
+        # Vuelve a la solicitud comprada: el contacto se ve donde se compro.
+        assert request.success_url == (
+            f"{WEB_URL}/es/proyectos/{lead.id}?purchase={request.purchase_id}&status=success"
+        )
         assert request.cancel_url == f"{WEB_URL}/es/proyectos/{lead.id}?status=cancelled"
         assert request.amount.amount_cents == 500
 
@@ -71,7 +73,7 @@ class TestReservation:
         )
         request = world.payments.requests[0]
         assert request.locale == "en"
-        assert request.success_url.startswith(f"{WEB_URL}/en/mis-contactos")
+        assert request.success_url.startswith(f"{WEB_URL}/en/proyectos/{lead.id}?")
         assert "Carpentry" in request.product_name
 
 

@@ -40,6 +40,9 @@ class FakePaymentGateway(PaymentPort):
         # Como la pasarela real: una clave de idempotencia repetida no reembolsa otra vez.
         self.refunds: dict[str, str] = {}
         self.canceled_subscriptions: set[str] = set()
+        # Clientes con una recarga viva en la pasarela (aunque el webhook no haya llegado).
+        self.live_subscription_customers: set[str] = set()
+        self.fail_on_live_check = False
         self.fail_on_refund = False
         # De quien es cada cargo, para las devoluciones (la disputa no lo trae).
         self.charge_owners: dict[str, ChargeOwner] = {}
@@ -123,6 +126,12 @@ class FakePaymentGateway(PaymentPort):
         price_id = f"price_test_{len(self.created_prices) + 1:04d}"
         self.created_prices[price_id] = amount
         return price_id
+
+    async def has_live_subscription(self, customer_id: str) -> bool:
+        await asyncio.sleep(0)
+        if self.fail_on_live_check:
+            raise PaymentGatewayError("La pasarela no responde")
+        return customer_id in self.live_subscription_customers
 
     async def create_billing_portal_session(
         self, *, customer_id: str, return_url: str, locale: str = "es"

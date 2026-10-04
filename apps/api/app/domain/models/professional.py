@@ -7,6 +7,7 @@ from datetime import datetime
 from uuid import UUID
 
 from app.domain.exceptions import (
+    CannotChangeOwnRoleError,
     ProfessionalNotApprovedError,
     ProfessionalProfileIncompleteError,
     ProfessionalRejectedError,
@@ -48,6 +49,50 @@ class User:
     @property
     def is_admin(self) -> bool:
         return self.role is UserRole.ADMIN
+
+    def change_role(
+        self,
+        new_role: UserRole,
+        *,
+        actor_user_id: UUID | None,
+        event_id: UUID,
+        at: datetime,
+        note: str | None = None,
+    ) -> UserRoleEvent | None:
+        """Cambia el rol y devuelve el evento de auditoria; `None` si no cambia nada.
+
+        El rol vive en nuestra BD: el claim de Firebase solo crea el primer admin. Que
+        no se degrade al ultimo admin lo comprueba el caso de uso, que ve a los demas.
+        """
+        if actor_user_id == self.id:
+            raise CannotChangeOwnRoleError()
+        if new_role is self.role:
+            return None
+        event = UserRoleEvent(
+            id=event_id,
+            user_id=self.id,
+            from_role=self.role,
+            to_role=new_role,
+            created_at=at,
+            actor_user_id=actor_user_id,
+            note=note.strip() if note and note.strip() else None,
+        )
+        self.role = new_role
+        return event
+
+
+@dataclass(frozen=True, slots=True)
+class UserRoleEvent:
+    """Cambio de rol. Append-only: es la auditoria de quien dio o quito acceso."""
+
+    id: UUID
+    user_id: UUID
+    from_role: UserRole
+    to_role: UserRole
+    created_at: datetime
+    actor_user_id: UUID | None = None
+    """`None` si lo hizo el sistema (la CLI de bootstrap)."""
+    note: str | None = None
 
 
 MAX_WORK_PHOTOS = 8
@@ -185,8 +230,9 @@ class Professional:
             missing.append("professional_type")
         if self.legal_name is None:
             missing.append("legal_name")
-        if self.tax_id is None and self.professional_type is not ProfessionalType.INDEPENDENT:
-            # El independiente puede identificarse con pasaporte, que no es un NIF.
+        if self.tax_id is None:
+            # Ningun tipo se libra: el documento del cliente no exime de NIF a nadie, y el
+            # pasaporte es el documento que se adjunta, no el identificador fiscal.
             missing.append("tax_id")
         if self.address is None:
             missing.append("address")
