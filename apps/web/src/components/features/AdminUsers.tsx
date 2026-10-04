@@ -3,6 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { CreditAdjustmentForm } from "@/components/features/CreditAdjustmentForm";
 import { VerificationDossierView } from "@/components/features/VerificationDossierView";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -161,13 +162,19 @@ export function AdminUsers() {
                         <p className="text-help text-muted">
                           {t("account")}:{" "}
                           {professional.account
-                            ? `${tSubscription(`status.${professional.account.status}`)} · ${t("balance")} ${formatMoney(professional.account.balance, locale)}`
+                            ? `${tSubscription(`status.${professional.account.status}`)} · ${t("balance")} ${formatMoney(professional.account.balance, locale)}${professional.account.debt ? ` · ${t("debt")} ${formatMoney(professional.account.debt, locale)}` : ""}`
                             : t("noAccount")}
                         </p>
                       )}
                       <p className="text-help text-muted">
                         {t("users.since", { date: formatDate(user.created_at, locale) })}
                       </p>
+                      {professional?.account && (
+                        <CreditAdjustmentForm
+                          professionalId={professional.id}
+                          onAdjusted={(account) => users.updateAccount(user.id, account)}
+                        />
+                      )}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {professional && (

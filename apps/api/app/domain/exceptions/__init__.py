@@ -197,6 +197,49 @@ class ConsentRequiredError(ValidationError):
     code = "CONSENT_REQUIRED"
 
 
+class InvalidPhoneError(ValidationError):
+    """El telefono no tiene un formato valido."""
+
+    code = "INVALID_PHONE"
+
+
+class InvalidEmailError(ValidationError):
+    """El email no tiene un formato valido."""
+
+    code = "INVALID_EMAIL"
+
+
+class InvalidPostalCodeError(ValidationError):
+    """El codigo postal no tiene un formato valido."""
+
+    code = "INVALID_POSTAL_CODE"
+
+
+class ClientNameRequiredError(ValidationError):
+    """El nombre del cliente es obligatorio."""
+
+    code = "CLIENT_NAME_REQUIRED"
+
+
+class TitleLengthError(ValidationError):
+    """El titulo no tiene una longitud valida."""
+
+    # `min`/`max` viajan en `details`: el frontend los pone en el texto traducido.
+    code = "TITLE_LENGTH_INVALID"
+
+
+class DescriptionLengthError(ValidationError):
+    """La descripcion no tiene una longitud valida."""
+
+    code = "DESCRIPTION_LENGTH_INVALID"
+
+
+class ConsentDateInFutureError(ValidationError):
+    """La fecha del consentimiento no puede estar en el futuro."""
+
+    code = "CONSENT_DATE_IN_FUTURE"
+
+
 # --------------------------- Recarga y saldo -----------------------------
 
 
@@ -305,12 +348,18 @@ __all__ = [
     "CannotChangeOwnRoleError",
     "CategoryMismatchError",
     "CategoryNotFoundError",
+    "ClientNameRequiredError",
+    "ConsentDateInFutureError",
     "ConsentRequiredError",
     "ContactLockedError",
     "CreditDebtOutstandingError",
     "CurrencyMismatchError",
+    "DescriptionLengthError",
     "DomainError",
     "InsufficientCreditError",
+    "InvalidEmailError",
+    "InvalidPhoneError",
+    "InvalidPostalCodeError",
     "InvalidSalePriceError",
     "InvalidServiceError",
     "InvalidTaxIdError",
@@ -336,6 +385,7 @@ __all__ = [
     "RejectionAwaitingPaymentError",
     "SubscriptionAlreadyExistsError",
     "SubscriptionRequiredError",
+    "TitleLengthError",
     "TooManyVerificationAttemptsError",
     "UnknownPostalCodeError",
     "UserNotFoundError",

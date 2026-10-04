@@ -62,8 +62,8 @@ npx -y firebase-tools emulators:start --only auth \
 | Objetivo                                           | Comando                                                                  |
 | -------------------------------------------------- | ------------------------------------------------------------------------ |
 | Todo el lint (ruff + mypy strict + eslint + tsc)   | `pnpm lint`                                                              |
-| Todos los tests (584 back + 132 front)             | `pnpm test`                                                              |
-| Backend rápido, **sin Docker** (481 tests)         | `cd apps/api && uv run pytest -m "not integration"`                      |
+| Todos los tests (645 back + 167 front)             | `pnpm test`                                                              |
+| Backend rápido, **sin Docker** (536 tests)         | `cd apps/api && uv run pytest -m "not integration"`                      |
 | Backend completo (requiere `pnpm infra:up`)        | `pnpm api:test`                                                          |
 | Un solo test de backend                            | `cd apps/api && uv run pytest tests/unit/domain/test_lead.py -k capping` |
 | Frontend en watch                                  | `pnpm --filter web test:watch`                                           |
@@ -159,6 +159,15 @@ de Postgres.
 El backend devuelve `{code, message}`; el frontend traduce **por `code`**, ignorando el
 `message` (que es para desarrolladores). Añadir un código exige tocar tres sitios:
 `app/domain/exceptions/__init__.py`, `apps/web/messages/es.json` y `messages/en.json`.
+→ Una regla que el usuario puede incumplir al rellenar un formulario lleva **su propio código**
+(subclase de `ValidationError`): el `VALIDATION_ERROR` genérico solo dice "revisa el
+formulario" y no sirve para corregir nada. Los límites (`min`/`max`) van en `details` y el
+texto traducido los recibe como `{min}`/`{max}`.
+→ Los value objects (`PhoneNumber`, `Email`, `PostalCode`) lanzan `ValueError`, no
+`DomainError`: conviértelos con `app/application/parsing.py`. Sin eso el usuario recibe un 500.
+→ Los errores de campo del esquema Pydantic llegan en `details.errors` (campo, tipo y límites
+numéricos); `useApiError` los convierte en "Descripción: mínimo 20 caracteres". Un campo
+nuevo en un formulario necesita su etiqueta en `errors.fields` (la ruta con `_` en vez de `.`).
 
 **4.9 · El precio de un contacto lo pone el admin, no la categoría.**
 `Category.suggested_lead_price` es la sugerencia; `Lead.price_override` es la decisión del
@@ -365,7 +374,7 @@ dentro de `pnpm-workspace.yaml`.
 alrededor o el `build` falla al prerenderizar. Ver `publicar/page.tsx`.
 
 **Acentos** — `apps/web/messages/*.json` es texto de cara al usuario y lleva acentos
-correctos (535 claves por idioma). La regla de ASCII puro aplica **solo al código fuente**.
+correctos (603 claves por idioma). La regla de ASCII puro aplica **solo al código fuente**.
 Lo mismo vale para `apps/api/data/categories.csv`, `services.csv`: los nombres de oficio se muestran en la
 landing y en el formulario.
 

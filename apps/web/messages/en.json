@@ -127,6 +127,7 @@
     "emailLabel": "Email",
     "emailHint": "We'll send you a copy of your request.",
     "consentLabel": "I have read and accept the data processing policy. I authorise Voy a Reformar to process my data to validate the request, to show my first name and postcode to registered professionals and to share my contact details with up to {maxProfessionals} professionals who buy the contact, under GDPR (EU) 2016/679 and LOPDGDD 3/2018.",
+    "consentShortLabel": "Consent",
     "policyShow": "See the data policy summary",
     "policyHide": "Hide the summary",
     "policy": {
@@ -325,6 +326,8 @@
     "registrationHint": "We need these details to validate your registration and to invoice you.",
     "identityLocked": "You already sent your registration for review: type, legal name and tax ID can no longer change.",
     "typeLabel": "How are you registering?",
+    "typeShortLabel": "Registration type",
+    "servicesShortLabel": "Services",
     "types": {
       "self_employed": {
         "title": "Self-employed",
@@ -446,7 +449,9 @@
       "channel": "Consent capture channel",
       "policy": "Policy version",
       "acceptedAt": "Consent accepted at",
+      "invalidDate": "Enter a valid acceptance date.",
       "campaign": "Campaign reference",
+      "created": "Lead “{title}” published.",
       "submit": "Publish manual lead"
     },
     "categoryPricing": {
@@ -590,6 +595,19 @@
       "previous": "Previous",
       "next": "Next",
       "page": "Page {page} of {pages}"
+    },
+    "debt": "Debt",
+    "adjustment": {
+      "open": "Adjust balance",
+      "direction": "Adjustment type",
+      "credit": "Add balance",
+      "debit": "Deduct balance",
+      "amount": "Amount (€)",
+      "note": "Reason",
+      "noteHint": "It is recorded in the professional's balance history.",
+      "submit": "Apply adjustment",
+      "done": "Adjustment applied. Balance: {balance}.",
+      "doneWithDebt": "Adjustment applied. Balance: {balance} · Outstanding debt: {debt}."
     }
   },
   "errors": {
@@ -636,7 +654,47 @@
     "INVALID_TAX_ID": "The NIF, NIE or CIF is not valid: check the control letter or digit.",
     "USER_NOT_FOUND": "That user no longer exists.",
     "CANNOT_CHANGE_OWN_ROLE": "You can't change your own role: ask another administrator.",
-    "LAST_ADMIN": "You can't remove the last administrator: appoint another one first."
+    "LAST_ADMIN": "You can't remove the last administrator: appoint another one first.",
+    "CREDIT_DEBT_OUTSTANDING": "Your bank returned a monthly fee you had already spent. You can buy contacts once your next monthly fee settles it.",
+    "INVALID_PHONE": "The phone number is not valid. Check that it is complete and has no letters.",
+    "INVALID_EMAIL": "The email is not valid. Check that it looks like name@domain.com.",
+    "INVALID_POSTAL_CODE": "The postal code is not valid. Enter all 5 digits.",
+    "CLIENT_NAME_REQUIRED": "Enter the client's name.",
+    "CONSENT_DATE_IN_FUTURE": "The consent date cannot be later than the current moment. Check the date and time.",
+    "TITLE_LENGTH_INVALID": "The title must be between {min} and {max} characters, not counting leading and trailing spaces.",
+    "DESCRIPTION_LENGTH_INVALID": "The description must be between {min} and {max} characters, not counting leading and trailing spaces.",
+    "PURCHASE_NOT_FOUND": "We could not find that purchase.",
+    "PURCHASE_NOT_PAYABLE": "This purchase can no longer be paid. Start again from the request.",
+    "NOT_FOUND": "We could not find what you are looking for.",
+    "fields": {
+      "category_id": "Trade",
+      "title": "Title",
+      "description": "Description",
+      "postal_code": "Postal code",
+      "client_name": "Client name",
+      "client_phone": "Phone",
+      "client_email": "Email",
+      "photo_keys": "Photos",
+      "service_ids": "Services",
+      "property_type": "Property type",
+      "schedule": "Schedule",
+      "phone_verification_code": "SMS code",
+      "consent_policy_version": "Policy version",
+      "consent_accepted_at": "Acceptance date",
+      "consent_channel": "Capture channel",
+      "consent_campaign_reference": "Campaign reference"
+    },
+    "fieldError": {
+      "intro": "Check the form: {details}.",
+      "item": "{field}: {issue}"
+    },
+    "issue": {
+      "missing": "required",
+      "tooShort": "at least {min} characters",
+      "tooLong": "at most {max} characters",
+      "invalid": "invalid value"
+    },
+    "summary": "Check {count, plural, one {# field} other {# fields}} to continue"
   },
   "validation": {
     "categoryRequired": "Pick a trade.",
@@ -676,6 +734,14 @@
     "documentType": "Upload the document as a PDF or an image.",
     "documentTooLarge": "The document is larger than 10 MB.",
     "adjustmentAmount": "Enter an amount above 0 and up to €1000.",
-    "adjustmentNote": "Explain the reason for the adjustment (3 to 500 characters)."
+    "adjustmentNote": "Explain the reason for the adjustment (3 to 500 characters).",
+    "channelRequired": "Enter the channel where the consent was collected.",
+    "channelTooLong": "The channel cannot exceed 120 characters.",
+    "policyRequired": "Enter the policy version the client accepted.",
+    "policyTooLong": "The policy version cannot exceed 40 characters.",
+    "campaignTooLong": "The campaign reference cannot exceed 200 characters.",
+    "acceptedAtRequired": "Enter the date and time the client accepted.",
+    "acceptedAtInvalid": "The acceptance date is not valid.",
+    "acceptedAtFuture": "The acceptance date cannot be later than now."
   }
 }

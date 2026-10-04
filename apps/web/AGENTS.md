@@ -78,7 +78,7 @@ solo `lib/firebase.ts` y ese hook.
 **Cero cadenas de UI incrustadas en componentes.** Todo texto visible sale de
 `messages/es.json` / `messages/en.json`.
 
-- Los dos archivos deben tener **exactamente las mismas claves** (hoy: 535 cada uno).
+- Los dos archivos deben tener **exactamente las mismas claves** (hoy: 603 cada uno).
   Comprobación rápida:
 
   ```bash
@@ -116,12 +116,25 @@ el API rechazará.
 `validatePhotos()` filtra en cliente lo que el backend rechazaría, para no gastar una
 subida al bucket en un archivo inválido.
 
+**Errores en formularios largos.** Si el botón de enviar queda lejos del primer campo, un
+error fuera de pantalla hace que el botón "no haga nada". El patrón (ver `ProfileForm` y `LeadWizard`):
+
+- Cada campo lleva `fieldKey` (o `data-field` + `tabIndex={-1}` si es un grupo).
+- `FormErrorSummary` va **junto al botón**: lista los campos con error, toma el foco en
+  cada envío fallido (`attempt`) y cada entrada lleva al campo con `focusField`.
+- `useApiFormErrors(map)` reparte el error del backend: un código de negocio
+  (`INVALID_TAX_ID`) o un campo del esquema (`tax_id`) va a su campo; lo que no tiene campo
+  queda como `Alert` general. El `map` es una constante de módulo, no un literal en render.
+- En un formulario por pasos, cada campo sabe en qué paso vive (`FIELD_STEP` en
+  `useLeadForm`): un error del servidor devuelve al primer paso con error, y los errores de
+  otros pasos se conservan al avanzar o retroceder.
+
 ---
 
 ## Tests
 
 ```bash
-pnpm test              # vitest, 132 tests
+pnpm test              # vitest, 167 tests
 pnpm test:watch
 pnpm lint              # eslint + tsc --noEmit
 ```

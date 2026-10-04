@@ -8,12 +8,12 @@
  * (`useProfessionalFiles`), porque viven en el bucket privado y no en el perfil.
  */
 
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useMemo, useState } from "react";
 
 import type { ProfessionalType } from "@/helpers/professionalOptions";
 import { professionalProfileSchema } from "@/helpers/validators";
-import { useApiError } from "@/hooks/useApiError";
+import { useApiError, useApiFormErrors, type FieldErrorMap } from "@/hooks/useApiError";
 import { useAuth } from "@/hooks/useAuth";
 import { professionalService } from "@/services/professional.service";
 import type { Locale, Media, Professional } from "@/types/api";
@@ -34,7 +34,62 @@ export interface ProfileValues {
   workPhotos: Media[];
 }
 
+/** Mensaje ya traducido de cada campo con error. */
 export type ProfileErrors = Partial<Record<keyof ProfileValues, string>>;
+
+/**
+ * Las tres fotos comparten un solo hueco de error (`workPhotos`): el formulario las
+ * pinta en un mismo bloque y el resumen lleva a ese bloque.
+ */
+const ERROR_FIELD: Partial<Record<keyof ProfileValues, keyof ProfileValues>> = {
+  profilePhoto: "workPhotos",
+  logo: "workPhotos",
+};
+
+function errorFieldOf(field: keyof ProfileValues): keyof ProfileValues {
+  return ERROR_FIELD[field] ?? field;
+}
+
+/** Errores del backend que pertenecen a un campo concreto de este formulario. */
+const PROFILE_ERROR_MAP: FieldErrorMap = {
+  codes: {
+    INVALID_PHONE: "phone",
+    PHONE_NOT_MOBILE: "phone",
+    INVALID_POSTAL_CODE: "postalCode",
+    UNKNOWN_POSTAL_CODE: "postalCode",
+    POSTAL_CODE_NOT_COVERED: "postalCode",
+    INVALID_TAX_ID: "taxId",
+    CATEGORY_NOT_FOUND: "categoryIds",
+    INVALID_SERVICE: "serviceIds",
+  },
+  fields: {
+    business_name: "businessName",
+    phone: "phone",
+    postal_code: "postalCode",
+    service_radius_km: "serviceRadiusKm",
+    category_ids: "categoryIds",
+    service_ids: "serviceIds",
+    professional_type: "professionalType",
+    legal_name: "legalName",
+    tax_id: "taxId",
+    address: "address",
+    profile_photo_key: "workPhotos",
+    logo_key: "workPhotos",
+    work_photo_keys: "workPhotos",
+  },
+};
+
+/** Ruta del esquema zod que no se llama como el campo del formulario. */
+const SCHEMA_FIELD: Record<string, keyof ProfileValues> = {
+  workPhotoKeys: "workPhotos",
+};
+
+function withoutErrors(errors: ProfileErrors, fields: (keyof ProfileValues)[]): ProfileErrors {
+  if (!fields.some((field) => field in errors)) return errors;
+  const next = { ...errors };
+  for (const field of fields) delete next[field];
+  return next;
+}
 
 function initialValues(professional: Professional | null): ProfileValues {
   return {
@@ -58,6 +113,11 @@ export interface ProfessionalProfileState {
   professional: Professional | null;
   values: ProfileValues;
   errors: ProfileErrors;
+  /**
+   * Sube en cada guardado que falla por un campo. El resumen de errores lo usa para
+   * tomar el foco: sin el, en un formulario largo el boton parece no hacer nada.
+   */
+  failedAttempts: number;
   /** Tipo, razon social y NIF quedan fijos al enviar el alta a revision. */
   identityLocked: boolean;
   saving: boolean;
@@ -78,29 +138,26 @@ export function useProfessionalProfile(): ProfessionalProfileState {
   const locale = useLocale() as Locale;
   const auth = useAuth();
   const translateError = useApiError();
+  const formErrors = useApiFormErrors(PROFILE_ERROR_MAP);
+  const tValidation = useTranslations("validation");
   const professional = auth.me?.professional ?? null;
 
   const [values, setValues] = useState<ProfileValues>(() => initialValues(professional));
   const [errors, setErrors] = useState<ProfileErrors>({});
+  const [failedAttempts, setFailedAttempts] = useState(0);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [reviewPrompt, setReviewPrompt] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  const identityLocked =
-    professional !== null && professional.verification.status !== "incomplete";
+  const identityLocked = professional !== null && professional.verification.status !== "incomplete";
 
   const setField = useCallback(
     <K extends keyof ProfileValues>(field: K, value: ProfileValues[K]) => {
       setValues((current) => ({ ...current, [field]: value }));
       setSaved(false);
-      setErrors((current) => {
-        if (!(field in current)) return current;
-        const next = { ...current };
-        delete next[field];
-        return next;
-      });
+      setErrors((current) => withoutErrors(current, [errorFieldOf(field)]));
     },
     [],
   );
@@ -116,6 +173,7 @@ export function useProfessionalProfile(): ProfessionalProfileState {
         };
       });
       setSaved(false);
+      setErrors((current) => withoutErrors(current, ["categoryIds", "serviceIds"]));
     },
     [],
   );
@@ -130,12 +188,13 @@ export function useProfessionalProfile(): ProfessionalProfileState {
     if (!parsed.success) {
       const next: ProfileErrors = {};
       for (const issue of parsed.error.issues) {
-        const field = issue.path[0];
-        if (typeof field === "string" && !(field in next)) {
-          next[field as keyof ProfileValues] = issue.message;
-        }
+        const path = issue.path[0];
+        if (typeof path !== "string") continue;
+        const field = SCHEMA_FIELD[path] ?? (path as keyof ProfileValues);
+        if (!(field in next)) next[field] = tValidation(issue.message);
       }
       setErrors(next);
+      setFailedAttempts((count) => count + 1);
       return null;
     }
     setErrors({});
@@ -164,17 +223,29 @@ export function useProfessionalProfile(): ProfessionalProfileState {
       setSaved(true);
       // Un alta completa que aun no se ha enviado pasa por la confirmacion: no hay
       // boton de envio aparte, guardar es el unico paso del profesional.
-      if (updated.verification.status === "incomplete" && updated.verification.missing.length === 0) {
+      if (
+        updated.verification.status === "incomplete" &&
+        updated.verification.missing.length === 0
+      ) {
         setReviewPrompt(true);
       }
       return updated;
     } catch (caught) {
-      setError(translateError(caught));
+      // Lo que el backend atribuye a un campo se pinta en ese campo y en el resumen;
+      // el resto (sin red, alta bloqueada...) queda como aviso general.
+      const { issues, message } = formErrors(caught);
+      if (issues.length > 0) {
+        const next: ProfileErrors = {};
+        for (const issue of issues) next[issue.field as keyof ProfileValues] = issue.message;
+        setErrors(next);
+        setFailedAttempts((count) => count + 1);
+      }
+      setError(message);
       return null;
     } finally {
       setSaving(false);
     }
-  }, [values, locale, auth, translateError]);
+  }, [values, locale, auth, formErrors, tValidation]);
 
   const confirmReview = useCallback(async () => {
     // No se vuelve a guardar: el dialogo es modal y lo que se envia es lo recien guardado.
@@ -198,6 +269,7 @@ export function useProfessionalProfile(): ProfessionalProfileState {
       professional,
       values,
       errors,
+      failedAttempts,
       identityLocked,
       saving,
       submitting,
@@ -214,6 +286,7 @@ export function useProfessionalProfile(): ProfessionalProfileState {
       professional,
       values,
       errors,
+      failedAttempts,
       identityLocked,
       saving,
       submitting,

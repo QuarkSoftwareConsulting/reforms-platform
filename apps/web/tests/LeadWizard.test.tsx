@@ -5,7 +5,7 @@
  * requisito legal del que depende poder ceder los datos del cliente.
  */
 
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -337,5 +337,109 @@ describe("LeadWizard", () => {
       await waitFor(() => expect(startPhoneVerification).toHaveBeenLastCalledWith("622334455"));
       expect(createLead).not.toHaveBeenCalled();
     });
+  });
+});
+
+/**
+ * Errores lejos del boton. El formulario es por pasos y el boton esta abajo: un error
+ * fuera de pantalla, o de un paso anterior que rechazo el servidor, hacia que pulsar
+ * "Publicar" pareciera no hacer nada.
+ */
+describe("LeadWizard: errores de formulario", () => {
+  const SUMMARY = /^Revisa \d+ campos? para continuar$/;
+
+  /** El contenedor del resumen: es lo que toma el foco tras un intento fallido. */
+  function summary(): HTMLElement {
+    return screen.getByText(SUMMARY).closest("[tabindex]") as HTMLElement;
+  }
+
+  async function submitContact(user: ReturnType<typeof userEvent.setup>): Promise<void> {
+    await fillUpToContactStep(user);
+    await user.type(screen.getByLabelText(label(messages.publish.nameLabel)), "Ana Lopez");
+    await user.type(screen.getByLabelText(label(messages.publish.phoneLabel)), "611223344");
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: messages.publish.submit }));
+  }
+
+  beforeEach(() => {
+    startPhoneVerification.mockReset();
+    startPhoneVerification.mockResolvedValue({ required: false });
+    createLead.mockReset();
+  });
+
+  it("lists the step's errors next to the button and moves focus there", async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<LeadWizard categories={CATEGORIES} />);
+    await user.click(screen.getByRole("radio", { name: /Carpinteria/i }));
+    await user.click(screen.getByRole("button", { name: messages.common.next }));
+
+    await user.click(screen.getByRole("button", { name: messages.common.next }));
+
+    const box = summary();
+    expect(document.activeElement).toBe(box);
+    expect(within(box).getByRole("button", { name: messages.errors.fields.title })).toBeTruthy();
+    expect(
+      within(box).getByRole("button", { name: messages.errors.fields.schedule }),
+    ).toBeTruthy();
+  });
+
+  it("takes the user back to the step of a field the server rejected", async () => {
+    const { ApiError } = await import("@/services/api");
+    createLead.mockRejectedValue(
+      new ApiError(422, { code: "POSTAL_CODE_NOT_COVERED", message: "x", details: null }),
+    );
+    const user = userEvent.setup();
+    renderWithIntl(<LeadWizard categories={CATEGORIES} />);
+
+    await submitContact(user);
+
+    const postalCode = await screen.findByLabelText(label(messages.publish.postalCodeLabel));
+    expect(postalCode.getAttribute("aria-invalid")).toBe("true");
+    expect(screen.getByText(new RegExp(messages.publish.steps.details))).toBeDefined();
+    expect(document.activeElement).toBe(summary());
+    // Esta en su campo: no se repite como aviso general.
+    expect(screen.getAllByText(messages.errors.POSTAL_CODE_NOT_COVERED)).toHaveLength(1);
+  });
+
+  it("keeps a rejected field of a later step and leads to it from the summary", async () => {
+    const { ApiError } = await import("@/services/api");
+    createLead.mockRejectedValue(
+      new ApiError(422, {
+        code: "VALIDATION_ERROR",
+        message: "x",
+        details: {
+          errors: [
+            { field: "title", type: "string_too_long", limits: { max_length: 140 } },
+            { field: "client_phone", type: "string_too_short", limits: { min_length: 6 } },
+          ],
+        },
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithIntl(<LeadWizard categories={CATEGORIES} />);
+    await submitContact(user);
+
+    // Vuelve al primer paso con error; el del telefono sigue en el resumen.
+    const box = await waitFor(summary);
+    expect(screen.getByText(new RegExp(messages.publish.steps.details))).toBeDefined();
+    await user.click(within(box).getByRole("button", { name: messages.publish.phoneLabel }));
+
+    const phone = await screen.findByLabelText(label(messages.publish.phoneLabel));
+    await waitFor(() => expect(document.activeElement).toBe(phone));
+    expect(phone.getAttribute("aria-invalid")).toBe("true");
+  });
+
+  it("keeps errors without a field as a general alert", async () => {
+    const { ApiError } = await import("@/services/api");
+    createLead.mockRejectedValue(
+      new ApiError(429, { code: "TOO_MANY_VERIFICATION_ATTEMPTS", message: "x", details: null }),
+    );
+    const user = userEvent.setup();
+    renderWithIntl(<LeadWizard categories={CATEGORIES} />);
+
+    await submitContact(user);
+
+    expect(await screen.findByText(messages.errors.TOO_MANY_VERIFICATION_ATTEMPTS)).toBeDefined();
+    expect(screen.queryByText(SUMMARY)).toBeNull();
   });
 });

@@ -49,15 +49,26 @@ export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElemen
   label: string;
   error?: string;
   hint?: ReactNode;
+  /** Clave con la que `FormErrorSummary` encuentra el campo para llevar el foco. */
+  fieldKey?: string;
 }
 
-export function TextField({ label, error, hint, className, required, ...rest }: TextFieldProps) {
+export function TextField({
+  label,
+  error,
+  hint,
+  className,
+  required,
+  fieldKey,
+  ...rest
+}: TextFieldProps) {
   const id = useId();
   return (
     <FieldShell label={label} htmlFor={id} error={error} hint={hint} required={required}>
       <input
         {...rest}
         id={id}
+        data-field={fieldKey}
         required={required}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-error` : undefined}
@@ -72,6 +83,7 @@ export interface TextAreaFieldProps
   label: string;
   error?: string;
   hint?: ReactNode;
+  fieldKey?: string;
 }
 
 export function TextAreaField({
@@ -80,6 +92,7 @@ export function TextAreaField({
   hint,
   className,
   required,
+  fieldKey,
   ...rest
 }: TextAreaFieldProps) {
   const id = useId();
@@ -88,6 +101,7 @@ export function TextAreaField({
       <textarea
         {...rest}
         id={id}
+        data-field={fieldKey}
         required={required}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-error` : undefined}
@@ -101,6 +115,7 @@ export interface SelectFieldProps extends Omit<SelectHTMLAttributes<HTMLSelectEl
   label: string;
   error?: string;
   hint?: ReactNode;
+  fieldKey?: string;
 }
 
 export function SelectField({
@@ -109,6 +124,7 @@ export function SelectField({
   hint,
   className,
   required,
+  fieldKey,
   children,
   ...rest
 }: SelectFieldProps) {
@@ -118,6 +134,7 @@ export function SelectField({
       <select
         {...rest}
         id={id}
+        data-field={fieldKey}
         required={required}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-error` : undefined}
@@ -133,9 +150,16 @@ export interface CheckboxFieldProps
   extends Omit<InputHTMLAttributes<HTMLInputElement>, "id" | "type"> {
   label: ReactNode;
   error?: string;
+  fieldKey?: string;
 }
 
-export function CheckboxField({ label, error, className, ...rest }: CheckboxFieldProps) {
+export function CheckboxField({
+  label,
+  error,
+  className,
+  fieldKey,
+  ...rest
+}: CheckboxFieldProps) {
   const id = useId();
   return (
     <div className="space-y-1.5">
@@ -144,6 +168,7 @@ export function CheckboxField({ label, error, className, ...rest }: CheckboxFiel
           {...rest}
           type="checkbox"
           id={id}
+          data-field={fieldKey}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${id}-error` : undefined}
           // `accent-color` deja que el navegador pinte la marca con el azul de

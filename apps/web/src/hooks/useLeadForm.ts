@@ -2,11 +2,11 @@
 
 /** Estado del formulario de publicacion por pasos. */
 
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useMemo, useState } from "react";
 import type { z } from "zod";
 
-import { useApiError } from "@/hooks/useApiError";
+import { useApiError, useApiFormErrors, type FieldErrorMap } from "@/hooks/useApiError";
 import {
   leadStepCategorySchema,
   leadStepContactSchema,
@@ -59,13 +59,82 @@ const STEP_SCHEMAS: Record<Step, z.ZodTypeAny> = {
   contact: leadStepContactSchema,
 };
 
-export type FieldErrors = Partial<Record<keyof LeadFormValues, string>>;
+/** Campos que pueden tener error: los valores del formulario mas las fotos (otro hook). */
+export type LeadField = keyof LeadFormValues | "photos";
+
+/** Mensaje ya traducido de cada campo con error. */
+export type FieldErrors = Partial<Record<LeadField, string>>;
+
+/** Paso en el que se muestra cada campo: un error del backend lleva hasta el. */
+export const FIELD_STEP: Record<LeadField, Step> = {
+  categoryId: "category",
+  serviceIds: "category",
+  title: "details",
+  description: "details",
+  propertyType: "details",
+  schedule: "details",
+  postalCode: "details",
+  photos: "details",
+  clientName: "contact",
+  clientPhone: "contact",
+  clientEmail: "contact",
+  phoneCode: "contact",
+  consentAccepted: "contact",
+};
+
+/** Errores del backend que pertenecen a un campo concreto del formulario. */
+const LEAD_ERROR_MAP: FieldErrorMap = {
+  codes: {
+    CATEGORY_NOT_FOUND: "categoryId",
+    INVALID_SERVICE: "serviceIds",
+    TITLE_LENGTH_INVALID: "title",
+    DESCRIPTION_LENGTH_INVALID: "description",
+    INVALID_POSTAL_CODE: "postalCode",
+    UNKNOWN_POSTAL_CODE: "postalCode",
+    POSTAL_CODE_NOT_COVERED: "postalCode",
+    CLIENT_NAME_REQUIRED: "clientName",
+    INVALID_PHONE: "clientPhone",
+    PHONE_NOT_MOBILE: "clientPhone",
+    INVALID_EMAIL: "clientEmail",
+    PHONE_NOT_VERIFIED: "phoneCode",
+    CONSENT_REQUIRED: "consentAccepted",
+  },
+  fields: {
+    category_id: "categoryId",
+    service_ids: "serviceIds",
+    title: "title",
+    description: "description",
+    property_type: "propertyType",
+    schedule: "schedule",
+    postal_code: "postalCode",
+    photo_keys: "photos",
+    client_name: "clientName",
+    client_phone: "clientPhone",
+    client_email: "clientEmail",
+    phone_verification_code: "phoneCode",
+    consent_accepted: "consentAccepted",
+  },
+};
+
+/** Los errores de `errors` que no son de `step`: siguen ahi al cambiar de paso. */
+function errorsOutside(errors: FieldErrors, step: Step): FieldErrors {
+  const kept: FieldErrors = {};
+  for (const [field, message] of Object.entries(errors) as [LeadField, string][]) {
+    if (FIELD_STEP[field] !== step) kept[field] = message;
+  }
+  return kept;
+}
 
 export interface LeadFormState {
   values: LeadFormValues;
   step: Step;
   stepIndex: number;
   errors: FieldErrors;
+  /**
+   * Sube en cada intento fallido (avanzar o publicar). El resumen de errores lo usa
+   * para tomar el foco: sin el, el boton parece no hacer nada.
+   */
+  failedAttempts: number;
   submitError: string | null;
   submitting: boolean;
   created: CreatedLead | null;
@@ -78,11 +147,13 @@ export interface LeadFormState {
   setCategory: (categoryId: string) => void;
   goNext: () => boolean;
   goBack: () => void;
+  /** Vuelve al paso donde esta el campo, para corregirlo desde el resumen. */
+  goToField: (field: LeadField) => void;
   submit: (photoKeys: string[]) => Promise<void>;
   reset: () => void;
 }
 
-/** Valida solo el paso indicado y devuelve los errores por campo. */
+/** Valida solo el paso indicado y devuelve las claves de validacion por campo. */
 function validateStep(step: Step, values: LeadFormValues): FieldErrors {
   const result = STEP_SCHEMAS[step].safeParse(values);
   if (result.success) return {};
@@ -102,10 +173,13 @@ function validateStep(step: Step, values: LeadFormValues): FieldErrors {
 export function useLeadForm(): LeadFormState {
   const locale = useLocale() as Locale;
   const translateError = useApiError();
+  const formErrors = useApiFormErrors(LEAD_ERROR_MAP);
+  const tValidation = useTranslations("validation");
 
   const [values, setValues] = useState<LeadFormValues>(EMPTY);
   const [stepIndex, setStepIndex] = useState(0);
   const [errors, setErrors] = useState<FieldErrors>({});
+  const [failedAttempts, setFailedAttempts] = useState(0);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [created, setCreated] = useState<CreatedLead | null>(null);
@@ -115,6 +189,26 @@ export function useLeadForm(): LeadFormState {
   const [resendingCode, setResendingCode] = useState(false);
 
   const step = STEPS[stepIndex] ?? "category";
+
+  /**
+   * Sustituye los errores de `step` por los de su validacion, sin tocar los de otros
+   * pasos (un telefono que rechazo el backend sigue marcado al volver al paso 2).
+   * Devuelve si el paso es valido.
+   */
+  const applyStepValidation = useCallback(
+    (target: Step): boolean => {
+      const keys = validateStep(target, values);
+      const translated: FieldErrors = {};
+      for (const [field, key] of Object.entries(keys) as [LeadField, string][]) {
+        translated[field] = tValidation(key);
+      }
+      setErrors((current) => ({ ...errorsOutside(current, target), ...translated }));
+      const valid = Object.keys(translated).length === 0;
+      if (!valid) setFailedAttempts((count) => count + 1);
+      return valid;
+    },
+    [values, tValidation],
+  );
 
   const setField = useCallback(
     <K extends keyof LeadFormValues>(field: K, value: LeadFormValues[K]) => {
@@ -143,16 +237,19 @@ export function useLeadForm(): LeadFormState {
   }, []);
 
   const goNext = useCallback((): boolean => {
-    const stepErrors = validateStep(step, values);
-    setErrors(stepErrors);
-    if (Object.keys(stepErrors).length > 0) return false;
+    if (!applyStepValidation(step)) return false;
     setStepIndex((index) => Math.min(index + 1, STEPS.length - 1));
     return true;
-  }, [step, values]);
+  }, [step, applyStepValidation]);
 
   const goBack = useCallback(() => {
-    setErrors({});
+    // Lo que el usuario aun no ha intentado enviar no se marca como error al volver.
+    setErrors((current) => errorsOutside(current, step));
     setStepIndex((index) => Math.max(index - 1, 0));
+  }, [step]);
+
+  const goToField = useCallback((field: LeadField) => {
+    setStepIndex(STEPS.indexOf(FIELD_STEP[field]));
   }, []);
 
   const resendCode = useCallback(async () => {
@@ -171,9 +268,7 @@ export function useLeadForm(): LeadFormState {
 
   const submit = useCallback(
     async (photoKeys: string[]) => {
-      const stepErrors = validateStep("contact", values);
-      setErrors(stepErrors);
-      if (Object.keys(stepErrors).length > 0) return;
+      if (!applyStepValidation("contact")) return;
       // Los pasos anteriores ya se validaron al avanzar; esto solo estrecha el tipo.
       if (!values.propertyType || !values.schedule) return;
 
@@ -195,7 +290,8 @@ export function useLeadForm(): LeadFormState {
           verified = true;
         }
         if (!verified && !PHONE_CODE.test(values.phoneCode.trim())) {
-          setErrors({ phoneCode: "phoneCodeFormat" });
+          setErrors((current) => ({ ...current, phoneCode: tValidation("phoneCodeFormat") }));
+          setFailedAttempts((count) => count + 1);
           return;
         }
 
@@ -219,18 +315,32 @@ export function useLeadForm(): LeadFormState {
         );
         setCreated(lead);
       } catch (caught) {
-        setSubmitError(translateError(caught));
+        // Un error con campo se pinta en su campo y el formulario vuelve al paso donde
+        // esta: un CP rechazado no puede quedarse como aviso suelto en el paso 3.
+        const { issues, message } = formErrors(caught);
+        if (issues.length > 0) {
+          const next: FieldErrors = {};
+          for (const issue of issues) next[issue.field as LeadField] = issue.message;
+          setErrors(next);
+          const firstStep = Math.min(
+            ...issues.map((issue) => STEPS.indexOf(FIELD_STEP[issue.field as LeadField])),
+          );
+          setStepIndex(firstStep);
+          setFailedAttempts((count) => count + 1);
+        }
+        setSubmitError(message);
       } finally {
         setSubmitting(false);
       }
     },
-    [values, locale, translateError, smsRequired, smsSentTo],
+    [values, locale, smsRequired, smsSentTo, applyStepValidation, formErrors, tValidation],
   );
 
   const reset = useCallback(() => {
     setValues(EMPTY);
     setStepIndex(0);
     setErrors({});
+    setFailedAttempts(0);
     setSubmitError(null);
     setCreated(null);
     setSmsSentTo(null);
@@ -242,6 +352,7 @@ export function useLeadForm(): LeadFormState {
       step,
       stepIndex,
       errors,
+      failedAttempts,
       submitError,
       submitting,
       created,
@@ -252,6 +363,7 @@ export function useLeadForm(): LeadFormState {
       setCategory,
       goNext,
       goBack,
+      goToField,
       submit,
       reset,
     }),
@@ -260,6 +372,7 @@ export function useLeadForm(): LeadFormState {
       step,
       stepIndex,
       errors,
+      failedAttempts,
       submitError,
       submitting,
       created,
@@ -270,6 +383,7 @@ export function useLeadForm(): LeadFormState {
       setCategory,
       goNext,
       goBack,
+      goToField,
       submit,
       reset,
     ],

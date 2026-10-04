@@ -24,6 +24,7 @@ export function ChipGroup<T extends string>({
   required = false,
   error,
   className,
+  fieldKey,
 }: {
   name: string;
   label: string;
@@ -35,9 +36,16 @@ export function ChipGroup<T extends string>({
   required?: boolean;
   error?: string;
   className?: string;
+  /** Clave con la que `FormErrorSummary` encuentra el grupo para llevar el foco. */
+  fieldKey?: string;
 }) {
   return (
-    <fieldset className={cn("space-y-3", className)}>
+    // `tabIndex={-1}`: el resumen de errores puede enfocar el grupo aunque no sea un control.
+    <fieldset
+      className={cn("space-y-3 focus:outline-none", className)}
+      data-field={fieldKey}
+      tabIndex={fieldKey ? -1 : undefined}
+    >
       <legend className="text-[15px] font-semibold text-ink">
         {label}
         {required && <span className="ml-0.5 text-danger">*</span>}

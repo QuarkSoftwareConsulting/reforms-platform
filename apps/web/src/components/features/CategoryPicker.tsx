@@ -14,6 +14,7 @@ export function CategoryPicker({
   error,
   label,
   hint,
+  fieldKey,
 }: {
   categories: Category[];
   selected: string[];
@@ -22,6 +23,7 @@ export function CategoryPicker({
   error?: string;
   label: string;
   hint?: string;
+  fieldKey?: string;
 }) {
   const t = useTranslations("common");
 
@@ -34,7 +36,8 @@ export function CategoryPicker({
   };
 
   return (
-    <fieldset className="space-y-3">
+    // `tabIndex={-1}`: el resumen de errores puede enfocar el grupo aunque no sea un control.
+    <fieldset className="space-y-3" data-field={fieldKey} tabIndex={fieldKey ? -1 : undefined}>
       <legend className="text-[15px] font-semibold text-ink">
         {label}
         <span className="ml-0.5 text-danger">*</span>

@@ -127,6 +127,7 @@
     "emailLabel": "Email",
     "emailHint": "Te enviamos una copia de tu solicitud.",
     "consentLabel": "He leído y acepto la política de tratamiento de datos. Autorizo a Voy a Reformar a tratar mis datos para validar la solicitud, a mostrar mi nombre de pila y mi código postal a los profesionales registrados y a ceder mis datos de contacto a un máximo de {maxProfessionals} profesionales que compren el contacto, conforme al RGPD (UE) 2016/679 y la LOPDGDD 3/2018.",
+    "consentShortLabel": "Consentimiento",
     "policyShow": "Ver resumen de la política de datos",
     "policyHide": "Ocultar el resumen",
     "policy": {
@@ -325,6 +326,8 @@
     "registrationHint": "Necesitamos estos datos para validar tu alta y para facturarte.",
     "identityLocked": "Ya enviaste tu alta a revisión: el tipo, la razón social y el NIF no se pueden cambiar.",
     "typeLabel": "¿Cómo te das de alta?",
+    "typeShortLabel": "Tipo de alta",
+    "servicesShortLabel": "Servicios",
     "types": {
       "self_employed": {
         "title": "Autónomo",
@@ -446,7 +449,9 @@
       "channel": "Canal de captura del consentimiento",
       "policy": "Versión de política",
       "acceptedAt": "Fecha y hora de aceptación",
+      "invalidDate": "Indica una fecha de aceptación válida.",
       "campaign": "Referencia de campaña",
+      "created": "Lead «{title}» publicado.",
       "submit": "Publicar lead manual"
     },
     "categoryPricing": {
@@ -590,6 +595,19 @@
       "previous": "Anterior",
       "next": "Siguiente",
       "page": "Página {page} de {pages}"
+    },
+    "debt": "Deuda",
+    "adjustment": {
+      "open": "Ajustar saldo",
+      "direction": "Tipo de ajuste",
+      "credit": "Abonar saldo",
+      "debit": "Cargar saldo",
+      "amount": "Importe (€)",
+      "note": "Motivo",
+      "noteHint": "Queda registrado en los movimientos del profesional.",
+      "submit": "Aplicar ajuste",
+      "done": "Ajuste aplicado. Saldo: {balance}.",
+      "doneWithDebt": "Ajuste aplicado. Saldo: {balance} · Deuda pendiente: {debt}."
     }
   },
   "errors": {
@@ -636,7 +654,47 @@
     "INVALID_TAX_ID": "El NIF, NIE o CIF no es válido: revisa la letra o el dígito de control.",
     "USER_NOT_FOUND": "Ese usuario ya no existe.",
     "CANNOT_CHANGE_OWN_ROLE": "No puedes cambiar tu propio rol: pídeselo a otro administrador.",
-    "LAST_ADMIN": "No puedes quitar el último administrador: antes nombra a otro."
+    "LAST_ADMIN": "No puedes quitar el último administrador: antes nombra a otro.",
+    "CREDIT_DEBT_OUTSTANDING": "Tu banco devolvió una mensualidad que ya habías gastado. Podrás comprar contactos cuando se salde con tu próxima mensualidad.",
+    "INVALID_PHONE": "El teléfono no es válido. Revisa que esté completo y sin letras.",
+    "INVALID_EMAIL": "El email no es válido. Revisa que tenga la forma nombre@dominio.com.",
+    "INVALID_POSTAL_CODE": "El código postal no es válido. Escríbelo con sus 5 dígitos.",
+    "CLIENT_NAME_REQUIRED": "Indica el nombre del cliente.",
+    "CONSENT_DATE_IN_FUTURE": "La fecha del consentimiento no puede ser posterior al momento actual. Revisa la fecha y la hora.",
+    "TITLE_LENGTH_INVALID": "El título debe tener entre {min} y {max} caracteres, sin contar los espacios del principio y del final.",
+    "DESCRIPTION_LENGTH_INVALID": "La descripción debe tener entre {min} y {max} caracteres, sin contar los espacios del principio y del final.",
+    "PURCHASE_NOT_FOUND": "No encontramos esa compra.",
+    "PURCHASE_NOT_PAYABLE": "Esta compra ya no admite el pago. Empieza de nuevo desde la solicitud.",
+    "NOT_FOUND": "No hemos encontrado lo que buscas.",
+    "fields": {
+      "category_id": "Oficio",
+      "title": "Título",
+      "description": "Descripción",
+      "postal_code": "Código postal",
+      "client_name": "Nombre del cliente",
+      "client_phone": "Teléfono",
+      "client_email": "Email",
+      "photo_keys": "Fotos",
+      "service_ids": "Servicios",
+      "property_type": "Tipo de inmueble",
+      "schedule": "Programación",
+      "phone_verification_code": "Código SMS",
+      "consent_policy_version": "Versión de política",
+      "consent_accepted_at": "Fecha de aceptación",
+      "consent_channel": "Canal de captura",
+      "consent_campaign_reference": "Referencia de campaña"
+    },
+    "fieldError": {
+      "intro": "Revisa el formulario: {details}.",
+      "item": "{field}: {issue}"
+    },
+    "issue": {
+      "missing": "obligatorio",
+      "tooShort": "mínimo {min} caracteres",
+      "tooLong": "máximo {max} caracteres",
+      "invalid": "valor no válido"
+    },
+    "summary": "Revisa {count, plural, one {# campo} other {# campos}} para continuar"
   },
   "validation": {
     "categoryRequired": "Elige un oficio.",
@@ -676,6 +734,14 @@
     "documentType": "Sube el documento en PDF o como imagen.",
     "documentTooLarge": "El documento supera los 10 MB.",
     "adjustmentAmount": "Indica un importe mayor que 0 y de hasta 1000 €.",
-    "adjustmentNote": "Explica el motivo del ajuste (entre 3 y 500 caracteres)."
+    "adjustmentNote": "Explica el motivo del ajuste (entre 3 y 500 caracteres).",
+    "channelRequired": "Indica el canal donde se recogió el consentimiento.",
+    "channelTooLong": "El canal no puede superar los 120 caracteres.",
+    "policyRequired": "Indica la versión de la política que aceptó el cliente.",
+    "policyTooLong": "La versión de la política no puede superar los 40 caracteres.",
+    "campaignTooLong": "La referencia de campaña no puede superar los 200 caracteres.",
+    "acceptedAtRequired": "Indica la fecha y la hora en que el cliente aceptó.",
+    "acceptedAtInvalid": "La fecha de aceptación no es válida.",
+    "acceptedAtFuture": "La fecha de aceptación no puede ser posterior a ahora."
   }
 }

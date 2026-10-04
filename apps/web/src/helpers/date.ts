@@ -85,3 +85,12 @@ export function formatDay(day: string, locale: Locale = "es"): string {
     timeZone: "UTC",
   }).format(date);
 }
+
+/** Valor para un `<input type="datetime-local">`: hora local, sin zona y sin segundos. */
+export function toDatetimeLocal(date: Date): string {
+  const pad = (value: number): string => String(value).padStart(2, "0");
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+    `T${pad(date.getHours())}:${pad(date.getMinutes())}`
+  );
+}

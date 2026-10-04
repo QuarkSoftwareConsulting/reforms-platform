@@ -13,7 +13,7 @@ import type { VerificationStatus } from "@/helpers/professionalOptions";
 import { useApiError } from "@/hooks/useApiError";
 import { useVerificationDossier, type VerificationDossierState } from "@/hooks/useVerificationDossier";
 import { adminService } from "@/services/admin.service";
-import type { AdminUser, Locale, UserRole } from "@/types/api";
+import type { AdminAccount, AdminUser, Locale, UserRole } from "@/types/api";
 
 export const USERS_PAGE_SIZE = 20;
 /** Espera tras la ultima tecla antes de buscar: una peticion por palabra, no por letra. */
@@ -40,6 +40,8 @@ export interface AdminUsersState {
   changeRole: (userId: string, role: UserRole, note: string) => Promise<boolean>;
   roleError: string | null;
   clearRoleError: () => void;
+  /** Sustituye la cuenta de un profesional tras un ajuste de saldo, sin recargar la lista. */
+  updateAccount: (userId: string, account: AdminAccount) => void;
   dossier: VerificationDossierState;
 }
 
@@ -118,6 +120,16 @@ export function useAdminUsers(): AdminUsersState {
 
   const dossier = useVerificationDossier(load);
 
+  const updateAccount = useCallback((userId: string, account: AdminAccount) => {
+    setItems((current) =>
+      current.map((item) =>
+        item.id === userId && item.professional
+          ? { ...item, professional: { ...item.professional, account } }
+          : item,
+      ),
+    );
+  }, []);
+
   return {
     items,
     total,
@@ -132,6 +144,7 @@ export function useAdminUsers(): AdminUsersState {
     changeRole,
     roleError,
     clearRoleError: () => setRoleError(null),
+    updateAccount,
     dossier,
   };
 }

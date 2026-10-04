@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 const metrics = {
@@ -68,6 +68,8 @@ vi.mock("@/services/leads.service", () => ({
 
 const { AdminPanel } = await import("@/components/features/AdminPanel");
 const { renderWithIntl, messages } = await import("./render");
+const { adminService } = await import("@/services/admin.service");
+const { ApiError } = await import("@/services/api");
 
 describe("AdminPanel", () => {
   it("never reads accidental client fields from an admin lead", async () => {
@@ -77,5 +79,47 @@ describe("AdminPanel", () => {
 
     expect(screen.getAllByText(messages.admin.status.published)).toHaveLength(2);
     expect(container.innerHTML).not.toContain("Ana Lopez");
+  });
+
+  async function submitManualLead(acceptedAt: string): Promise<HTMLElement> {
+    const { container } = renderWithIntl(<AdminPanel />);
+    await waitFor(() => expect(container.querySelector("form")).not.toBeNull());
+    const input = container.querySelector<HTMLInputElement>('input[name="accepted_at"]');
+    fireEvent.change(input as HTMLInputElement, { target: { value: acceptedAt } });
+    fireEvent.submit(container.querySelector("form") as HTMLFormElement);
+    return container;
+  }
+
+  it("shows the specific reason when the backend rejects the manual lead", async () => {
+    vi.mocked(adminService.createLead).mockRejectedValueOnce(
+      new ApiError(422, {
+        code: "CONSENT_DATE_IN_FUTURE",
+        message: "La fecha del consentimiento no puede estar en el futuro",
+        details: null,
+      }),
+    );
+
+    await submitManualLead("2026-03-01T10:00");
+
+    expect(await screen.findByText(messages.errors.CONSENT_DATE_IN_FUTURE)).toBeDefined();
+    expect(screen.queryByText(messages.errors.VALIDATION_ERROR)).toBeNull();
+  });
+
+  it("confirms a created lead instead of reporting a connection error", async () => {
+    vi.mocked(adminService.createLead).mockResolvedValueOnce({ id: "new-lead" } as never);
+
+    const container = await submitManualLead("2026-03-01T10:00");
+
+    expect(await screen.findByText(messages.admin.saved)).toBeDefined();
+    expect(container.innerHTML).not.toContain(messages.errors.network);
+  });
+
+  it("asks for a valid acceptance date instead of failing silently", async () => {
+    vi.mocked(adminService.createLead).mockClear();
+
+    await submitManualLead("");
+
+    expect(await screen.findByText(messages.admin.manual.invalidDate)).toBeDefined();
+    expect(adminService.createLead).not.toHaveBeenCalled();
   });
 });

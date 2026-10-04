@@ -7,7 +7,6 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card, Tag } from "@/components/ui/Card";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/Field";
-import { CreditAdjustmentForm } from "@/components/features/CreditAdjustmentForm";
 import { PhotoUploader } from "@/components/features/PhotoUploader";
 import { formatMoney } from "@/helpers/currency";
 import { useApiError } from "@/hooks/useApiError";
@@ -93,8 +92,17 @@ export function AdminPanel() {
     event: FormEvent<HTMLFormElement>,
   ): Promise<void> {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const acceptedAt = new Date(String(form.get("accepted_at"))).toISOString();
+    // React deja `currentTarget` en null en cuanto vuelve el handler: tras el `await`
+    // de abajo ya no sirve, y el reset() fallaba con un TypeError que se mostraba
+    // como "sin conexion" aunque el lead se hubiera creado.
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const acceptedAt = new Date(String(form.get("accepted_at")));
+    if (Number.isNaN(acceptedAt.getTime())) {
+      setNotice(null);
+      setError(t("manual.invalidDate"));
+      return;
+    }
     await run(async () => {
       await adminService.createLead(
         {
@@ -108,14 +116,14 @@ export function AdminPanel() {
           photo_keys: photoUpload.storageKeys,
           consent: {
             policy_version: String(form.get("policy_version")),
-            accepted_at: acceptedAt,
+            accepted_at: acceptedAt.toISOString(),
             channel: String(form.get("channel")),
             campaign_reference: String(form.get("campaign_reference")) || null,
           },
         },
         locale,
       );
-      event.currentTarget.reset();
+      formElement.reset();
     });
   }
 

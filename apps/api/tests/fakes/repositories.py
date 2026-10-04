@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 import copy
 from collections.abc import Callable, Iterable
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -823,6 +823,12 @@ class InMemoryCreditLedgerRepository(CreditLedgerRepositoryPort):
             if e.professional_id == professional_id and e.kind is CreditEntryKind.TOPUP
         ]
         return min(topups, key=lambda e: e.created_at) if topups else None
+
+    async def find(self, kind: CreditEntryKind, source_ref: str) -> CreditEntry | None:
+        await _round_trip()
+        return next(
+            (e for e in self.entries if e.kind is kind and e.source_ref == source_ref), None
+        )
 
     async def daily_topups(self, *, start: datetime, end: datetime, tz: str) -> list[DailyCount]:
         await _round_trip()

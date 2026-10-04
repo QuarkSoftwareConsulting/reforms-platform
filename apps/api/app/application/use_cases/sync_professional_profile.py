@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from app.application.dto import ProfessionalProfile, UpsertProfessionalInput
+from app.application.parsing import parse_postal_code
 from app.application.ports import (
     AuthenticatedIdentity,
     CategoryRepositoryPort,
@@ -33,7 +34,7 @@ from app.domain.exceptions import (
     ValidationError,
 )
 from app.domain.models import MADRID, Professional, ServiceArea, User, UserRole
-from app.domain.value_objects import Email, PostalCode, TaxId
+from app.domain.value_objects import Email, TaxId
 
 
 @dataclass(slots=True)
@@ -98,7 +99,7 @@ class UpsertProfessionalProfile:
     service_area: ServiceArea = MADRID
 
     async def execute(self, *, user_id: UUID, data: UpsertProfessionalInput) -> Professional:
-        postal_code = PostalCode(data.postal_code)
+        postal_code = parse_postal_code(data.postal_code)
         # Cobertura de la Etapa 1 tambien para la base del profesional (F02).
         self.service_area.assert_covers(postal_code)
         info = await self.postal_codes.get(postal_code)

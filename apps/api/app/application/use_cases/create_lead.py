@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from app.application.dto import CreateLeadInput
+from app.application.parsing import parse_email, parse_phone, parse_postal_code
 from app.application.ports import (
     CategoryRepositoryPort,
     ClockPort,
@@ -17,10 +18,10 @@ from app.application.ports import (
 )
 from app.domain.exceptions import (
     CategoryNotFoundError,
+    ConsentDateInFutureError,
     ConsentRequiredError,
     PhoneNotVerifiedError,
     UnknownPostalCodeError,
-    ValidationError,
 )
 from app.domain.models import (
     DEFAULT_MAX_PURCHASES,
@@ -35,7 +36,7 @@ from app.domain.models import (
     ServiceArea,
     policy_covers_public_preview,
 )
-from app.domain.value_objects import Email, PhoneNumber, PostalCode
+from app.domain.value_objects import PhoneNumber
 
 
 @dataclass(slots=True)
@@ -64,7 +65,7 @@ class CreateLead:
         if category is None or not category.active:
             raise CategoryNotFoundError()
 
-        postal_code = PostalCode(data.postal_code)
+        postal_code = parse_postal_code(data.postal_code)
         # Antes de consultar el catalogo: un CP real pero fuera de zona debe decir
         # "fuera de cobertura", no "no reconocido".
         self.service_area.assert_covers(postal_code)
@@ -90,8 +91,8 @@ class CreateLead:
             ),
             contact=ClientContact(
                 name=data.client_name,
-                phone=PhoneNumber(data.client_phone),
-                email=Email(data.client_email) if data.client_email else None,
+                phone=parse_phone(data.client_phone),
+                email=parse_email(data.client_email) if data.client_email else None,
             ),
             created_at=now,
             status=LeadStatus.PUBLISHED,
@@ -134,7 +135,7 @@ class CreateLead:
             raise ConsentRequiredError("Indica el canal donde se recogio el consentimiento")
         accepted_at = data.consent.accepted_at or now
         if accepted_at > now:
-            raise ValidationError("La fecha del consentimiento no puede estar en el futuro")
+            raise ConsentDateInFutureError()
         return ConsentRecord(
             policy_version=data.consent.policy_version,
             ip_address=data.consent.ip_address,

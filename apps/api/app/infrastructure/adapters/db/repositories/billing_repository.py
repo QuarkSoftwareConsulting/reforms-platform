@@ -178,6 +178,13 @@ class SqlAlchemyCreditLedgerRepository(CreditLedgerRepositoryPort):
         row = (await self._session.execute(stmt)).scalar_one_or_none()
         return credit_entry_to_domain(row) if row is not None else None
 
+    async def find(self, kind: CreditEntryKind, source_ref: str) -> CreditEntry | None:
+        stmt = select(CreditEntryRow).where(
+            CreditEntryRow.kind == kind, CreditEntryRow.source_ref == source_ref
+        )
+        row = (await self._session.execute(stmt)).scalar_one_or_none()
+        return credit_entry_to_domain(row) if row is not None else None
+
     async def daily_topups(self, *, start: datetime, end: datetime, tz: str) -> list[DailyCount]:
         return await daily_counts(
             self._session,

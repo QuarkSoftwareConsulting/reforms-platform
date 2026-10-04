@@ -109,6 +109,31 @@ describe("AdminUsers", () => {
     expect(within(row as HTMLElement).getByText(tUsers.roles.admin)).toBeDefined();
   });
 
+  it("shows the professional's debt and lets the admin adjust the balance", async () => {
+    const indebted: AdminUser = {
+      ...pro,
+      professional: pro.professional && {
+        ...pro.professional,
+        account: {
+          status: "past_due",
+          is_active: false,
+          balance: EUR(0),
+          current_period_end: null,
+          debt: { amount_cents: 700, currency: "EUR", formatted: "7,00 €" },
+        },
+      },
+    };
+    users.mockResolvedValue(page([admin, indebted]));
+    renderWithIntl(<AdminUsers />);
+
+    const row = (await screen.findByText("pro@example.com")).closest("li") as HTMLElement;
+    expect(within(row).getByText(new RegExp(`${messages.admin.debt} 7,00`))).toBeDefined();
+    expect(within(row).getByText(messages.admin.adjustment.open)).toBeDefined();
+    // Sin perfil profesional no hay saldo que ajustar.
+    const adminRow = screen.getByText("admin@example.com").closest("li") as HTMLElement;
+    expect(within(adminRow).queryByText(messages.admin.adjustment.open)).toBeNull();
+  });
+
   it("does not offer changing your own role", async () => {
     renderWithIntl(<AdminUsers />);
 

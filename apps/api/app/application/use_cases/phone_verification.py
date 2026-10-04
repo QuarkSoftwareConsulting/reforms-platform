@@ -11,11 +11,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import timedelta
 
+from app.application.parsing import parse_phone
 from app.application.ports import ClockPort, PhoneVerificationPort, RateLimiterPort, UnitOfWork
 from app.domain.exceptions import (
     PhoneNotMobileError,
     TooManyVerificationAttemptsError,
-    ValidationError,
 )
 from app.domain.value_objects import PhoneNumber
 
@@ -27,10 +27,7 @@ class PhoneVerificationStart:
 
 
 def parse_mobile(raw: str) -> PhoneNumber:
-    try:
-        phone = PhoneNumber(raw)
-    except ValueError as exc:
-        raise ValidationError("Telefono invalido") from exc
+    phone = parse_phone(raw)
     if not phone.is_spanish_mobile:
         raise PhoneNotMobileError()
     return phone

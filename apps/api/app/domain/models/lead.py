@@ -13,11 +13,14 @@ from uuid import UUID
 
 from app.domain.exceptions import (
     CategoryMismatchError,
+    ClientNameRequiredError,
     ConsentRequiredError,
     ContactLockedError,
+    DescriptionLengthError,
     LeadAlreadyPurchasedError,
     LeadCapReachedError,
     LeadNotPurchasableError,
+    TitleLengthError,
     ValidationError,
 )
 from app.domain.models.enums import LeadSource, LeadStatus, ProjectSchedule, PropertyType
@@ -66,7 +69,7 @@ class ClientContact:
 
     def __post_init__(self) -> None:
         if not self.name.strip():
-            raise ValidationError("El nombre del cliente es obligatorio")
+            raise ClientNameRequiredError()
 
     @property
     def first_name(self) -> str:
@@ -135,11 +138,17 @@ class Lead:
         self.title = self.title.strip()
         self.description = self.description.strip()
         if not self.title or len(self.title) > MAX_TITLE_LENGTH:
-            raise ValidationError(f"El titulo debe tener entre 1 y {MAX_TITLE_LENGTH} caracteres")
+            raise TitleLengthError(
+                f"El titulo debe tener entre 1 y {MAX_TITLE_LENGTH} caracteres",
+                min=1,
+                max=MAX_TITLE_LENGTH,
+            )
         if not MIN_DESCRIPTION_LENGTH <= len(self.description) <= MAX_DESCRIPTION_LENGTH:
-            raise ValidationError(
+            raise DescriptionLengthError(
                 f"La descripcion debe tener entre {MIN_DESCRIPTION_LENGTH} y "
-                f"{MAX_DESCRIPTION_LENGTH} caracteres"
+                f"{MAX_DESCRIPTION_LENGTH} caracteres",
+                min=MIN_DESCRIPTION_LENGTH,
+                max=MAX_DESCRIPTION_LENGTH,
             )
         if len(set(self.service_ids)) != len(self.service_ids):
             raise ValidationError("Un servicio no puede repetirse en la misma solicitud")

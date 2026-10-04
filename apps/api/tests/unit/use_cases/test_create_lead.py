@@ -1,3 +1,4 @@
+from datetime import timedelta
 from uuid import uuid4
 
 import pytest
@@ -6,6 +7,7 @@ from app.application.dto import ConsentInput, CreateLeadInput
 from app.domain.exceptions import (
     CategoryNotFoundError,
     ConsentRequiredError,
+    DomainError,
     InvalidServiceError,
     PostalCodeNotCoveredError,
     UnknownPostalCodeError,
@@ -206,3 +208,75 @@ async def test_rejects_a_service_from_another_category(world: World) -> None:
             lead_input(reforms, service_ids=[movers.services[0].id]), source=LeadSource.ORGANIC
         )
     assert world.leads.items == {}
+
+
+# --- Cada regla de formato responde con su propio codigo ---------------------------
+# El frontend traduce por `code` e ignora `message` (AGENTS.md 4.8): un `ValueError` de un
+# value object saldria como 500, y un `VALIDATION_ERROR` generico no dice que corregir.
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "code"),
+    [
+        ("client_phone", "abc123", "INVALID_PHONE"),
+        ("client_email", "no-es-un-email", "INVALID_EMAIL"),
+        ("postal_code", "xx", "INVALID_POSTAL_CODE"),
+        ("client_name", "     ", "CLIENT_NAME_REQUIRED"),
+    ],
+)
+async def test_malformed_contact_field_has_its_own_code(
+    world: World, carpentry: Category, field: str, value: str, code: str
+) -> None:
+    consent = ConsentInput(accepted=True, policy_version="2026-09-v2", channel="Telefono")
+
+    with pytest.raises(DomainError) as raised:
+        await world.create_lead.execute(
+            lead_input(carpentry, consent=consent, **{field: value}), source=LeadSource.ADMIN
+        )
+
+    assert raised.value.code == code
+    assert raised.value.status == 422
+    assert world.leads.items == {}
+
+
+async def test_consent_date_in_the_future_has_its_own_code(
+    world: World, carpentry: Category
+) -> None:
+    consent = ConsentInput(
+        accepted=True,
+        policy_version="2026-09-v2",
+        channel="Meta Lead Ads",
+        accepted_at=world.clock.now() + timedelta(hours=1),
+    )
+
+    with pytest.raises(DomainError) as raised:
+        await world.create_lead.execute(
+            lead_input(carpentry, consent=consent), source=LeadSource.ADMIN
+        )
+
+    assert raised.value.code == "CONSENT_DATE_IN_FUTURE"
+    assert world.leads.items == {}
+
+
+# Un titulo de solo espacios o una descripcion corta con relleno pasan el esquema.
+BLANK_AFTER_STRIP = {"title": "     ", "description": "   corto   "}
+
+
+@pytest.mark.parametrize(
+    ("field", "code", "limits"),
+    [
+        # Pydantic cuenta los espacios; el dominio los recorta. Con relleno se cuela hasta aqui.
+        ("title", "TITLE_LENGTH_INVALID", {"min": 1, "max": 140}),
+        ("description", "DESCRIPTION_LENGTH_INVALID", {"min": 20, "max": 4000}),
+    ],
+)
+async def test_length_error_carries_its_limits_for_the_message(
+    world: World, carpentry: Category, field: str, code: str, limits: dict[str, int]
+) -> None:
+    with pytest.raises(DomainError) as raised:
+        await world.create_lead.execute(
+            lead_input(carpentry, **{field: BLANK_AFTER_STRIP[field]}), source=LeadSource.ORGANIC
+        )
+
+    assert raised.value.code == code
+    assert raised.value.details == limits

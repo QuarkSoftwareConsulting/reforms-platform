@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { CategoryPicker } from "@/components/features/CategoryPicker";
 import { PhotoUploader } from "@/components/features/PhotoUploader";
@@ -12,10 +12,20 @@ import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Card";
 import { ChipGroup } from "@/components/ui/ChipGroup";
 import { CheckboxField, TextAreaField, TextField } from "@/components/ui/Field";
+import {
+  FormErrorSummary,
+  type SummaryIssue,
+} from "@/components/ui/FormErrorSummary";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { focusField } from "@/helpers/formErrors";
 import { PROJECT_SCHEDULES, PROPERTY_TYPES } from "@/helpers/leadOptions";
 import { MIN_DESCRIPTION_LENGTH } from "@/helpers/validators";
-import { STEPS, useLeadForm } from "@/hooks/useLeadForm";
+import {
+  FIELD_STEP,
+  STEPS,
+  useLeadForm,
+  type LeadField,
+} from "@/hooks/useLeadForm";
 import { usePhotoUpload } from "@/hooks/usePhotoUpload";
 import { path, type AppLocale } from "@/i18n/routing";
 import type { CatalogCategory } from "@/types/api";
@@ -37,12 +47,21 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
   const locale = useLocale() as AppLocale;
   const t = useTranslations("publish");
   const tCommon = useTranslations("common");
-  const tValidation = useTranslations("validation");
+  const tErrors = useTranslations("errors");
   const tProject = useTranslations("project");
   const form = useLeadForm();
   const upload = usePhotoUpload();
   const searchParams = useSearchParams();
   const [policyOpen, setPolicyOpen] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  // Campo de otro paso elegido en el resumen: se enfoca cuando ese paso ya se pinto.
+  const [pendingFocus, setPendingFocus] = useState<LeadField | null>(null);
+
+  useEffect(() => {
+    if (!pendingFocus || FIELD_STEP[pendingFocus] !== form.step) return;
+    focusField(formRef.current, pendingFocus);
+    setPendingFocus(null);
+  }, [pendingFocus, form.step]);
 
   // Permite entrar desde la landing con el oficio ya elegido (?category=slug).
   const presetSlug = searchParams.get("category");
@@ -52,10 +71,7 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
     if (match) form.setCategory(match.id);
   }, [presetSlug, categories, form]);
 
-  const error = (field: keyof typeof form.values): string | undefined => {
-    const key = form.errors[field];
-    return key ? tValidation(key) : undefined;
-  };
+  const error = (field: LeadField): string | undefined => form.errors[field];
 
   if (form.created) {
     return (
@@ -105,6 +121,38 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
     selectedCategory.services.length > 0
       ? selectedCategory.services
       : null;
+  // Orden de pantalla: el resumen lista primero lo que esta antes en el formulario.
+  const fieldLabels: Record<LeadField, string> = {
+    categoryId: tErrors("fields.category_id"),
+    serviceIds: tErrors("fields.service_ids"),
+    title: tErrors("fields.title"),
+    description: tErrors("fields.description"),
+    propertyType: tErrors("fields.property_type"),
+    schedule: tErrors("fields.schedule"),
+    postalCode: t("postalCodeLabel"),
+    photos: tErrors("fields.photo_keys"),
+    clientName: t("nameLabel"),
+    clientPhone: t("phoneLabel"),
+    clientEmail: t("emailLabel"),
+    phoneCode: t("phoneCodeLabel"),
+    consentAccepted: t("consentShortLabel"),
+  };
+  const summaryIssues: SummaryIssue[] = (
+    Object.keys(fieldLabels) as LeadField[]
+  ).flatMap((field) => {
+    const message = form.errors[field];
+    return message ? [{ field, label: fieldLabels[field], message }] : [];
+  });
+  const selectIssue = (field: string) => {
+    const target = field as LeadField;
+    if (FIELD_STEP[target] === form.step) {
+      focusField(formRef.current, target);
+      return;
+    }
+    form.goToField(target);
+    setPendingFocus(target);
+  };
+
   const toggleService = (id: string) =>
     form.setField(
       "serviceIds",
@@ -115,6 +163,8 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
 
   return (
     <form
+      ref={formRef}
+      noValidate
       onSubmit={(event) => {
         event.preventDefault();
         if (isLastStep) {
@@ -161,6 +211,7 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
             onChange={(ids) => form.setCategory(ids[0] ?? "")}
             label={t("categoryLabel")}
             error={error("categoryId")}
+            fieldKey="categoryId"
           />
         )}
 
@@ -172,6 +223,7 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
               value={form.values.title}
               onChange={(event) => form.setField("title", event.target.value)}
               error={error("title")}
+              fieldKey="title"
               required
               maxLength={140}
             />
@@ -184,6 +236,7 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
                 form.setField("description", event.target.value)
               }
               error={error("description")}
+              fieldKey="description"
               required
               maxLength={4000}
             />
@@ -200,6 +253,7 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
               onToggle={(value) => form.setField("propertyType", value)}
               error={error("propertyType")}
               required
+              fieldKey="propertyType"
             />
             <ChipGroup
               name="schedule"
@@ -212,6 +266,7 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
               onToggle={(value) => form.setField("schedule", value)}
               error={error("schedule")}
               required
+              fieldKey="schedule"
             />
             <TextField
               label={t("postalCodeLabel")}
@@ -222,12 +277,27 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
                 form.setField("postalCode", event.target.value)
               }
               error={error("postalCode")}
+              fieldKey="postalCode"
               required
               inputMode="numeric"
               maxLength={5}
               autoComplete="postal-code"
             />
-            <PhotoUploader upload={upload} />
+            <div
+              className="focus:outline-none"
+              data-field="photos"
+              tabIndex={-1}
+            >
+              <PhotoUploader upload={upload} />
+              {error("photos") && (
+                <p
+                  role="alert"
+                  className="mt-1.5 text-help font-medium text-danger"
+                >
+                  {error("photos")}
+                </p>
+              )}
+            </div>
           </>
         )}
 
@@ -240,6 +310,7 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
                 form.setField("clientName", event.target.value)
               }
               error={error("clientName")}
+              fieldKey="clientName"
               required
               autoComplete="name"
             />
@@ -251,6 +322,7 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
                 form.setField("clientPhone", event.target.value)
               }
               error={error("clientPhone")}
+              fieldKey="clientPhone"
               required
               type="tel"
               inputMode="tel"
@@ -264,6 +336,7 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
                 form.setField("clientEmail", event.target.value)
               }
               error={error("clientEmail")}
+              fieldKey="clientEmail"
               type="email"
               autoComplete="email"
             />
@@ -278,6 +351,7 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
                     form.setField("phoneCode", event.target.value)
                   }
                   error={error("phoneCode")}
+                  fieldKey="phoneCode"
                   // Sin `required` nativo: si el cliente corrige el telefono, el
                   // formulario tiene que poder enviarse para pedir otro codigo.
                   inputMode="numeric"
@@ -306,6 +380,7 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
                   form.setField("consentAccepted", event.target.checked)
                 }
                 error={error("consentAccepted")}
+                fieldKey="consentAccepted"
               />
               {/* Un boton, no un segundo checkbox: el unico control marcable de
                   este paso es el consentimiento. */}
@@ -344,6 +419,14 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
         )}
       </Panel>
 
+      {/* Junto a los botones: el error suele quedar arriba, fuera de pantalla, y en el
+          paso 3 puede ser de un paso anterior (un CP que rechazo el servidor). */}
+      <FormErrorSummary
+        title={tErrors("summary", { count: summaryIssues.length })}
+        issues={summaryIssues}
+        attempt={form.failedAttempts}
+        onSelect={selectIssue}
+      />
       {form.submitError && <Alert tone="error">{form.submitError}</Alert>}
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
@@ -362,6 +445,7 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
             onToggle={toggleService}
             multiple
             error={error("serviceIds")}
+            fieldKey="serviceIds"
             className="flex-1 rounded-option border border-line bg-surface p-5"
           />
         )}
