@@ -44,7 +44,11 @@ export interface AuthState {
   signUpWithEmail: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
-  refreshMe: () => Promise<Me | null>;
+  /**
+   * `silent` recarga el perfil sin marcar `loading`: `AuthGate` desmonta la pagina
+   * mientras carga, y tras guardar un formulario eso se ve como un parpadeo.
+   */
+  refreshMe: (options?: { silent?: boolean }) => Promise<Me | null>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -84,12 +88,12 @@ export function AuthProvider({
     });
   }, []);
 
-  const refreshMe = useCallback(async (): Promise<Me | null> => {
+  const refreshMe = useCallback(async ({ silent = false } = {}): Promise<Me | null> => {
     if (!currentUser.current) {
       setMe(null);
       return null;
     }
-    setProfileLoading(true);
+    if (!silent) setProfileLoading(true);
     try {
       const profile = await professionalService.me(locale);
       setMe(profile);
@@ -99,7 +103,7 @@ export function AuthProvider({
       setMe(null);
       return null;
     } finally {
-      setProfileLoading(false);
+      if (!silent) setProfileLoading(false);
     }
   }, [locale]);
 

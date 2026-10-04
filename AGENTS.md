@@ -59,18 +59,18 @@ npx -y firebase-tools emulators:start --only auth \
 
 ## 3. Comandos que debes usar
 
-| Objetivo | Comando |
-|---|---|
-| Todo el lint (ruff + mypy strict + eslint + tsc) | `pnpm lint` |
-| Todos los tests (568 back + 113 front) | `pnpm test` |
-| Backend rápido, **sin Docker** (475 tests) | `cd apps/api && uv run pytest -m "not integration"` |
-| Backend completo (requiere `pnpm infra:up`) | `pnpm api:test` |
-| Un solo test de backend | `cd apps/api && uv run pytest tests/unit/domain/test_lead.py -k capping` |
-| Frontend en watch | `pnpm --filter web test:watch` |
-| ¿Modelos y esquema divergen? | `cd apps/api && uv run alembic check` |
-| Flujo de compra end-to-end contra servicios reales | `pnpm verify:flow` |
-| Arreglar lo que `--autogenerate` no hace | `cd apps/api && uv run python -m scripts.fix_migration` |
-| Recrear la BD desde cero | `pnpm infra:reset && pnpm api:migrate && pnpm api:seed` |
+| Objetivo                                           | Comando                                                                  |
+| -------------------------------------------------- | ------------------------------------------------------------------------ |
+| Todo el lint (ruff + mypy strict + eslint + tsc)   | `pnpm lint`                                                              |
+| Todos los tests (584 back + 132 front)             | `pnpm test`                                                              |
+| Backend rápido, **sin Docker** (481 tests)         | `cd apps/api && uv run pytest -m "not integration"`                      |
+| Backend completo (requiere `pnpm infra:up`)        | `pnpm api:test`                                                          |
+| Un solo test de backend                            | `cd apps/api && uv run pytest tests/unit/domain/test_lead.py -k capping` |
+| Frontend en watch                                  | `pnpm --filter web test:watch`                                           |
+| ¿Modelos y esquema divergen?                       | `cd apps/api && uv run alembic check`                                    |
+| Flujo de compra end-to-end contra servicios reales | `pnpm verify:flow`                                                       |
+| Arreglar lo que `--autogenerate` no hace           | `cd apps/api && uv run python -m scripts.fix_migration`                  |
+| Recrear la BD desde cero                           | `pnpm infra:reset && pnpm api:migrate && pnpm api:seed`                  |
 
 **Antes de dar por terminada cualquier tarea: `pnpm lint && pnpm test` en verde.** No
 declares algo hecho si no has ejecutado esto.
@@ -81,14 +81,14 @@ lo que los fakes no pueden ver — ver §7.
 ### Procedimientos documentados
 
 Tres tareas recurrentes tienen su procedimiento escrito paso a paso. En Claude Code son
-*skills* que se invocan solas; con cualquier otra herramienta, **son documentación: ábrela y
+_skills_ que se invocan solas; con cualquier otra herramienta, **son documentación: ábrela y
 síguela**.
 
-| Procedimiento | Cuándo | Archivo |
-|---|---|---|
-| Verificar el flujo de compra | Antes de cerrar un cambio en leads, pagos o auth | `.claude/skills/verificar-flujo-compra/SKILL.md` |
-| Nueva migración | Al cambiar un modelo ORM, o ante `UndefinedColumnError` | `.claude/skills/nueva-migracion/SKILL.md` |
-| Nuevo caso de uso | Al añadir funcionalidad de backend o un endpoint | `.claude/skills/nuevo-caso-de-uso/SKILL.md` |
+| Procedimiento                | Cuándo                                                  | Archivo                                          |
+| ---------------------------- | ------------------------------------------------------- | ------------------------------------------------ |
+| Verificar el flujo de compra | Antes de cerrar un cambio en leads, pagos o auth        | `.claude/skills/verificar-flujo-compra/SKILL.md` |
+| Nueva migración              | Al cambiar un modelo ORM, o ante `UndefinedColumnError` | `.claude/skills/nueva-migracion/SKILL.md`        |
+| Nuevo caso de uso            | Al añadir funcionalidad de backend o un endpoint        | `.claude/skills/nuevo-caso-de-uso/SKILL.md`      |
 
 Los tests marcados `integration` se **omiten solos** si `db-test` no está levantada, con un
 mensaje que indica el comando. Un `skip` no es un `pass`: si tu cambio toca repositorios,
@@ -104,7 +104,7 @@ tuyo las simplifica, el cambio está mal.
 **4.1 · La plaza se reserva ANTES de cobrar.**
 `StartLeadPurchase` bloquea la fila del lead (`SELECT … FOR UPDATE`), cuenta plazas vivas y
 crea la compra en `reserved` con TTL de 30 min, y solo después pide la sesión de checkout.
-*Por qué:* si el cap se validara al confirmar el pago, N profesionales podrían pagar a la
+_Por qué:_ si el cap se validara al confirmar el pago, N profesionales podrían pagar a la
 vez por un lead de 5 plazas y habría que reembolsar a los que sobran.
 → No muevas la validación del cap al webhook. No quites el `FOR UPDATE`.
 
@@ -228,6 +228,22 @@ firmadas de corta duración en el expediente del admin. El perfil propio no las 
 → Las claves de archivo llevan el id del profesional en el prefijo y se comprueban al
 adjuntarlas: nadie adjunta un archivo subido por otro.
 
+**4.14 · El rol vive en la base de datos; el claim de Firebase solo crea el primer admin.**
+Hay dos roles con cuenta, `professional` y `admin` (`UserRole`). El **cliente no tiene
+cuenta**: publica como invitado (§4.12) y existe solo como `ClientContact` dentro del
+`Lead`; no lo añadas a `UserRole`. El admin da o quita el rol desde el panel
+(`PUT /admin/users/{id}/role`, `ChangeUserRole`) y surte efecto en la siguiente petición,
+sin esperar a que caduque el token. Cada cambio deja un `UserRoleEvent` (append-only, con el
+admin que lo hizo, o `None` si fue la CLI).
+→ `SyncUserFromIdentity` lee el claim `admin` **solo al crear** la fila `users`. Si volviera
+a sincronizarlo en cada petición, un admin degradado recuperaría el acceso con su claim.
+→ Nadie cambia su propio rol (`409 CANNOT_CHANGE_OWN_ROLE`) y no se degrada al último admin
+(`409 LAST_ADMIN`). Para eso, quien degrada a un admin bloquea **todas** las filas de admin
+(`lock_admins`, `FOR UPDATE` en orden de id) antes que la fila objetivo: bloqueando solo la
+objetivo, dos admins degradándose el uno al otro dejarían cero.
+→ `scripts/manage_admin.py` escribe en la BD con las mismas reglas: sirve para el primer
+admin y para recuperar el acceso. No toca Firebase.
+
 ---
 
 ## 5. Fronteras de la arquitectura
@@ -243,7 +259,7 @@ apps/api/app/
   `firebase_admin`, `boto3` ni `pydantic`. Hoy hay 0 imports así; mantenlo en 0.
 - mypy corre en **modo estricto** sobre esos dos paquetes. No añadas `# type: ignore`
   para salir del paso: si el tipo no cuadra, el diseño no cuadra.
-- El único sitio que elige implementaciones concretas es el *composition root*:
+- El único sitio que elige implementaciones concretas es el _composition root_:
   `app/infrastructure/api/dependencies.py`. No instancies adaptadores en otro lado.
 
 Detalle de cómo añadir un caso de uso, un adaptador o un endpoint:
@@ -259,7 +275,7 @@ Detalle de cómo añadir un caso de uso, un adaptador o un endpoint:
 tienen). Las cadenas de cara al usuario viven en `apps/web/messages/*.json` y **sí deben
 llevar acentos correctos** — ver §8.
 
-**Comentarios.** Explican *por qué*, no *qué*. Un comentario que parafrasea la línea
+**Comentarios.** Explican _por qué_, no _qué_. Un comentario que parafrasea la línea
 siguiente es ruido; uno que explica una decisión no obvia evita que alguien la deshaga.
 Imita la densidad del archivo que estés editando.
 
@@ -269,25 +285,22 @@ invoques `python`, `pip` ni `pytest` directamente.
 **TypeScript.** `strict` + `noUncheckedIndexedAccess`. `import type` para lo que solo se
 usa como tipo (eslint lo exige). Alias `@/*` → `src/*`.
 
-**Commits.** Cuerpo explicando el *por qué*, no el listado de archivos. Terminar con:
-```
-Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
-```
-Rama distinta de `main` para cualquier cambio. No hagas `commit` ni `push` sin que te lo
+**Commits.** Cuerpo explicando el _por qué_, no el listado de archivos. Sin línea
+`Co-Authored-By`. Rama distinta de `main` para cualquier cambio. No hagas `commit` ni `push` sin que te lo
 pidan.
 
 ---
 
 ## 7. Tests
 
-| Suite | Qué cubre | Requiere |
-|---|---|---|
-| `tests/unit/domain` | Reglas puras: cap, PII, dinero, transiciones | nada |
-| `tests/unit/use_cases` | Orquestación con fakes in-memory de todos los puertos | nada |
-| `tests/unit/test_stripe_adapter.py` | Adaptador **real** de Stripe (firma HMAC) | nada |
-| `tests/integration` | Repositorios, PostGIS, índices, bloqueo de fila | Docker |
-| `tests/api` | HTTP end-to-end con Firebase/Stripe/S3 falsos | Docker |
-| `apps/web/tests` | Helpers, hooks y componentes (vitest + jsdom) | nada |
+| Suite                               | Qué cubre                                             | Requiere |
+| ----------------------------------- | ----------------------------------------------------- | -------- |
+| `tests/unit/domain`                 | Reglas puras: cap, PII, dinero, transiciones          | nada     |
+| `tests/unit/use_cases`              | Orquestación con fakes in-memory de todos los puertos | nada     |
+| `tests/unit/test_stripe_adapter.py` | Adaptador **real** de Stripe (firma HMAC)             | nada     |
+| `tests/integration`                 | Repositorios, PostGIS, índices, bloqueo de fila       | Docker   |
+| `tests/api`                         | HTTP end-to-end con Firebase/Stripe/S3 falsos         | Docker   |
+| `apps/web/tests`                    | Helpers, hooks y componentes (vitest + jsdom)         | nada     |
 
 Tres reglas aprendidas a golpes:
 
@@ -309,6 +322,7 @@ Tres reglas aprendidas a golpes:
 ## 8. Trampas conocidas
 
 **SQLAlchemy async**
+
 - `session.get(Model, id, options=[selectinload(...)])` devuelve la instancia **ya cacheada
   en la sesión ignorando los `options`**; leer entonces una relación no cargada lanza
   `MissingGreenlet`. Usa `select(...).options(...).execution_options(populate_existing=True)`
@@ -338,7 +352,7 @@ dentro de `pnpm-workspace.yaml`.
 alrededor o el `build` falla al prerenderizar. Ver `publicar/page.tsx`.
 
 **Acentos** — `apps/web/messages/*.json` es texto de cara al usuario y lleva acentos
-correctos (485 claves por idioma). La regla de ASCII puro aplica **solo al código fuente**.
+correctos (535 claves por idioma). La regla de ASCII puro aplica **solo al código fuente**.
 Lo mismo vale para `apps/api/data/categories.csv`, `services.csv`: los nombres de oficio se muestran en la
 landing y en el formulario.
 

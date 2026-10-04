@@ -2,7 +2,8 @@
 
 Firebase es la fuente de verdad de la autenticacion; nosotros mantenemos un
 espejo local (`users`) para poder relacionar compras, leads y roles sin depender
-de llamadas al proveedor en cada peticion.
+de llamadas al proveedor en cada peticion. El rol, en cambio, es nuestro: Firebase
+solo lo propone al crear la cuenta.
 """
 
 from __future__ import annotations
@@ -56,11 +57,9 @@ class SyncUserFromIdentity:
             if identity.display_name and existing.display_name != identity.display_name:
                 existing.display_name = identity.display_name
                 changed = True
-            # El claim de admin manda: se gestiona desde la consola de Firebase.
-            desired_role = UserRole.ADMIN if identity.is_admin_claim else UserRole.PROFESSIONAL
-            if desired_role is not existing.role:
-                existing.role = desired_role
-                changed = True
+            # El rol NO se sincroniza: vive en nuestra BD y lo cambia un admin desde el
+            # panel (`ChangeUserRole`). Si el claim mandara, un admin degradado
+            # recuperaria el acceso en su siguiente peticion.
             if changed:
                 async with self.uow:
                     return await self.users.update(existing)
@@ -73,6 +72,7 @@ class SyncUserFromIdentity:
             id=self.ids.new_id(),
             firebase_uid=identity.provider_uid,
             email=email,
+            # El claim solo cuenta al crear la cuenta: es como se da de alta el primer admin.
             role=UserRole.ADMIN if identity.is_admin_claim else UserRole.PROFESSIONAL,
             created_at=self.clock.now(),
             display_name=identity.display_name,

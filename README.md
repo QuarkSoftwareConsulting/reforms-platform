@@ -142,9 +142,16 @@ Next.js son servidor a servidor y no necesitan CORS del navegador; si se incorpo
 un `fetch` directo para descargar, añadir `GET` a la política. La firma `GET` no
 autoriza `HEAD`. Véase [CORS de Cloud Storage](https://cloud.google.com/storage/docs/cross-origin).
 
-### Gestionar administradores (CLI interna)
+### Gestionar administradores
 
-Desde `apps/api`, usa un único identificador (`--email` o `--uid`):
+El rol vive en la base de datos (`users.role`). Un admin da o quita el rol a otros desde
+el panel (`/admin`, sección **Usuarios**) y el cambio surte efecto en la siguiente
+petición del usuario: no hace falta que cierre sesión. Cada cambio queda auditado en
+`user_role_events`. Nadie puede cambiar su propio rol ni quitar al último admin.
+
+Para el **primer admin** (o para recuperar el acceso si no queda ninguno) hay una CLI que
+escribe directamente en la BD con esas mismas reglas. El usuario tiene que haber iniciado
+sesión al menos una vez. Desde `apps/api`:
 
 ```bash
 uv run python -m scripts.manage_admin grant --email admin@example.com
@@ -153,22 +160,11 @@ uv run python -m scripts.manage_admin revoke --email admin@example.com
 uv run python -m scripts.manage_admin revoke --uid firebase-uid
 ```
 
-Requiere un proyecto Firebase y credenciales Firebase Admin con permisos para gestionar
-usuarios. Reutiliza la configuración del backend: `FIREBASE_PROJECT_ID`, credenciales en
-`FIREBASE_CREDENTIALS_JSON`, fichero externo mediante `GOOGLE_APPLICATION_CREDENTIALS`
-o credenciales predeterminadas del entorno. No guardes service accounts en el repositorio.
-Si está configurado `FIREBASE_AUTH_EMULATOR_HOST`, opera sobre ese emulador.
+Solo necesita `DATABASE_URL`: no toca Firebase ni necesita sus credenciales.
 
-`grant` establece `admin=true`; `revoke` elimina `admin` y `reforma_admin`, los dos claims
-que el backend reconoce como administrativos. Ambas acciones conservan los demás claims.
-Ejecuta estas operaciones de forma secuencial: Firebase reemplaza el conjunto de claims
-y no protege frente a otra escritura concurrente entre la lectura y la actualización.
-
-Firebase sigue siendo la fuente de verdad: la CLI no escribe en la base de datos local.
-Los cambios se reflejan cuando el usuario obtiene un ID token renovado (por ejemplo,
-cerrando sesión y volviendo a entrar) y la API sincroniza nuevamente su identidad.
-No invalidan de inmediato los ID tokens ya emitidos. Los errores devuelven un código de
-salida distinto de cero, sin imprimir tokens, credenciales ni contenido de los claims.
+El claim `admin` de Firebase (o `reforma_admin`) solo cuenta **al crear la cuenta**: un
+usuario que entra por primera vez con ese claim nace admin. Después se ignora, así que
+quitar o poner el claim a un usuario existente no cambia nada; hazlo desde el panel.
 
 ### Pagos en local
 

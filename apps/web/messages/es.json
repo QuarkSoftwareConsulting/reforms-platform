@@ -334,7 +334,13 @@
     "legalNameLabel": "Razón social o nombre completo",
     "legalNameHint": "El nombre al que emitiremos las facturas.",
     "taxIdLabel": "NIF, NIE o CIF",
-    "taxIdHint": "Si eres trabajador independiente con pasaporte, puedes dejarlo en blanco.",
+    "reviewDialog": {
+      "title": "¿Enviar tu alta a revisión?",
+      "body": "Revisaremos tu perfil y tus documentos. Mientras tanto puedes ver solicitudes, pero solo podrás comprarlas cuando aprobemos tu alta.",
+      "warning": "Una vez enviada no podrás cambiar el tipo de alta, la razón social, el NIF ni los documentos.",
+      "confirm": "Confirmar y enviar",
+      "cancel": "Revisar antes"
+    },
     "addressLabel": "Dirección de la empresa o domicilio",
     "uploadsAfterSaving": "Cuando guardes el perfil podrás subir tus fotos y documentos.",
     "create": "Crear perfil",
@@ -371,8 +377,7 @@
       "reason": "Motivo",
       "incompleteTitle": "Completa tu alta",
       "incompleteBody": "Para comprar contactos tenemos que validar tu alta. Te falta:",
-      "readyBody": "Ya está todo. Envía tu alta y la revisaremos.",
-      "submit": "Enviar alta a revisión",
+      "readyBody": "Ya está todo. Al guardar te pediremos confirmar el envío a revisión.",
       "missing": {
         "categories": "Elegir al menos un oficio",
         "professional_type": "Indicar cómo te das de alta",
@@ -482,12 +487,6 @@
       "failed": "Fallido",
       "refunded": "Reembolsado"
     },
-    "professionals": {
-      "title": "Directorio de profesionales",
-      "subtitle": "Consulta los perfiles profesionales registrados.",
-      "search": "Buscar por negocio o zona",
-      "location": "{city} · {distance} km"
-    },
     "account": "Mensualidad",
     "balance": "Saldo",
     "activeAccounts": "Cuentas activas",
@@ -525,6 +524,64 @@
       "back": "Volver a la cola",
       "rejectedRefunded": "Alta rechazada. Se reembolsaron {amount} y se canceló la recarga.",
       "rejectedNothingToRefund": "Alta rechazada. No había ningún cobro que reembolsar."
+    },
+    "dashboard": {
+      "title": "Resumen",
+      "range": "Periodo",
+      "lastDays": "Últimos {days} días",
+      "leadsChart": "Solicitudes publicadas por día",
+      "purchasesChart": "Contactos vendidos por día",
+      "revenueChart": "Ingresos por contactos por día ({currency})",
+      "topupsChart": "Recargas cobradas por día ({currency})",
+      "showTable": "Ver los datos en una tabla",
+      "day": "Día",
+      "value": "Valor",
+      "published": "Publicados",
+      "exhausted": "Agotados",
+      "paidLeads": "Leads con alguna venta",
+      "topupRevenue": "Recargas cobradas"
+    },
+    "users": {
+      "title": "Usuarios",
+      "subtitle": "Todos los usuarios con cuenta. Los clientes no tienen cuenta: publican como invitados.",
+      "search": "Buscar por email o negocio",
+      "role": "Rol",
+      "verificationStatus": "Estado del alta",
+      "all": "Todos",
+      "empty": "No hay usuarios con esos filtros.",
+      "noProfile": "Sin perfil profesional",
+      "since": "Alta en la plataforma: {date}",
+      "roles": {
+        "professional": "Profesional",
+        "admin": "Administrador"
+      },
+      "makeAdmin": "Hacer administrador",
+      "makeProfessional": "Quitar administrador",
+      "viewDossier": "Ver expediente",
+      "confirmTitle": "Cambiar el rol de {email}",
+      "confirmPromote": "Podrá ver compras, datos de los profesionales y cambiar precios y roles. Surte efecto en su siguiente acción, sin volver a iniciar sesión.",
+      "confirmDemote": "Dejará de acceder a la administración en su siguiente acción. Si tiene perfil profesional, lo conserva.",
+      "noteLabel": "Motivo (opcional)",
+      "noteHint": "Queda en el historial de cambios de rol.",
+      "confirm": "Confirmar cambio",
+      "roleChanged": "Rol actualizado."
+    },
+    "allPurchases": {
+      "title": "Compras",
+      "subtitle": "Quién compró cada contacto, cuándo y por cuánto. Sin datos del cliente.",
+      "status": "Estado",
+      "from": "Desde",
+      "to": "Hasta",
+      "all": "Todas",
+      "empty": "No hay compras con esos filtros.",
+      "professional": "Profesional",
+      "paidWithCredit": "{amount} con saldo",
+      "unknownLead": "Solicitud eliminada"
+    },
+    "pagination": {
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "page": "Página {page} de {pages}"
     }
   },
   "errors": {
@@ -568,7 +625,10 @@
     "INVALID_VERIFICATION_TRANSITION": "Esa alta ya no está pendiente de revisión.",
     "REJECTION_AWAITING_PAYMENT": "El primer cobro de la mensualidad de este profesional aún se está procesando (puede tardar varios días con domiciliación). Podrás rechazar el alta cuando se confirme o falle.",
     "VERIFICATION_LOCKED": "Ya enviaste tu alta a revisión: esos datos no se pueden cambiar.",
-    "INVALID_TAX_ID": "El NIF, NIE o CIF no es válido: revisa la letra o el dígito de control."
+    "INVALID_TAX_ID": "El NIF, NIE o CIF no es válido: revisa la letra o el dígito de control.",
+    "USER_NOT_FOUND": "Ese usuario ya no existe.",
+    "CANNOT_CHANGE_OWN_ROLE": "No puedes cambiar tu propio rol: pídeselo a otro administrador.",
+    "LAST_ADMIN": "No puedes quitar el último administrador: antes nombra a otro."
   },
   "validation": {
     "categoryRequired": "Elige un oficio.",

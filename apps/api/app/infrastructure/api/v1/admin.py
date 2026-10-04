@@ -1,20 +1,28 @@
-"""Endpoints de administracion de precios.
+"""Endpoints de administracion: precios, inventario, altas, compras y roles.
 
 Todos exigen rol de admin (`AdminDep`). Son la unica via para cambiar lo que
-cuesta un contacto: ni el cliente ni el profesional pueden tocar un precio.
+cuesta un contacto: ni el cliente ni el profesional pueden tocar un precio. Y la
+unica via, junto a la CLI de bootstrap, para dar o quitar el rol de admin.
 """
 
 from __future__ import annotations
 
 import asyncio
+from datetime import date
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Query, status
 
-from app.application.dto import ConsentInput, CreateLeadInput
-from app.application.ports import AdminLeadFilters
-from app.domain.models import LeadSource, LeadStatus, VerificationStatus
+from app.application.dto import AdminPurchaseQuery, ConsentInput, CreateLeadInput
+from app.application.ports import AdminLeadFilters, AdminUserFilters
+from app.domain.models import (
+    LeadSource,
+    LeadStatus,
+    PurchaseStatus,
+    UserRole,
+    VerificationStatus,
+)
 from app.domain.value_objects import Money
 from app.infrastructure.api import serializers
 from app.infrastructure.api.dependencies import AdminDep, ContainerDep, LocaleDep
@@ -24,14 +32,20 @@ from app.infrastructure.api.schemas.admin import (
     AdminLeadStatusOut,
     AdminMetricsOut,
     AdminProfessionalListOut,
+    AdminPurchaseListOut,
     AdminPurchaseOut,
+    AdminUserListOut,
+    AdminUserOut,
     LeadPricingOut,
+    MetricsTimeseriesOut,
     PurchaseReviewIn,
     PurchaseReviewOut,
     RejectionOut,
     RejectProfessionalIn,
     SetCategoryPriceIn,
     SetLeadPriceIn,
+    SetUserRoleIn,
+    UserRoleEventOut,
     VerificationDossierOut,
 )
 from app.infrastructure.api.schemas.billing import (
@@ -49,6 +63,22 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 @router.get("/metrics", response_model=AdminMetricsOut, summary="Metricas acumuladas")
 async def get_metrics(container: ContainerDep, _: AdminDep) -> AdminMetricsOut:
     return serializers.admin_metrics_out(await container.admin_metrics.execute())
+
+
+@router.get(
+    "/metrics/timeseries",
+    response_model=MetricsTimeseriesOut,
+    summary="Actividad diaria para las graficas",
+)
+async def get_metrics_timeseries(
+    container: ContainerDep,
+    _: AdminDep,
+    start: Annotated[date | None, Query(alias="from")] = None,
+    end: Annotated[date | None, Query(alias="to")] = None,
+) -> MetricsTimeseriesOut:
+    """Un punto por dia (hora de Madrid), ambos extremos incluidos. Por defecto, 30 dias."""
+    series = await container.metrics_timeseries.execute(start=start, end=end)
+    return serializers.metrics_timeseries_out(series)
 
 
 @router.get("/leads", response_model=AdminLeadListOut, summary="Inventario de solicitudes")
@@ -282,6 +312,87 @@ async def adjust_professional_credit(
         balance=serializers.money_out(account.balance),
         current_period_end=account.current_period_end,
     )
+
+
+@router.get("/purchases", response_model=AdminPurchaseListOut, summary="Todas las compras")
+async def list_admin_purchases(
+    container: ContainerDep,
+    locale: LocaleDep,
+    _: AdminDep,
+    purchase_status: Annotated[PurchaseStatus | None, Query(alias="status")] = None,
+    professional_id: UUID | None = None,
+    from_day: Annotated[date | None, Query(alias="from")] = None,
+    to_day: Annotated[date | None, Query(alias="to")] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> AdminPurchaseListOut:
+    """Quien compro que y cuando, lo mas reciente primero.
+
+    `from` y `to` son dias (hora de Madrid), ambos incluidos, como en el dashboard.
+    """
+    result = await container.admin_purchases.execute(
+        AdminPurchaseQuery(
+            status=purchase_status,
+            professional_id=professional_id,
+            from_day=from_day,
+            to_day=to_day,
+            limit=limit,
+            offset=offset,
+        )
+    )
+    return serializers.admin_purchase_list_out(result, locale)
+
+
+@router.get("/users", response_model=AdminUserListOut, summary="Directorio de usuarios")
+async def list_admin_users(
+    container: ContainerDep,
+    locale: LocaleDep,
+    _: AdminDep,
+    query: str | None = None,
+    role: UserRole | None = None,
+    verification_status: VerificationStatus | None = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> AdminUserListOut:
+    result = await container.admin_users.execute(
+        AdminUserFilters(
+            query=query,
+            role=role,
+            verification_status=verification_status,
+            limit=limit,
+            offset=offset,
+        )
+    )
+    return serializers.admin_user_list_out(result, locale)
+
+
+@router.put("/users/{user_id}/role", response_model=AdminUserOut, summary="Cambiar el rol")
+async def set_user_role(
+    user_id: UUID,
+    payload: SetUserRoleIn,
+    container: ContainerDep,
+    locale: LocaleDep,
+    admin: AdminDep,
+) -> AdminUserOut:
+    """Surte efecto en la siguiente peticion del usuario: el rol se lee de la BD."""
+    result = await container.change_user_role.execute(
+        user_id=user_id, role=payload.role, actor_user_id=admin.id, note=payload.note
+    )
+    # La fila completa del directorio, para que el panel la sustituya tal cual.
+    [item] = await container.admin_users.describe([result.user])
+    return serializers.admin_user_out(item, locale)
+
+
+@router.get(
+    "/users/{user_id}/role-events",
+    response_model=list[UserRoleEventOut],
+    summary="Historial de roles",
+)
+async def list_user_role_events(
+    user_id: UUID, container: ContainerDep, _: AdminDep
+) -> list[UserRoleEventOut]:
+    events = await container.user_role_events.execute(user_id)
+    return [serializers.user_role_event_out(event) for event in events]
 
 
 @router.post(

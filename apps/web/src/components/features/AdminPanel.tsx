@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
-import { Card, Skeleton, Tag } from "@/components/ui/Card";
+import { Card, Tag } from "@/components/ui/Card";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/Field";
 import { PhotoUploader } from "@/components/features/PhotoUploader";
 import { formatMoney } from "@/helpers/currency";
@@ -14,29 +14,22 @@ import { usePhotoUpload } from "@/hooks/usePhotoUpload";
 import { type AppLocale } from "@/i18n/routing";
 import { adminService, type AdminLeadFilters } from "@/services/admin.service";
 import { leadsService } from "@/services/leads.service";
-import type {
-  AdminLead,
-  AdminMetrics,
-  AdminProfessional,
-  AdminPurchase,
-  Category,
-  SubscriptionPrice,
-} from "@/types/api";
+import type { AdminLead, AdminPurchase, Category, SubscriptionPrice } from "@/types/api";
 
 const EMPTY_FILTERS: AdminLeadFilters = {};
 
-/** Consolida las operaciones de soporte sin mostrar PII del cliente. */
+/**
+ * Operaciones de soporte sin mostrar PII del cliente: leads manuales, precios e
+ * inventario. Las metricas viven en `AdminDashboard` y los usuarios en `AdminUsers`.
+ */
 export function AdminPanel() {
   const locale = useLocale() as AppLocale;
   const t = useTranslations("admin");
-  const tSubscription = useTranslations("subscription");
   const tCommon = useTranslations("common");
   const translateError = useApiError();
   const photoUpload = usePhotoUpload();
-  const [metrics, setMetrics] = useState<AdminMetrics | null>(null);
   const [leads, setLeads] = useState<AdminLead[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [professionals, setProfessionals] = useState<AdminProfessional[]>([]);
   const [filters, setFilters] = useState<AdminLeadFilters>(EMPTY_FILTERS);
   const [selectedLead, setSelectedLead] = useState<AdminLead | null>(null);
   const [purchases, setPurchases] = useState<AdminPurchase[]>([]);
@@ -45,7 +38,6 @@ export function AdminPanel() {
   const [categoryPrice, setCategoryPrice] = useState("");
   const [subscriptionPrice, setSubscriptionPrice] = useState<SubscriptionPrice | null>(null);
   const [subscriptionDraft, setSubscriptionDraft] = useState("");
-  const [professionalQuery, setProfessionalQuery] = useState("");
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -56,25 +48,20 @@ export function AdminPanel() {
     setLoading(true);
     setError(null);
     try {
-      const [nextMetrics, nextLeads, nextCategories, nextProfessionals, nextSubscription] =
-        await Promise.all([
-          adminService.metrics(locale),
-          adminService.leads(filters, locale),
-          leadsService.categories(locale),
-          adminService.professionals(professionalQuery, locale),
-          adminService.subscriptionPrice(locale),
-        ]);
-      setMetrics(nextMetrics);
+      const [nextLeads, nextCategories, nextSubscription] = await Promise.all([
+        adminService.leads(filters, locale),
+        leadsService.categories(locale),
+        adminService.subscriptionPrice(locale),
+      ]);
       setSubscriptionPrice(nextSubscription);
       setLeads(nextLeads.items);
       setCategories(nextCategories);
-      setProfessionals(nextProfessionals.items);
     } catch (caught) {
       setError(translateError(caught));
     } finally {
       setLoading(false);
     }
-  }, [filters, locale, professionalQuery, translateError]);
+  }, [filters, locale, translateError]);
 
   useEffect(() => {
     void reload();
@@ -140,38 +127,9 @@ export function AdminPanel() {
 
   return (
     <div className="space-y-8">
-      <header className="space-y-1">
-        <h1 className="text-h1 font-bold text-ink">{t("title")}</h1>
-        <p className="text-secondary">{t("subtitle")}</p>
-      </header>
-
       {error && <Alert tone="error">{error}</Alert>}
       {notice && <Alert tone="success">{notice}</Alert>}
-
-      {loading || !metrics ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }, (_, index) => (
-            <Skeleton key={index} className="h-28" />
-          ))}
-        </div>
-      ) : (
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Metric label={t("metrics.leads")} value={String(metrics.leads_total)} />
-          <Metric label={t("metrics.professionals")} value={String(metrics.professionals_total)} />
-          <Metric label={t("metrics.coverage")} value={formatPercent(metrics.coverage_rate)} />
-          <Metric label={t("metrics.liquidity")} value={metrics.liquidity.toFixed(2)} />
-          <Metric label={t("metrics.paidPurchases")} value={String(metrics.paid_purchases)} />
-          <Metric
-            label={t("metrics.revenue")}
-            value={Object.values(metrics.revenue_by_currency)
-              .map((money) => formatMoney(money, locale))
-              .join(" · ") || t("metrics.none")}
-          />
-          <Metric label={t("activeAccounts")} value={String(metrics.active_accounts)} />
-          <Metric label={t("metrics.organic")} value={String(metrics.leads_organic)} />
-          <Metric label={t("metrics.manual")} value={String(metrics.leads_admin)} />
-        </section>
-      )}
+      {loading && <p className="text-help text-muted">{tCommon("loading")}</p>}
 
       <section className="grid gap-6 xl:grid-cols-2">
         <Card>
@@ -445,58 +403,9 @@ export function AdminPanel() {
         </section>
       )}
 
-      <section className="space-y-4">
-        <header className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-card-title font-bold text-ink">{t("professionals.title")}</h2>
-            <p className="text-sm text-secondary">{t("professionals.subtitle")}</p>
-          </div>
-          <TextField
-            label={t("professionals.search")}
-            value={professionalQuery}
-            onChange={(event) => setProfessionalQuery(event.target.value)}
-          />
-        </header>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {professionals.map((professional) => (
-            <Card key={professional.id} className="space-y-2">
-              <h3 className="font-semibold text-ink">{professional.business_name}</h3>
-              <p className="text-sm text-secondary">
-                {t("professionals.location", {
-                  city: professional.city ?? professional.postal_code,
-                  distance: professional.service_radius_km,
-                })}
-              </p>
-              <p className="text-sm text-secondary">
-                {professional.categories.map((category) => category.name).join(", ")}
-              </p>
-              <p className="text-sm text-secondary">
-                {t("account")}:{" "}
-                {professional.account
-                  ? `${tSubscription(`status.${professional.account.status}`)} · ${t("balance")} ${formatMoney(professional.account.balance, locale)}`
-                  : t("noAccount")}
-              </p>
-            </Card>
-          ))}
-        </div>
-      </section>
-
       <Button variant="secondary" onClick={() => void reload()}>
         {tCommon("retry")}
       </Button>
     </div>
   );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <Card>
-      <p className="text-sm text-secondary">{label}</p>
-      <p className="mt-1 text-h2 font-bold text-ink">{value}</p>
-    </Card>
-  );
-}
-
-function formatPercent(value: number): string {
-  return `${Math.round(value * 100)}%`;
 }

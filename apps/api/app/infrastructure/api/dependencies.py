@@ -30,21 +30,26 @@ from app.application.use_cases import (
     ApplySubscriptionEvent,
     ApproveProfessional,
     ChangeLeadAvailability,
+    ChangeUserRole,
     CreateLead,
     CreditLedgerService,
     GetAdminMetrics,
     GetLeadDetail,
     GetLeadPricing,
+    GetMetricsTimeseries,
     GetProfessionalAccount,
     GetProfessionalProfile,
     GetVerificationDossier,
     HandlePaymentEvent,
     ListAdminLeads,
     ListAdminProfessionals,
+    ListAdminPurchases,
+    ListAdminUsers,
     ListCategories,
     ListLeadPurchasesForAdmin,
     ListLeads,
     ListMyPurchases,
+    ListUserRoleEvents,
     MarkPurchaseForReview,
     OpenBillingPortal,
     RejectProfessional,
@@ -321,6 +326,41 @@ class RequestContainer:
             categories=self.categories,
             accounts=self.accounts,
             clock=self.infra.clock,
+        )
+
+    @property
+    def admin_users(self) -> ListAdminUsers:
+        return ListAdminUsers(
+            users=self.users,
+            professionals=self.professionals,
+            accounts=self.accounts,
+            clock=self.infra.clock,
+        )
+
+    @property
+    def change_user_role(self) -> ChangeUserRole:
+        return ChangeUserRole(
+            users=self.users, clock=self.infra.clock, ids=self.infra.ids, uow=self.uow
+        )
+
+    @property
+    def user_role_events(self) -> ListUserRoleEvents:
+        return ListUserRoleEvents(users=self.users)
+
+    @property
+    def admin_purchases(self) -> ListAdminPurchases:
+        return ListAdminPurchases(
+            purchases=self.purchases,
+            leads=self.leads,
+            categories=self.categories,
+            professionals=self.professionals,
+            reviews=self.reviews,
+        )
+
+    @property
+    def metrics_timeseries(self) -> GetMetricsTimeseries:
+        return GetMetricsTimeseries(
+            leads=self.leads, purchases=self.purchases, ledger=self.ledger, clock=self.infra.clock
         )
 
     @property

@@ -209,6 +209,9 @@ Hecho:
   - estados `incomplete` → `pending` (el profesional envía) → `approved` / `rejected` (el admin);
   - cada paso queda auditado en `professional_verification_events`;
   - cola en el panel del admin (lo más antiguo primero) con el expediente.
+- **Envío del alta:** no hay botón de envío aparte. El profesional pulsa "Guardar" y, si
+  el alta queda completa, un diálogo pide confirmar el envío a revisión (avisa de que tipo,
+  razón social, NIF y documentos quedarán fijos). Cancelar deja el alta sin enviar.
 - **Acceso:**
   - incompleto o en revisión ve solicitudes, pero no compra (`403 PROFESSIONAL_NOT_APPROVED`);
   - el estado se muestra en "Solicitudes en tu zona" y en el botón de compra.
@@ -231,8 +234,15 @@ Decisiones tomadas en la implementación (confirmar si no encajan):
 - [ ] **Rechazo definitivo:** no hay reapertura. Solo se reembolsa el **primer** cobro,
       como dice el documento; si la revisión tarda más de un mes y hay un segundo cobro,
       ese no se reembolsa solo.
-- [ ] **Fotos opcionales**, documentos obligatorios. El NIF es opcional para el trabajador
-      independiente que se identifica con pasaporte.
+- [ ] **Fotos opcionales**, documentos obligatorios.
+- [x] **El NIF/NIE/CIF es obligatorio para los tres tipos** (2026-10-03, decidido por el
+      equipo al probar el alta; el documento del cliente no exime a nadie y el pasaporte es
+      un documento que se adjunta, no un identificador fiscal). Antes se dejaba en blanco
+      al independiente con pasaporte: era una interpretación nuestra, no una regla del
+      cliente (pregunta 1 de [`preguntas-cliente.md`](./preguntas-cliente.md)).
+      **Consecuencia a confirmar:** un independiente que solo tenga pasaporte y no
+      NIE no puede completar el alta. Si el cliente quiere admitirlo, hará falta un campo o
+      un tipo de identificador propio, no dejarlo vacío.
 
 Sin verificar contra Stripe real (falta una clave de test):
 - El reembolso de la factura (`invoice.payments` → PaymentIntent) y la cancelación de la
@@ -260,6 +270,23 @@ Correcciones tras revisar las fases 1–4; ya están en los invariantes de `AGEN
   política aceptada (`PUBLIC_PREVIEW_POLICY_VERSIONS`), no de que el lead sea nuevo.
 - **Notas de revisión de compras** (`PurchaseReview`, append-only): el admin marca una
   compra para revisión manual (`POST /admin/purchases/{id}/reviews`).
+
+### Roles y panel de admin · ✅ hecho en `improvements-1` (sin integrar)
+
+Pedido interno: asignar admins desde la consola no es viable para el cliente.
+- **Roles:** `professional` y `admin`, guardados en `users.role`. El cliente sigue sin
+  cuenta (publica como invitado, como se acordó). El admin cambia roles desde el panel;
+  surte efecto en la siguiente petición. El claim de Firebase solo crea el primer admin y
+  la CLI `manage_admin` escribe en la BD. Invariante §4.14 de `AGENTS.md`.
+- **Auditoría:** `user_role_events` (append-only, con el admin que hizo el cambio).
+- **Panel:** dashboard con métricas y gráficas diarias (7/30/90 días, hora de Madrid),
+  directorio de usuarios con filtros y expediente de alta, y listado global de compras
+  (sin PII del cliente), todo paginado.
+- `pnpm verify:flow` incluye el paso 13 (roles con token real de Firebase).
+
+Pendiente:
+- [ ] Revisión visual del panel en el navegador.
+- [ ] Dividir el panel en secciones o pestañas si la página única se hace larga.
 
 ### Fase 5 — Notificaciones, WhatsApp, factura y navegación · ⏳ pendiente
 

@@ -53,6 +53,7 @@ TRUNCATE_ORDER = (
     "professional_work_photos",
     "professional_verification_events",
     "professionals",
+    "user_role_events",
     "users",
     "services",
     "categories",

@@ -9,13 +9,25 @@ from sqlalchemy import ColumnElement, Select, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.application.ports import ProfessionalRepositoryPort, UserRepositoryPort
+from app.application.ports import (
+    AdminUserFilters,
+    ProfessionalRepositoryPort,
+    UserRepositoryPort,
+)
 from app.domain.exceptions import NotFoundError, ProfessionalNotFoundError
-from app.domain.models import Professional, User, VerificationEvent, VerificationStatus
+from app.domain.models import (
+    Professional,
+    User,
+    UserRole,
+    UserRoleEvent,
+    VerificationEvent,
+    VerificationStatus,
+)
 from app.infrastructure.adapters.db.mappers import (
     apply_professional,
     apply_user,
     professional_to_domain,
+    user_role_event_to_domain,
     user_to_domain,
     verification_event_to_domain,
 )
@@ -23,8 +35,11 @@ from app.infrastructure.adapters.db.models import (
     ProfessionalCategoryRow,
     ProfessionalRow,
     ProfessionalVerificationEventRow,
+    UserRoleEventRow,
     UserRow,
 )
+
+T = TypeVar("T", bound=tuple[object, ...])
 
 
 class SqlAlchemyUserRepository(UserRepositoryPort):
@@ -47,6 +62,16 @@ class SqlAlchemyUserRepository(UserRepositoryPort):
         row = (await self._session.execute(stmt)).scalar_one_or_none()
         return user_to_domain(row) if row is not None else None
 
+    async def get_by_email(self, email: str) -> User | None:
+        stmt = (
+            select(UserRow)
+            .where(func.lower(UserRow.email) == email.strip().lower())
+            .order_by(UserRow.created_at)
+            .limit(1)
+        )
+        row = (await self._session.execute(stmt)).scalar_one_or_none()
+        return user_to_domain(row) if row is not None else None
+
     async def update(self, user: User) -> User:
         row = await self._session.get(UserRow, user.id)
         if row is None:
@@ -55,8 +80,84 @@ class SqlAlchemyUserRepository(UserRepositoryPort):
         await self._session.flush()
         return user
 
+    async def get_for_update(self, user_id: UUID) -> User | None:
+        stmt = (
+            select(UserRow)
+            .where(UserRow.id == user_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        row = (await self._session.execute(stmt)).scalar_one_or_none()
+        return user_to_domain(row) if row is not None else None
 
-T = TypeVar("T", bound=tuple[object, ...])
+    async def lock_admins(self) -> list[UUID]:
+        # Orden fijo por id: dos transacciones que bloquean el mismo conjunto no se
+        # interbloquean. En READ COMMITTED, quien espera vuelve a evaluar el WHERE y
+        # no recibe a un admin que la otra degrado mientras tanto.
+        stmt = (
+            select(UserRow.id)
+            .where(UserRow.role == UserRole.ADMIN)
+            .order_by(UserRow.id)
+            .with_for_update()
+        )
+        return list((await self._session.execute(stmt)).scalars().all())
+
+    def _admin_filters(self, stmt: Select[T], filters: AdminUserFilters) -> Select[T]:
+        stmt = stmt.outerjoin(ProfessionalRow, ProfessionalRow.user_id == UserRow.id)
+        if filters.role is not None:
+            stmt = stmt.where(UserRow.role == filters.role)
+        if filters.verification_status is not None:
+            stmt = stmt.where(ProfessionalRow.verification_status == filters.verification_status)
+        if filters.query:
+            pattern = f"%{filters.query.strip()}%"
+            stmt = stmt.where(
+                or_(
+                    UserRow.email.ilike(pattern),
+                    UserRow.display_name.ilike(pattern),
+                    ProfessionalRow.business_name.ilike(pattern),
+                    ProfessionalRow.legal_name.ilike(pattern),
+                )
+            )
+        return stmt
+
+    async def list_admin(self, filters: AdminUserFilters) -> list[User]:
+        stmt = (
+            self._admin_filters(select(UserRow), filters)
+            .order_by(UserRow.created_at.desc(), UserRow.id)
+            .limit(filters.limit)
+            .offset(filters.offset)
+            .execution_options(populate_existing=True)
+        )
+        rows = (await self._session.execute(stmt)).scalars().all()
+        return [user_to_domain(row) for row in rows]
+
+    async def count_admin(self, filters: AdminUserFilters) -> int:
+        stmt = self._admin_filters(select(func.count(UserRow.id)), filters)
+        return (await self._session.execute(stmt)).scalar_one()
+
+    async def add_role_event(self, event: UserRoleEvent) -> None:
+        self._session.add(
+            UserRoleEventRow(
+                id=event.id,
+                user_id=event.user_id,
+                from_role=event.from_role,
+                to_role=event.to_role,
+                actor_user_id=event.actor_user_id,
+                note=event.note,
+                created_at=event.created_at,
+            )
+        )
+        await self._session.flush()
+
+    async def list_role_events(self, user_id: UUID) -> list[UserRoleEvent]:
+        stmt = (
+            select(UserRoleEventRow)
+            .where(UserRoleEventRow.user_id == user_id)
+            .order_by(UserRoleEventRow.created_at.desc())
+        )
+        rows = (await self._session.execute(stmt)).scalars().all()
+        return [user_role_event_to_domain(row) for row in rows]
+
 
 # Todo lo que lee el mapeo a dominio: cargado de antemano para no caer en la carga
 # perezosa, que en async falla con MissingGreenlet.
@@ -170,6 +271,18 @@ class SqlAlchemyProfessionalRepository(ProfessionalRepositoryPort):
     async def get_by_user_id(self, user_id: UUID) -> Professional | None:
         row = await self._load_row(ProfessionalRow.user_id == user_id)
         return professional_to_domain(row) if row is not None else None
+
+    async def get_many_by_user_ids(self, user_ids: set[UUID]) -> dict[UUID, Professional]:
+        if not user_ids:
+            return {}
+        stmt = (
+            select(ProfessionalRow)
+            .where(ProfessionalRow.user_id.in_(user_ids))
+            .options(*_PROFESSIONAL_RELATIONS)
+            .execution_options(populate_existing=True)
+        )
+        rows = (await self._session.execute(stmt)).scalars().all()
+        return {row.user_id: professional_to_domain(row) for row in rows}
 
     async def get_for_update(self, professional_id: UUID) -> Professional | None:
         # El bloqueo va en una consulta propia: Postgres no admite FOR UPDATE junto a

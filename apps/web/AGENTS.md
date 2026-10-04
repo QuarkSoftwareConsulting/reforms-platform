@@ -78,7 +78,7 @@ solo `lib/firebase.ts` y ese hook.
 **Cero cadenas de UI incrustadas en componentes.** Todo texto visible sale de
 `messages/es.json` / `messages/en.json`.
 
-- Los dos archivos deben tener **exactamente las mismas claves** (hoy: 485 cada uno).
+- Los dos archivos deben tener **exactamente las mismas claves** (hoy: 535 cada uno).
   Comprobación rápida:
 
   ```bash
@@ -121,7 +121,7 @@ subida al bucket en un archivo inválido.
 ## Tests
 
 ```bash
-pnpm test              # vitest, 113 tests
+pnpm test              # vitest, 132 tests
 pnpm test:watch
 pnpm lint              # eslint + tsc --noEmit
 ```
@@ -162,10 +162,15 @@ Tailwind con el sistema de diseño **«Voy a Reformar»**
   (nunca blanco: no cumple AA), sin degradados y **sin sombra en tarjetas de listado** — la
   elevación se reserva a menús y modales.
 - Primitivos en `components/ui/`: `Button`, `Field`, `Card`/`Panel`/`Tag`/`Seal`/`LiveDot`,
-  `OptionCard`, `ChipGroup`, `ProgressBar`, `Alert`, `Container`. `OptionCard` envuelve un `input` nativo
+  `OptionCard`, `ChipGroup`, `ProgressBar`, `Alert`, `Container`, `Modal`. `OptionCard` envuelve un `input` nativo
   en `sr-only` para conservar rol y etiqueta accesible: no lo sustituyas por un `div` con
   `onClick`. `ChipGroup` es el *chip de selección* del handoff (§4), con la misma técnica;
   lo usan los servicios, el tipo de inmueble y la programación del formulario.
+- `Modal` (sin `<dialog>` nativo: jsdom no implementa `showModal()`) atrapa el foco, cierra
+  con Escape o clic fuera y lo devuelve al cerrar; con `dismissible={false}` no se puede
+  cerrar mientras hay una petición en curso.
+- Tras guardar un formulario, refresca la sesión con `auth.refreshMe({ silent: true })`:
+  sin `silent`, `AuthGate` marca `loading` y desmonta la página (parpadeo).
 - Clases condicionales con `cn()` (`helpers/cn.ts`), que resuelve conflictos de Tailwind.
 - La tipografía es Poppins autohospedada con `next/font/google` en el layout de idioma. No
   la sirvas desde `fonts.googleapis.com`: bloquearía el primer render.

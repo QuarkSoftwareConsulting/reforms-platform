@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import Select, case, exists, func, or_, select
@@ -10,6 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from app.application.ports import (
     AdminLeadFilters,
+    DailyCount,
     LeadDashboardCounts,
     LeadRepositoryPort,
     LeadSearchFilters,
@@ -17,6 +19,7 @@ from app.application.ports import (
 )
 from app.domain.exceptions import LeadNotFoundError
 from app.domain.models import EXPLORER_STATUSES, Lead, LeadSource, LeadStatus, PurchaseStatus
+from app.infrastructure.adapters.db.aggregates import daily_counts
 from app.infrastructure.adapters.db.mappers import apply_lead, lead_to_domain, to_geography
 from app.infrastructure.adapters.db.models import (
     LeadConsentRow,
@@ -230,6 +233,9 @@ class SqlAlchemyLeadRepository(LeadRepositoryPort):
         if filters.source is not None:
             stmt = stmt.where(LeadRow.source == filters.source)
         return (await self._session.execute(stmt)).scalar_one()
+
+    async def daily_created(self, *, start: datetime, end: datetime, tz: str) -> list[DailyCount]:
+        return await daily_counts(self._session, at=LeadRow.created_at, start=start, end=end, tz=tz)
 
     async def dashboard_counts(self) -> LeadDashboardCounts:
         stmt = select(

@@ -64,15 +64,24 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
           aria-hidden
           className="mx-auto flex size-[62px] items-center justify-center rounded-full bg-accent"
         >
-          <svg viewBox="0 0 24 24" className="size-8 stroke-ink" fill="none" strokeWidth={2.5}>
-            <path d="M5 13l4.5 4.5L19 7" strokeLinecap="round" strokeLinejoin="round" />
+          <svg
+            viewBox="0 0 24 24"
+            className="size-8 stroke-ink"
+            fill="none"
+            strokeWidth={2.5}
+          >
+            <path
+              d="M5 13l4.5 4.5L19 7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
         </span>
         <h2 className="mt-6 text-h2 font-bold text-ink">{t("successTitle")}</h2>
         <p className="mt-3 text-[15.5px] leading-[1.6] text-secondary">
           {t("successBody", { city: form.created.city })}
         </p>
-        <div className="mt-7 flex flex-wrap justify-center gap-3">
+        <div className="mt-7 flex flex-wrap justify-center gap-3 align-center">
           <Button variant="secondary" onClick={form.reset}>
             {t("publishAnother")}
           </Button>
@@ -85,11 +94,15 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
   }
 
   const isLastStep = form.stepIndex === STEPS.length - 1;
-  const selectedCategory = categories.find((category) => category.id === form.values.categoryId);
+  const selectedCategory = categories.find(
+    (category) => category.id === form.values.categoryId,
+  );
   // El cliente eligio la opcion 1 del mockup con un cambio: los servicios de la
   // categoria se ven junto al boton "Continuar", no debajo de la rejilla.
   const services =
-    form.step === "category" && selectedCategory && selectedCategory.services.length > 0
+    form.step === "category" &&
+    selectedCategory &&
+    selectedCategory.services.length > 0
       ? selectedCategory.services
       : null;
   const toggleService = (id: string) =>
@@ -115,7 +128,11 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
       {/* El aviso de privacidad acompana los tres pasos: es la razon por la que
           el cliente se atreve a dejar el telefono. */}
       <p className="flex items-start gap-2.5 text-[14.5px] leading-[1.5] text-secondary">
-        <svg viewBox="0 0 24 24" aria-hidden className="mt-0.5 size-[18px] shrink-0 fill-brand">
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden
+          className="mt-0.5 size-[18px] shrink-0 fill-brand"
+        >
           <path d="M12 2a5 5 0 00-5 5v3H6a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2v-8a2 2 0 00-2-2h-1V7a5 5 0 00-5-5zm-3 5a3 3 0 016 0v3H9V7z" />
         </svg>
         {t("lockNotice")}
@@ -129,7 +146,10 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
         <ProgressBar
           value={form.stepIndex + 1}
           max={STEPS.length}
-          label={t("stepOf", { current: form.stepIndex + 1, total: STEPS.length })}
+          label={t("stepOf", {
+            current: form.stepIndex + 1,
+            total: STEPS.length,
+          })}
         />
       </div>
 
@@ -160,7 +180,9 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
               placeholder={t("descriptionPlaceholder")}
               hint={t("descriptionHint", { min: MIN_DESCRIPTION_LENGTH })}
               value={form.values.description}
-              onChange={(event) => form.setField("description", event.target.value)}
+              onChange={(event) =>
+                form.setField("description", event.target.value)
+              }
               error={error("description")}
               required
               maxLength={4000}
@@ -172,7 +194,9 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
                 value,
                 label: tProject(`propertyTypes.${value}`),
               }))}
-              selected={form.values.propertyType ? [form.values.propertyType] : []}
+              selected={
+                form.values.propertyType ? [form.values.propertyType] : []
+              }
               onToggle={(value) => form.setField("propertyType", value)}
               error={error("propertyType")}
               required
@@ -194,7 +218,9 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
               placeholder={t("postalCodePlaceholder")}
               hint={t("postalCodeHint")}
               value={form.values.postalCode}
-              onChange={(event) => form.setField("postalCode", event.target.value)}
+              onChange={(event) =>
+                form.setField("postalCode", event.target.value)
+              }
               error={error("postalCode")}
               required
               inputMode="numeric"
@@ -210,7 +236,9 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
             <TextField
               label={t("nameLabel")}
               value={form.values.clientName}
-              onChange={(event) => form.setField("clientName", event.target.value)}
+              onChange={(event) =>
+                form.setField("clientName", event.target.value)
+              }
               error={error("clientName")}
               required
               autoComplete="name"
@@ -219,7 +247,9 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
               label={t("phoneLabel")}
               hint={t("phoneHint")}
               value={form.values.clientPhone}
-              onChange={(event) => form.setField("clientPhone", event.target.value)}
+              onChange={(event) =>
+                form.setField("clientPhone", event.target.value)
+              }
               error={error("clientPhone")}
               required
               type="tel"
@@ -230,7 +260,9 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
               label={`${t("emailLabel")} (${tCommon("optional")})`}
               hint={t("emailHint")}
               value={form.values.clientEmail}
-              onChange={(event) => form.setField("clientEmail", event.target.value)}
+              onChange={(event) =>
+                form.setField("clientEmail", event.target.value)
+              }
               error={error("clientEmail")}
               type="email"
               autoComplete="email"
@@ -242,7 +274,9 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
                   label={t("phoneCodeLabel")}
                   hint={t("phoneCodeHint", { phone: form.smsSentTo })}
                   value={form.values.phoneCode}
-                  onChange={(event) => form.setField("phoneCode", event.target.value)}
+                  onChange={(event) =>
+                    form.setField("phoneCode", event.target.value)
+                  }
                   error={error("phoneCode")}
                   // Sin `required` nativo: si el cliente corrige el telefono, el
                   // formulario tiene que poder enviarse para pedir otro codigo.
@@ -264,9 +298,13 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
 
             <div className="space-y-3 rounded-option border border-line bg-page p-5">
               <CheckboxField
-                label={t("consentLabel", { maxProfessionals: MAX_PROFESSIONALS })}
+                label={t("consentLabel", {
+                  maxProfessionals: MAX_PROFESSIONALS,
+                })}
                 checked={form.values.consentAccepted}
-                onChange={(event) => form.setField("consentAccepted", event.target.checked)}
+                onChange={(event) =>
+                  form.setField("consentAccepted", event.target.checked)
+                }
                 error={error("consentAccepted")}
               />
               {/* Un boton, no un segundo checkbox: el unico control marcable de
@@ -293,7 +331,9 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
                         {t(`policy.${row}.term`)}
                       </dt>
                       <dd className="text-help leading-[1.5] text-secondary">
-                        {t(`policy.${row}.body`, { maxProfessionals: MAX_PROFESSIONALS })}
+                        {t(`policy.${row}.body`, {
+                          maxProfessionals: MAX_PROFESSIONALS,
+                        })}
                       </dd>
                     </div>
                   ))}
@@ -310,9 +350,14 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
         {services && (
           <ChipGroup
             name="services"
-            label={t("servicesLabel", { category: selectedCategory?.name ?? "" })}
+            label={t("servicesLabel", {
+              category: selectedCategory?.name ?? "",
+            })}
             hint={t("servicesHint")}
-            options={services.map((service) => ({ value: service.id, label: service.name }))}
+            options={services.map((service) => ({
+              value: service.id,
+              label: service.name,
+            }))}
             selected={form.values.serviceIds}
             onToggle={toggleService}
             multiple
@@ -329,8 +374,16 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
           >
             {tCommon("back")}
           </Button>
-          <Button type="submit" size="lg" loading={form.submitting || upload.uploading}>
-            {isLastStep ? (form.submitting ? t("submitting") : t("submit")) : tCommon("next")}
+          <Button
+            type="submit"
+            size="lg"
+            loading={form.submitting || upload.uploading}
+          >
+            {isLastStep
+              ? form.submitting
+                ? t("submitting")
+                : t("submit")
+              : tCommon("next")}
           </Button>
         </div>
       </div>

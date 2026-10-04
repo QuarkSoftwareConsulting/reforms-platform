@@ -48,6 +48,7 @@ from app.domain.models.professional import (
     Professional,
     ProfessionalDocument,
     User,
+    UserRoleEvent,
     VerificationEvent,
 )
 from app.domain.models.purchase import Purchase
@@ -94,6 +95,7 @@ __all__ = [
     "SubscriptionStatus",
     "User",
     "UserRole",
+    "UserRoleEvent",
     "VatBreakdown",
     "VerificationEvent",
     "VerificationStatus",

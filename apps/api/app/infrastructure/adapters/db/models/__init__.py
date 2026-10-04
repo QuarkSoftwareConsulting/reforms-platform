@@ -19,6 +19,7 @@ from app.infrastructure.adapters.db.models.tables import (
     PurchaseReviewRow,
     ServiceRow,
     SubscriptionPriceRow,
+    UserRoleEventRow,
     UserRow,
 )
 
@@ -43,5 +44,6 @@ __all__ = [
     "PurchaseReviewRow",
     "ServiceRow",
     "SubscriptionPriceRow",
+    "UserRoleEventRow",
     "UserRow",
 ]

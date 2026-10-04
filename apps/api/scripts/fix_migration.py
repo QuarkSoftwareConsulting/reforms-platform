@@ -91,8 +91,21 @@ def add_postgis_extension(source: str) -> tuple[str, str | None]:
     return fixed, "anadido CREATE EXTENSION postgis al principio de upgrade()"
 
 
-def add_enum_drops(source: str) -> tuple[str, str | None]:
-    enums = find_enum_names(source)
+def enums_defined_elsewhere(path: Path) -> set[str]:
+    """Tipos ENUM que ya declara otra migracion.
+
+    Una tabla nueva que reutiliza un tipo existente (p. ej. `user_role`) lo menciona
+    con `create_type=False`; borrarlo en su downgrade romperia la tabla original.
+    """
+    names: set[str] = set()
+    for other in VERSIONS_DIR.glob("*.py"):
+        if other.name != "__init__.py" and other.resolve() != path.resolve():
+            names.update(find_enum_names(other.read_text(encoding="utf-8")))
+    return names
+
+
+def add_enum_drops(source: str, *, reused: set[str] | None = None) -> tuple[str, str | None]:
+    enums = [name for name in find_enum_names(source) if name not in (reused or set())]
     if not enums:
         return source, None
     if "DROP TYPE IF EXISTS" in source:
@@ -137,7 +150,12 @@ def main() -> int:
     source = original
     applied: list[str] = []
 
-    for fixer in (add_geoalchemy_import, add_postgis_extension, add_enum_drops):
+    reused = enums_defined_elsewhere(path)
+    for fixer in (
+        add_geoalchemy_import,
+        add_postgis_extension,
+        lambda text: add_enum_drops(text, reused=reused),
+    ):
         source, note = fixer(source)
         if note:
             applied.append(note)

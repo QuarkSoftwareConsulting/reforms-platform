@@ -1,8 +1,10 @@
 from app.application.use_cases.admin_operations import (
     ChangeLeadAvailability,
     GetAdminMetrics,
+    GetMetricsTimeseries,
     ListAdminLeads,
     ListAdminProfessionals,
+    ListAdminPurchases,
     ListLeadPurchasesForAdmin,
     MarkPurchaseForReview,
 )
@@ -54,6 +56,11 @@ from app.application.use_cases.sync_professional_profile import (
     SyncUserFromIdentity,
     UpsertProfessionalProfile,
 )
+from app.application.use_cases.user_roles import (
+    ChangeUserRole,
+    ListAdminUsers,
+    ListUserRoleEvents,
+)
 
 __all__ = [
     "AddProfessionalDocument",
@@ -61,21 +68,26 @@ __all__ = [
     "ApplySubscriptionEvent",
     "ApproveProfessional",
     "ChangeLeadAvailability",
+    "ChangeUserRole",
     "CreateLead",
     "CreditLedgerService",
     "GetAdminMetrics",
     "GetLeadDetail",
     "GetLeadPricing",
+    "GetMetricsTimeseries",
     "GetProfessionalAccount",
     "GetProfessionalProfile",
     "GetVerificationDossier",
     "HandlePaymentEvent",
     "ListAdminLeads",
     "ListAdminProfessionals",
+    "ListAdminPurchases",
+    "ListAdminUsers",
     "ListCategories",
     "ListLeadPurchasesForAdmin",
     "ListLeads",
     "ListMyPurchases",
+    "ListUserRoleEvents",
     "MarkPurchaseForReview",
     "OpenBillingPortal",
     "PaymentEventOutcome",

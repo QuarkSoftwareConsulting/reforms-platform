@@ -331,6 +331,7 @@ async def main() -> int:
     created_lead_ids: list[str] = []
     created_emails: list[str] = []
     uploaded_keys: list[str] = []
+    role_user_ids: list[uuid.UUID] = []
 
     dsn = env.get("DATABASE_URL", "").replace("+asyncpg", "")
     require(bool(dsn), "Falta DATABASE_URL en apps/api/.env")
@@ -1231,6 +1232,66 @@ async def main() -> int:
                 f"{account['balance']['formatted']}"
             )
 
+            # ---------------- 13. Roles desde el panel -------------------
+            report.step("13 · El admin da y quita el rol desde el panel")
+            role_email = f"verify-{run_id}-rol@example.test"
+            created_emails.append(role_email)
+            role_token = await emulator.sign_up(role_email)
+            role_user_id = (await api.request("GET", "/me", token=role_token, expect=200)).json()[
+                "user_id"
+            ]
+            role_user_ids.append(uuid.UUID(role_user_id))
+            await api.request("GET", "/admin/metrics", token=role_token, expect=403)
+
+            await api.request(
+                "PUT",
+                f"/admin/users/{role_user_id}/role",
+                token=admin_token,
+                json_body={"role": "admin", "note": f"verify {run_id}"},
+                expect=200,
+            )
+            # El mismo ID token, sin claim de admin: el rol se lee de la BD.
+            await api.request("GET", "/admin/metrics", token=role_token, expect=200)
+            report.ok("Promovido desde el panel: es admin sin renovar su token de Firebase")
+
+            await api.request(
+                "PUT",
+                f"/admin/users/{role_user_id}/role",
+                token=admin_token,
+                json_body={"role": "professional"},
+                expect=200,
+            )
+            await api.request("GET", "/admin/metrics", token=role_token, expect=403)
+            report.ok("Degradado: pierde el acceso en su siguiente peticion")
+
+            admin_user_id = (await api.request("GET", "/me", token=admin_token, expect=200)).json()[
+                "user_id"
+            ]
+            own = await api.request(
+                "PUT",
+                f"/admin/users/{admin_user_id}/role",
+                token=admin_token,
+                json_body={"role": "professional"},
+                expect=409,
+            )
+            require(
+                own.json()["code"] == "CANNOT_CHANGE_OWN_ROLE",
+                f"Se esperaba CANNOT_CHANGE_OWN_ROLE, llego {own.json().get('code')}",
+            )
+            events = (
+                await api.request(
+                    "GET",
+                    f"/admin/users/{role_user_id}/role-events",
+                    token=admin_token,
+                    expect=200,
+                )
+            ).json()
+            require(
+                len(events) == 2 and all(e["actor_user_id"] == admin_user_id for e in events),
+                f"Se esperaban 2 cambios de rol hechos por el admin, llego {events}",
+            )
+            report.ok("Nadie se cambia su propio rol; cada cambio queda auditado con su autor")
+
         except VerificationError as error:
             print(f"\n  {RED}FALLO{RESET} {error}")
             print(
@@ -1245,7 +1306,7 @@ async def main() -> int:
             if args.keep:
                 print(f"\n{DIM}--keep: se conservan los datos del run {run_id}{RESET}")
             else:
-                await cleanup(db, created_lead_ids, run_id)
+                await cleanup(db, created_lead_ids, run_id, role_user_ids)
                 delete_private_objects(env, uploaded_keys)
                 print(f"\n{DIM}datos de prueba del run {run_id} eliminados{RESET}")
             await db.close()
@@ -1265,8 +1326,13 @@ async def main() -> int:
     return 0
 
 
-async def cleanup(db: asyncpg.Connection, lead_ids: list[str], run_id: str) -> None:
+async def cleanup(
+    db: asyncpg.Connection, lead_ids: list[str], run_id: str, user_ids: list[uuid.UUID]
+) -> None:
     """Borra lo que creo este run. Los usuarios del emulador se van al pararlo."""
+    for user_id in user_ids:
+        # Sus `user_role_events` caen en cascada.
+        await db.execute("DELETE FROM users WHERE id = $1", user_id)
     run_professionals = "SELECT id FROM professionals WHERE business_name LIKE $1"
     for table in ("credit_entries", "professional_accounts"):
         await db.execute(

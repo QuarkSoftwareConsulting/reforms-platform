@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { CategoryPicker } from "@/components/features/CategoryPicker";
 import { DocumentsSection } from "@/components/features/profile/DocumentsSection";
 import { MediaFields } from "@/components/features/profile/MediaFields";
+import { ReviewConfirmDialog } from "@/components/features/profile/ReviewConfirmDialog";
 import { VerificationCard } from "@/components/features/profile/VerificationCard";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -63,11 +64,7 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
       </header>
 
       {professional && (
-        <VerificationCard
-          verification={professional.verification}
-          submitting={form.submitting}
-          onSubmit={() => void form.submitForReview()}
-        />
+        <VerificationCard verification={professional.verification} />
       )}
 
       <Card className="space-y-5">
@@ -188,7 +185,6 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
         />
         <TextField
           label={t("taxIdLabel")}
-          hint={t("taxIdHint")}
           value={values.taxId}
           onChange={(event) => form.setField("taxId", event.target.value)}
           error={error("taxId")}
@@ -251,6 +247,13 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
           </Link>
         )}
       </div>
+
+      <ReviewConfirmDialog
+        open={form.reviewPrompt}
+        submitting={form.submitting}
+        onConfirm={() => void form.confirmReview()}
+        onCancel={form.dismissReview}
+      />
     </form>
   );
 }

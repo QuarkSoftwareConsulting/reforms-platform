@@ -70,12 +70,11 @@ const { AdminPanel } = await import("@/components/features/AdminPanel");
 const { renderWithIntl, messages } = await import("./render");
 
 describe("AdminPanel", () => {
-  it("renders metrics and never reads accidental client fields from an admin lead", async () => {
+  it("never reads accidental client fields from an admin lead", async () => {
     const { container } = renderWithIntl(<AdminPanel />);
 
     await waitFor(() => expect(screen.getByText("Reparar persiana")).toBeDefined());
 
-    expect(screen.getByText("4")).toBeDefined();
     expect(screen.getAllByText(messages.admin.status.published)).toHaveLength(2);
     expect(container.innerHTML).not.toContain("Ana Lopez");
   });

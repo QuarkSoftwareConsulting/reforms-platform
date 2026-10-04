@@ -18,21 +18,26 @@ from app.application.use_cases import (
     ApplySubscriptionEvent,
     ApproveProfessional,
     ChangeLeadAvailability,
+    ChangeUserRole,
     CreateLead,
     CreditLedgerService,
     GetAdminMetrics,
     GetLeadDetail,
     GetLeadPricing,
+    GetMetricsTimeseries,
     GetProfessionalAccount,
     GetProfessionalProfile,
     GetVerificationDossier,
     HandlePaymentEvent,
     ListAdminLeads,
     ListAdminProfessionals,
+    ListAdminPurchases,
+    ListAdminUsers,
     ListCategories,
     ListLeadPurchasesForAdmin,
     ListLeads,
     ListMyPurchases,
+    ListUserRoleEvents,
     MarkPurchaseForReview,
     OpenBillingPortal,
     RejectProfessional,
@@ -161,9 +166,15 @@ class World:
     adjust_credit: AdjustProfessionalCredit = field(init=False)
     pricing: SubscriptionPricing = field(init=False)
     set_subscription_price: SetSubscriptionPrice = field(init=False)
+    change_user_role: ChangeUserRole = field(init=False)
+    list_role_events: ListUserRoleEvents = field(init=False)
+    list_admin_users: ListAdminUsers = field(init=False)
+    list_admin_purchases: ListAdminPurchases = field(init=False)
+    metrics_timeseries: GetMetricsTimeseries = field(init=False)
 
     def __post_init__(self) -> None:
         self.leads.purchase_index = self.purchases
+        self.users.professional_index = self.professionals
         self.credit = CreditLedgerService(accounts=self.accounts, ledger=self.ledger, ids=self.ids)
         self.pricing = SubscriptionPricing(
             prices=self.subscription_prices,
@@ -347,6 +358,27 @@ class World:
             currency="EUR",
         )
 
+        self.change_user_role = ChangeUserRole(
+            users=self.users, clock=self.clock, ids=self.ids, uow=self.uow
+        )
+        self.list_role_events = ListUserRoleEvents(users=self.users)
+        self.list_admin_users = ListAdminUsers(
+            users=self.users,
+            professionals=self.professionals,
+            accounts=self.accounts,
+            clock=self.clock,
+        )
+        self.list_admin_purchases = ListAdminPurchases(
+            purchases=self.purchases,
+            leads=self.leads,
+            categories=self.categories,
+            professionals=self.professionals,
+            reviews=self.reviews,
+        )
+        self.metrics_timeseries = GetMetricsTimeseries(
+            leads=self.leads, purchases=self.purchases, ledger=self.ledger, clock=self.clock
+        )
+
     # ------------------------- atajos de escenario -----------------------
 
     def add_category(self, **kwargs: object) -> Category:
@@ -390,7 +422,7 @@ def world() -> World:
         purchases=InMemoryPurchaseRepository(),
         reviews=InMemoryPurchaseReviewRepository(),
         professionals=InMemoryProfessionalRepository(uow=uow),
-        users=InMemoryUserRepository(),
+        users=InMemoryUserRepository(uow=uow),
         categories=InMemoryCategoryRepository(),
         postal_codes=InMemoryPostalCodeRepository(POSTAL_CODES),
         processed_events=InMemoryProcessedEventRepository(),

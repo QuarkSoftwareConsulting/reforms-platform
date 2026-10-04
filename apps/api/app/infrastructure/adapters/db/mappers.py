@@ -28,6 +28,7 @@ from app.domain.models import (
     Service,
     SubscriptionPrice,
     User,
+    UserRoleEvent,
     VerificationEvent,
 )
 from app.domain.value_objects import Coordinates, Email, Money, PhoneNumber, PostalCode, TaxId
@@ -45,6 +46,7 @@ from app.infrastructure.adapters.db.models import (
     ProfessionalWorkPhotoRow,
     PurchaseReviewRow,
     SubscriptionPriceRow,
+    UserRoleEventRow,
     UserRow,
 )
 
@@ -232,6 +234,18 @@ def verification_event_to_domain(row: ProfessionalVerificationEventRow) -> Verif
         professional_id=row.professional_id,
         from_status=row.from_status,
         to_status=row.to_status,
+        created_at=row.created_at,
+        actor_user_id=row.actor_user_id,
+        note=row.note,
+    )
+
+
+def user_role_event_to_domain(row: UserRoleEventRow) -> UserRoleEvent:
+    return UserRoleEvent(
+        id=row.id,
+        user_id=row.user_id,
+        from_role=row.from_role,
+        to_role=row.to_role,
         created_at=row.created_at,
         actor_user_id=row.actor_user_id,
         note=row.note,

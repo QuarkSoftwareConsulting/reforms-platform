@@ -62,13 +62,16 @@ export interface ProfessionalProfileState {
   identityLocked: boolean;
   saving: boolean;
   submitting: boolean;
+  /** Tras guardar un alta completa se pide confirmar antes de enviarla a revision. */
+  reviewPrompt: boolean;
   error: string | null;
   saved: boolean;
   setField: <K extends keyof ProfileValues>(field: K, value: ProfileValues[K]) => void;
   /** Quitar un oficio quita tambien los servicios elegidos dentro de el. */
   setCategories: (categoryIds: string[], servicesOf: (categoryId: string) => string[]) => void;
   save: () => Promise<Professional | null>;
-  submitForReview: () => Promise<void>;
+  confirmReview: () => Promise<void>;
+  dismissReview: () => void;
 }
 
 export function useProfessionalProfile(): ProfessionalProfileState {
@@ -81,6 +84,7 @@ export function useProfessionalProfile(): ProfessionalProfileState {
   const [errors, setErrors] = useState<ProfileErrors>({});
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [reviewPrompt, setReviewPrompt] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -156,8 +160,13 @@ export function useProfessionalProfile(): ProfessionalProfileState {
         },
         locale,
       );
-      await auth.refreshMe();
+      await auth.refreshMe({ silent: true });
       setSaved(true);
+      // Un alta completa que aun no se ha enviado pasa por la confirmacion: no hay
+      // boton de envio aparte, guardar es el unico paso del profesional.
+      if (updated.verification.status === "incomplete" && updated.verification.missing.length === 0) {
+        setReviewPrompt(true);
+      }
       return updated;
     } catch (caught) {
       setError(translateError(caught));
@@ -167,21 +176,22 @@ export function useProfessionalProfile(): ProfessionalProfileState {
     }
   }, [values, locale, auth, translateError]);
 
-  const submitForReview = useCallback(async () => {
-    // Se guarda antes: lo que se envia a revision es lo que esta en pantalla.
-    const stored = await save();
-    if (stored === null) return;
+  const confirmReview = useCallback(async () => {
+    // No se vuelve a guardar: el dialogo es modal y lo que se envia es lo recien guardado.
     setSubmitting(true);
     setError(null);
     try {
       await professionalService.submitForReview(locale);
-      await auth.refreshMe();
+      await auth.refreshMe({ silent: true });
     } catch (caught) {
       setError(translateError(caught));
     } finally {
       setSubmitting(false);
+      setReviewPrompt(false);
     }
-  }, [save, locale, auth, translateError]);
+  }, [locale, auth, translateError]);
+
+  const dismissReview = useCallback(() => setReviewPrompt(false), []);
 
   return useMemo(
     () => ({
@@ -191,12 +201,14 @@ export function useProfessionalProfile(): ProfessionalProfileState {
       identityLocked,
       saving,
       submitting,
+      reviewPrompt,
       error,
       saved,
       setField,
       setCategories,
       save,
-      submitForReview,
+      confirmReview,
+      dismissReview,
     }),
     [
       professional,
@@ -205,12 +217,14 @@ export function useProfessionalProfile(): ProfessionalProfileState {
       identityLocked,
       saving,
       submitting,
+      reviewPrompt,
       error,
       saved,
       setField,
       setCategories,
       save,
-      submitForReview,
+      confirmReview,
+      dismissReview,
     ],
   );
 }

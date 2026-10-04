@@ -267,8 +267,32 @@ class AuthenticationError(DomainError):
     status = 401
 
 
+# ------------------------------- Roles ------------------------------------
+
+
+class UserNotFoundError(NotFoundError):
+    """El usuario no existe."""
+
+    code = "USER_NOT_FOUND"
+
+
+class CannotChangeOwnRoleError(DomainError):
+    """Un admin no puede cambiar su propio rol: lo hace otro admin."""
+
+    code = "CANNOT_CHANGE_OWN_ROLE"
+    status = 409
+
+
+class LastAdminError(DomainError):
+    """No se puede degradar al ultimo admin: nadie podria gestionar la plataforma."""
+
+    code = "LAST_ADMIN"
+    status = 409
+
+
 __all__ = [
     "AuthenticationError",
+    "CannotChangeOwnRoleError",
     "CategoryMismatchError",
     "CategoryNotFoundError",
     "ConsentRequiredError",
@@ -279,6 +303,7 @@ __all__ = [
     "InvalidSalePriceError",
     "InvalidServiceError",
     "InvalidTaxIdError",
+    "LastAdminError",
     "LeadAlreadyPurchasedError",
     "LeadCapReachedError",
     "LeadNotFoundError",
@@ -302,6 +327,7 @@ __all__ = [
     "SubscriptionRequiredError",
     "TooManyVerificationAttemptsError",
     "UnknownPostalCodeError",
+    "UserNotFoundError",
     "ValidationError",
     "VerificationLockedError",
     "VerificationTransitionError",

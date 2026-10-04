@@ -63,6 +63,7 @@ tantas veces como quieras.
 | 10 | A las 5 ventas el lead se agota: el sexto recibe `409 LEAD_CAP_REACHED` y lo ve como cerrado |
 | 11 | Solo el admin fija precios; el override manda sobre el sugerido y se puede borrar |
 | 12 | La recarga (`invoice.paid`) activa la cuenta y abona saldo; el saldo paga contactos |
+| 13 | El rol se cambia desde el panel y surte efecto con el mismo token; nadie se cambia el suyo |
 
 ## 4 · Interpretar el resultado
 

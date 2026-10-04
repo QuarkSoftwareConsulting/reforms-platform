@@ -334,7 +334,13 @@
     "legalNameLabel": "Legal name or full name",
     "legalNameHint": "The name we will invoice.",
     "taxIdLabel": "NIF, NIE or CIF",
-    "taxIdHint": "If you are an independent worker with a passport, you can leave it blank.",
+    "reviewDialog": {
+      "title": "Send your registration for review?",
+      "body": "We will review your profile and documents. Meanwhile you can browse requests, but you can only buy them once we approve your registration.",
+      "warning": "Once sent, you will not be able to change your registration type, legal name, tax ID or documents.",
+      "confirm": "Confirm and send",
+      "cancel": "Review first"
+    },
     "addressLabel": "Business or home address",
     "uploadsAfterSaving": "Once you save your profile you can upload your photos and documents.",
     "create": "Create profile",
@@ -371,8 +377,7 @@
       "reason": "Reason",
       "incompleteTitle": "Complete your registration",
       "incompleteBody": "To buy contacts we need to validate your registration. You are missing:",
-      "readyBody": "All set. Send your registration and we will review it.",
-      "submit": "Send registration for review",
+      "readyBody": "All set. When you save, we will ask you to confirm sending it for review.",
       "missing": {
         "categories": "Choosing at least one trade",
         "professional_type": "How you are registering",
@@ -482,12 +487,6 @@
       "failed": "Failed",
       "refunded": "Refunded"
     },
-    "professionals": {
-      "title": "Professional directory",
-      "subtitle": "Consult registered professional profiles.",
-      "search": "Search business or area",
-      "location": "{city} · {distance} km"
-    },
     "account": "Monthly fee",
     "balance": "Balance",
     "activeAccounts": "Active accounts",
@@ -525,6 +524,64 @@
       "back": "Back to the queue",
       "rejectedRefunded": "Registration rejected. {amount} was refunded and the top-up cancelled.",
       "rejectedNothingToRefund": "Registration rejected. There was no charge to refund."
+    },
+    "dashboard": {
+      "title": "Overview",
+      "range": "Period",
+      "lastDays": "Last {days} days",
+      "leadsChart": "Requests published per day",
+      "purchasesChart": "Contacts sold per day",
+      "revenueChart": "Contact revenue per day ({currency})",
+      "topupsChart": "Top-ups collected per day ({currency})",
+      "showTable": "Show the data as a table",
+      "day": "Day",
+      "value": "Value",
+      "published": "Published",
+      "exhausted": "Sold out",
+      "paidLeads": "Leads with at least one sale",
+      "topupRevenue": "Top-ups collected"
+    },
+    "users": {
+      "title": "Users",
+      "subtitle": "Everyone with an account. Clients have no account: they post as guests.",
+      "search": "Search by email or business",
+      "role": "Role",
+      "verificationStatus": "Sign-up status",
+      "all": "All",
+      "empty": "No users match these filters.",
+      "noProfile": "No professional profile",
+      "since": "Joined: {date}",
+      "roles": {
+        "professional": "Professional",
+        "admin": "Administrator"
+      },
+      "makeAdmin": "Make administrator",
+      "makeProfessional": "Remove administrator",
+      "viewDossier": "View file",
+      "confirmTitle": "Change the role of {email}",
+      "confirmPromote": "They will see purchases and professionals' data and be able to change prices and roles. It takes effect on their next action, without signing in again.",
+      "confirmDemote": "They will lose access to administration on their next action. Any professional profile is kept.",
+      "noteLabel": "Reason (optional)",
+      "noteHint": "It is kept in the role change history.",
+      "confirm": "Confirm change",
+      "roleChanged": "Role updated."
+    },
+    "allPurchases": {
+      "title": "Purchases",
+      "subtitle": "Who bought each contact, when and for how much. No client data.",
+      "status": "Status",
+      "from": "From",
+      "to": "To",
+      "all": "All",
+      "empty": "No purchases match these filters.",
+      "professional": "Professional",
+      "paidWithCredit": "{amount} from balance",
+      "unknownLead": "Deleted request"
+    },
+    "pagination": {
+      "previous": "Previous",
+      "next": "Next",
+      "page": "Page {page} of {pages}"
     }
   },
   "errors": {
@@ -568,7 +625,10 @@
     "INVALID_VERIFICATION_TRANSITION": "That registration is no longer waiting for review.",
     "REJECTION_AWAITING_PAYMENT": "This professional's first monthly fee payment is still processing (it can take several days with direct debit). You can reject the registration once it clears or fails.",
     "VERIFICATION_LOCKED": "You already sent your registration for review: those details can no longer change.",
-    "INVALID_TAX_ID": "The NIF, NIE or CIF is not valid: check the control letter or digit."
+    "INVALID_TAX_ID": "The NIF, NIE or CIF is not valid: check the control letter or digit.",
+    "USER_NOT_FOUND": "That user no longer exists.",
+    "CANNOT_CHANGE_OWN_ROLE": "You can't change your own role: ask another administrator.",
+    "LAST_ADMIN": "You can't remove the last administrator: appoint another one first."
   },
   "validation": {
     "categoryRequired": "Pick a trade.",
