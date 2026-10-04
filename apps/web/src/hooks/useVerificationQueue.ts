@@ -5,6 +5,7 @@
 import { useLocale } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 
+import { useAdminPending } from "@/hooks/useAdminPending";
 import { useApiError } from "@/hooks/useApiError";
 import { useVerificationDossier, type VerificationDossierState } from "@/hooks/useVerificationDossier";
 import { adminService } from "@/services/admin.service";
@@ -18,6 +19,7 @@ export interface VerificationQueueState extends VerificationDossierState {
 export function useVerificationQueue(): VerificationQueueState {
   const locale = useLocale() as Locale;
   const translateError = useApiError();
+  const { report } = useAdminPending();
   const [queue, setQueue] = useState<AdminProfessional[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -26,13 +28,15 @@ export function useVerificationQueue(): VerificationQueueState {
     setLoading(true);
     setLoadError(null);
     try {
-      setQueue((await adminService.professionals("", locale, "pending")).items);
+      const page = await adminService.professionals("", locale, "pending");
+      setQueue(page.items);
+      report(page.total);
     } catch (caught) {
       setLoadError(translateError(caught));
     } finally {
       setLoading(false);
     }
-  }, [locale, translateError]);
+  }, [locale, report, translateError]);
 
   useEffect(() => {
     void reload();

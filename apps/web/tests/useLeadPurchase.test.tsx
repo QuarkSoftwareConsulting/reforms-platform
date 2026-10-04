@@ -60,23 +60,40 @@ describe("useLeadPurchase", () => {
     expect(assign).toHaveBeenCalledWith("https://checkout.stripe.test/cs_123");
   });
 
-  it("goes straight to my contacts when the balance paid the whole contact", async () => {
-    startPurchase.mockResolvedValue({
-      purchase_id: "purchase-1",
-      checkout_url: null,
-      amount: { amount_cents: 1800, currency: "EUR", formatted: "18.00 €" },
-      credit_applied: { amount_cents: 1800, currency: "EUR", formatted: "18.00 €" },
-      amount_due: { amount_cents: 0, currency: "EUR", formatted: "0.00 €" },
-      paid_with_credit: true,
-      expires_at: null,
+  const PAID_WITH_CREDIT = {
+    purchase_id: "purchase-1",
+    checkout_url: null,
+    amount: { amount_cents: 1800, currency: "EUR", formatted: "18.00 €" },
+    credit_applied: { amount_cents: 1800, currency: "EUR", formatted: "18.00 €" },
+    amount_due: { amount_cents: 0, currency: "EUR", formatted: "0.00 €" },
+    paid_with_credit: true,
+    expires_at: null,
+  };
+
+  it("hands a contact paid with balance back to the page, without navigating", async () => {
+    startPurchase.mockResolvedValue(PAID_WITH_CREDIT);
+    const onUnlocked = vi.fn();
+
+    const { result } = renderHook(() => useLeadPurchase({ onUnlocked }), { wrapper });
+    await act(async () => {
+      await result.current.start("lead-1");
     });
+
+    expect(onUnlocked).toHaveBeenCalledWith("purchase-1");
+    expect(assign).not.toHaveBeenCalled();
+    // Sigue "pendiente" hasta que el contacto sustituye al boton: sin doble click.
+    expect(result.current.pending).toBe(true);
+  });
+
+  it("without a page to update, opens the purchased request", async () => {
+    startPurchase.mockResolvedValue(PAID_WITH_CREDIT);
 
     const { result } = renderHook(() => useLeadPurchase(), { wrapper });
     await act(async () => {
       await result.current.start("lead-1");
     });
 
-    expect(assign).toHaveBeenCalledWith("/es/mis-contactos?purchase=purchase-1&status=success");
+    expect(assign).toHaveBeenCalledWith("/es/proyectos/lead-1?purchase=purchase-1&status=success");
   });
 
   it("translates the missing top-up error", async () => {

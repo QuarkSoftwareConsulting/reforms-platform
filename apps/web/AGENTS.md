@@ -78,7 +78,7 @@ solo `lib/firebase.ts` y ese hook.
 **Cero cadenas de UI incrustadas en componentes.** Todo texto visible sale de
 `messages/es.json` / `messages/en.json`.
 
-- Los dos archivos deben tener **exactamente las mismas claves** (hoy: 617 cada uno).
+- Los dos archivos deben tener **exactamente las mismas claves** (hoy: 631 cada uno).
   Comprobación rápida:
 
   ```bash
@@ -143,7 +143,7 @@ error fuera de pantalla hace que el botón "no haga nada". El patrón (ver `Prof
 ## Tests
 
 ```bash
-pnpm test              # vitest, 188 tests
+pnpm test              # vitest, 200 tests
 pnpm test:watch
 pnpm lint              # eslint + tsc --noEmit
 ```

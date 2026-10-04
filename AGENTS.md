@@ -62,7 +62,7 @@ npx -y firebase-tools emulators:start --only auth \
 | Objetivo                                           | Comando                                                                  |
 | -------------------------------------------------- | ------------------------------------------------------------------------ |
 | Todo el lint (ruff + mypy strict + eslint + tsc)   | `pnpm lint`                                                              |
-| Todos los tests (667 back + 188 front)             | `pnpm test`                                                              |
+| Todos los tests (667 back + 200 front)             | `pnpm test`                                                              |
 | Backend rápido, **sin Docker** (536 tests)         | `cd apps/api && uv run pytest -m "not integration"`                      |
 | Backend completo (requiere `pnpm infra:up`)        | `pnpm api:test`                                                          |
 | Un solo test de backend                            | `cd apps/api && uv run pytest tests/unit/domain/test_lead.py -k capping` |
@@ -381,7 +381,7 @@ dentro de `pnpm-workspace.yaml`.
 alrededor o el `build` falla al prerenderizar. Ver `publicar/page.tsx`.
 
 **Acentos** — `apps/web/messages/*.json` es texto de cara al usuario y lleva acentos
-correctos (617 claves por idioma). La regla de ASCII puro aplica **solo al código fuente**.
+correctos (631 claves por idioma). La regla de ASCII puro aplica **solo al código fuente**.
 Lo mismo vale para `apps/api/data/categories.csv`, `services.csv`: los nombres de oficio se muestran en la
 landing y en el formulario.
 

@@ -1,16 +1,16 @@
 import { setRequestLocale } from "next-intl/server";
 
-import { AdminDashboard } from "@/components/features/AdminDashboard";
+import { AdminLeads } from "@/components/features/AdminLeads";
 import { isAppLocale, type AppLocale } from "@/i18n/routing";
 
-import { adminSectionMetadata } from "./metadata";
+import { adminSectionMetadata } from "../metadata";
 
 export function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
-  return adminSectionMetadata(params, "overview");
+  return adminSectionMetadata(params, "leads");
 }
 
-export default async function AdminOverviewPage({ params }: { params: Promise<{ locale: string }> }) {
+export default async function AdminLeadsPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: raw } = await params;
   setRequestLocale((isAppLocale(raw) ? raw : "es") as AppLocale);
-  return <AdminDashboard />;
+  return <AdminLeads />;
 }

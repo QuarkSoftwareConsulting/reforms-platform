@@ -164,8 +164,10 @@ class StartLeadPurchase:
                     product_name=f"{category.name(locale)} - {lead.location.city}",
                     product_description=lead.title,
                     customer_email=None,
+                    # Vuelve a la propia solicitud: el contacto aparece donde se compro
+                    # (la vista espera ahi al webhook). Tambien queda en "Mis contactos".
                     success_url=(
-                        f"{self.web_base_url}/{locale}/mis-contactos"
+                        f"{self.web_base_url}/{locale}/proyectos/{lead.id}"
                         f"?purchase={purchase.id}&status=success"
                     ),
                     cancel_url=(

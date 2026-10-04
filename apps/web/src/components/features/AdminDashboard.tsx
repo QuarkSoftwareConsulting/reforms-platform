@@ -65,10 +65,7 @@ export function AdminDashboard() {
   return (
     <section className="space-y-4">
       <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-h1 font-bold text-ink">{t("title")}</h1>
-          <p className="text-secondary">{t("subtitle")}</p>
-        </div>
+        <h2 className="text-h2 font-bold text-ink">{t("dashboard.title")}</h2>
         <ChipGroup
           label={t("dashboard.range")}
           name="dashboard-range"

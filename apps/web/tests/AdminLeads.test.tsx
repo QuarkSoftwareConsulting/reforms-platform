@@ -66,19 +66,42 @@ vi.mock("@/services/leads.service", () => ({
   leadsService: { categories: vi.fn().mockResolvedValue([lead.category]) },
 }));
 
-const { AdminPanel } = await import("@/components/features/AdminPanel");
+const { AdminLeads } = await import("@/components/features/AdminLeads");
 const { renderWithIntl, messages } = await import("./render");
 const { adminService } = await import("@/services/admin.service");
 const { ApiError } = await import("@/services/api");
 
-describe("AdminPanel", () => {
+describe("AdminLeads", () => {
   it("never reads accidental client fields from an admin lead", async () => {
-    const { container } = renderWithIntl(<AdminPanel />);
+    const { container } = renderWithIntl(<AdminLeads />);
 
     await waitFor(() => expect(screen.getByText("Reparar persiana")).toBeDefined());
 
     expect(screen.getAllByText(messages.admin.status.published)).toHaveLength(2);
     expect(container.innerHTML).not.toContain("Ana Lopez");
+  });
+
+  it("keeps the manual lead form folded until it is asked for", async () => {
+    const { container } = renderWithIntl(<AdminLeads />);
+    await waitFor(() => expect(screen.getByText("Reparar persiana")).toBeDefined());
+
+    expect(container.querySelector("form")).toBeNull();
+    const toggle = screen.getByRole("button", { name: messages.admin.leads.showManual });
+    fireEvent.click(toggle);
+
+    expect(container.querySelector("form")).not.toBeNull();
+    expect(screen.getByRole("button", { name: messages.admin.leads.hideManual })).toBeDefined();
+  });
+
+  it("opens the purchases of a lead in a dialog", async () => {
+    vi.mocked(adminService.purchases).mockResolvedValueOnce([]);
+    renderWithIntl(<AdminLeads />);
+    await waitFor(() => expect(screen.getByText("Reparar persiana")).toBeDefined());
+
+    fireEvent.click(screen.getByRole("button", { name: messages.admin.leads.purchases }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog.textContent).toContain(messages.admin.purchases.empty);
   });
 
   const MANUAL_LEAD: Record<string, string> = {
@@ -95,10 +118,11 @@ describe("AdminPanel", () => {
 
   /** Rellena el alta manual (con `overrides` encima) y la envia. */
   async function submitManualLead(overrides: Record<string, string> = {}): Promise<HTMLElement> {
-    const { container } = renderWithIntl(<AdminPanel />);
+    const { container } = renderWithIntl(<AdminLeads />);
     await waitFor(() =>
       expect(screen.getAllByRole("option", { name: lead.category.name })).not.toHaveLength(0),
     );
+    fireEvent.click(screen.getByRole("button", { name: messages.admin.leads.showManual }));
     const form = container.querySelector("form") as HTMLFormElement;
     for (const [name, value] of Object.entries({ ...MANUAL_LEAD, ...overrides })) {
       const control = form.querySelector(`[name="${name}"]`) as HTMLInputElement;

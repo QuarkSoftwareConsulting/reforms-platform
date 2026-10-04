@@ -238,7 +238,11 @@
     "needsApprovalPending": "Your registration is under review. You can buy once we approve it.",
     "completeRegistration": "See my registration",
     "debtBlocksPurchase": "You owe {debt} for a monthly fee your bank returned. You can buy once your next monthly fee settles it.",
-    "reviewAccount": "View my monthly fee"
+    "reviewAccount": "View my monthly fee",
+    "purchaseConfirmed": "Payment confirmed. You can now contact the client.",
+    "purchaseConfirming": "We're confirming your payment. The contact will appear here in a few seconds; there's no need to pay again.",
+    "purchaseDelayed": "Your payment hasn't been confirmed yet. Don't pay again: the contact will unlock as soon as Stripe confirms it, and you'll also see it in “My contacts”.",
+    "checkAgain": "Check again"
   },
   "purchases": {
     "title": "My contacts",
@@ -476,7 +480,10 @@
       "savePrice": "Save price",
       "purchases": "View purchases",
       "disable": "Disable",
-      "republish": "Republish"
+      "republish": "Republish",
+      "showManual": "Create manual request",
+      "hideManual": "Hide form",
+      "empty": "No requests match these filters."
     },
     "status": {
       "published": "Published",
@@ -610,6 +617,15 @@
       "submit": "Apply adjustment",
       "done": "Adjustment applied. Balance: {balance}.",
       "doneWithDebt": "Adjustment applied. Balance: {balance} · Outstanding debt: {debt}."
+    },
+    "nav": {
+      "label": "Admin sections",
+      "overview": "Overview",
+      "professionals": "Professionals",
+      "leads": "Requests",
+      "purchases": "Purchases",
+      "pricing": "Pricing",
+      "pending": "{count, plural, one {pending sign-up} other {pending sign-ups}}"
     }
   },
   "errors": {

@@ -23,10 +23,17 @@ import type { LeadDetail } from "@/types/api";
  * Sin la recarga mensual al dia no se ofrece comprar: se lleva a activarla. Con
  * saldo se anuncia cuanto se pagara con el (el importe real lo decide el API).
  */
-export function PurchaseButton({ detail }: { detail: LeadDetail }) {
+export function PurchaseButton({
+  detail,
+  onUnlocked,
+}: {
+  detail: LeadDetail;
+  /** El saldo pago el contacto: quien muestra la solicitud la recarga ahi mismo. */
+  onUnlocked?: (purchaseId: string) => void;
+}) {
   const locale = useLocale() as AppLocale;
   const t = useTranslations("lead");
-  const purchase = useLeadPurchase();
+  const purchase = useLeadPurchase({ onUnlocked });
   const auth = useAuth();
 
   if (detail.is_unlocked) {

@@ -238,7 +238,11 @@
     "needsApprovalPending": "Tu alta está en revisión. Podrás comprar cuando la aprobemos.",
     "completeRegistration": "Ver mi alta",
     "debtBlocksPurchase": "Tienes {debt} pendientes por una mensualidad devuelta por tu banco. Podrás comprar cuando se salde con tu próxima mensualidad.",
-    "reviewAccount": "Ver mi mensualidad"
+    "reviewAccount": "Ver mi mensualidad",
+    "purchaseConfirmed": "Pago confirmado. Ya puedes contactar con el cliente.",
+    "purchaseConfirming": "Estamos confirmando tu pago. El contacto aparecerá aquí en unos segundos; no hace falta que vuelvas a pagar.",
+    "purchaseDelayed": "Tu pago todavía no se ha confirmado. No vuelvas a pagar: el contacto se desbloqueará en cuanto Stripe lo confirme y también lo verás en «Mis contactos».",
+    "checkAgain": "Comprobar de nuevo"
   },
   "purchases": {
     "title": "Mis contactos",
@@ -476,7 +480,10 @@
       "savePrice": "Guardar precio",
       "purchases": "Ver compras",
       "disable": "Deshabilitar",
-      "republish": "Republicar"
+      "republish": "Republicar",
+      "showManual": "Crear solicitud manual",
+      "hideManual": "Ocultar formulario",
+      "empty": "No hay solicitudes con estos filtros."
     },
     "status": {
       "published": "Publicado",
@@ -610,6 +617,15 @@
       "submit": "Aplicar ajuste",
       "done": "Ajuste aplicado. Saldo: {balance}.",
       "doneWithDebt": "Ajuste aplicado. Saldo: {balance} · Deuda pendiente: {debt}."
+    },
+    "nav": {
+      "label": "Secciones de administración",
+      "overview": "Resumen",
+      "professionals": "Profesionales",
+      "leads": "Solicitudes",
+      "purchases": "Compras",
+      "pricing": "Precios",
+      "pending": "{count, plural, one {alta pendiente} other {altas pendientes}}"
     }
   },
   "errors": {

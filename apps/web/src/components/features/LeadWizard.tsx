@@ -103,7 +103,7 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
         <p className="mt-3 text-[15.5px] leading-[1.6] text-secondary">
           {t("successBody", { city: form.created.city })}
         </p>
-        <div className="mt-7 flex flex-wrap justify-center gap-3 align-center">
+        <div className="mt-7 flex flex-wrap justify-center gap-3 items-center">
           <Button variant="secondary" onClick={form.reset}>
             {t("publishAnother")}
           </Button>
