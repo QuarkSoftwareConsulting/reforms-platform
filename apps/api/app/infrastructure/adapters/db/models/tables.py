@@ -25,6 +25,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.domain.models import (
     CreditEntryKind,
     DocumentKind,
+    FlagEnvironment,
     LeadSource,
     LeadStatus,
     ProfessionalType,
@@ -42,6 +43,9 @@ from app.infrastructure.adapters.db.models.base import (
 )
 
 # Los enums se materializan en Postgres para que la BD rechace valores invalidos.
+flag_environment_enum = Enum(
+    FlagEnvironment, name="flag_environment", values_callable=lambda e: [m.value for m in e]
+)
 user_role_enum = Enum(UserRole, name="user_role", values_callable=lambda e: [m.value for m in e])
 lead_status_enum = Enum(
     LeadStatus, name="lead_status", values_callable=lambda e: [m.value for m in e]
@@ -613,6 +617,40 @@ class CreditEntryRow(Base, UUIDPrimaryKeyMixin):
     )
 
 
+class FeatureFlagRow(Base, TimestampMixin):
+    """Feature flags por entorno. No hay interfaz: se cambian con SQL a mano.
+
+    Por eso todo lo que una fila necesita lo pone Postgres (`id`, fechas) y la tabla
+    se defiende sola: nombre con formato de clave, una fila por nombre y entorno, y
+    `updated_at` al dia con un trigger (el `onupdate` del ORM no ve un UPDATE manual).
+    """
+
+    __tablename__ = "feature_flags"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    version: Mapped[str] = mapped_column(String(32), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    environment: Mapped[FlagEnvironment] = mapped_column(flag_environment_enum, nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+
+    __table_args__ = (
+        UniqueConstraint("name", "environment", name="uq_feature_flags_name_environment"),
+        # Minusculas, digitos, `-`, `_` y `.`: es la clave que escribe el frontend.
+        CheckConstraint("name ~ '^[a-z0-9][a-z0-9._-]*$'", name="name_format"),
+        CheckConstraint("length(btrim(version)) > 0", name="version_not_blank"),
+        # Lo lee quien abre la tabla para cambiar una flag a mano.
+        {
+            "comment": (
+                "Feature flags del frontend por entorno (dev/prod). Se cambian aqui a mano; "
+                "la web tarda hasta 60 s en verlo. Una flag que falta cuenta como apagada."
+            )
+        },
+    )
+
+
 class SubscriptionPriceRow(Base, UUIDPrimaryKeyMixin):
     """Historial append-only de la mensualidad; la vigente es la mas reciente."""
 
@@ -636,6 +674,7 @@ __all__ = [
     "Base",
     "CategoryRow",
     "CreditEntryRow",
+    "FeatureFlagRow",
     "LeadConsentRow",
     "LeadPhotoRow",
     "LeadPurchaseRow",

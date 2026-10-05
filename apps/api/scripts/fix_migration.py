@@ -124,6 +124,9 @@ def add_enum_drops(source: str, *, reused: set[str] | None = None) -> tuple[str,
 
     # Se borran en orden inverso al de creacion, por simetria con las tablas.
     tuple_literal = ", ".join(f'"{name}"' for name in reversed(enums))
+    if len(enums) == 1:
+        # `("x")` es un str, no una tupla: el bucle borraria tipos de una letra.
+        tuple_literal += ","
     block = (
         "    # Los tipos ENUM no los borra drop_table: hay que hacerlo a mano o el\n"
         "    # siguiente upgrade falla con 'type already exists'.\n"

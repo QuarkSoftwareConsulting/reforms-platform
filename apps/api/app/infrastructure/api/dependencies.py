@@ -48,6 +48,7 @@ from app.application.use_cases import (
     ListAdminPurchases,
     ListAdminUsers,
     ListCategories,
+    ListFeatureFlags,
     ListLeadPurchasesForAdmin,
     ListLeads,
     ListMyPurchases,
@@ -73,11 +74,12 @@ from app.application.use_cases import (
 )
 from app.config import Settings, get_settings
 from app.domain.exceptions import DomainError, ProfessionalNotFoundError
-from app.domain.models import Professional, ServiceArea, User
+from app.domain.models import FlagEnvironment, Professional, ServiceArea, User
 from app.domain.value_objects import Money
 from app.infrastructure.adapters.db.repositories import (
     SqlAlchemyCategoryRepository,
     SqlAlchemyCreditLedgerRepository,
+    SqlAlchemyFeatureFlagRepository,
     SqlAlchemyLeadRepository,
     SqlAlchemyPostalCodeRepository,
     SqlAlchemyProcessedEventRepository,
@@ -200,6 +202,7 @@ class RequestContainer:
     accounts: SqlAlchemyProfessionalAccountRepository
     ledger: SqlAlchemyCreditLedgerRepository
     subscription_prices: SqlAlchemySubscriptionPriceRepository
+    feature_flags: SqlAlchemyFeatureFlagRepository
 
     @classmethod
     def build(cls, infra: Infrastructure, session: AsyncSession) -> RequestContainer:
@@ -218,6 +221,7 @@ class RequestContainer:
             accounts=SqlAlchemyProfessionalAccountRepository(session),
             ledger=SqlAlchemyCreditLedgerRepository(session),
             subscription_prices=SqlAlchemySubscriptionPriceRepository(session),
+            feature_flags=SqlAlchemyFeatureFlagRepository(session),
         )
 
     @property
@@ -560,6 +564,13 @@ class RequestContainer:
     @property
     def list_categories(self) -> ListCategories:
         return ListCategories(categories=self.categories)
+
+    @property
+    def list_feature_flags(self) -> ListFeatureFlags:
+        return ListFeatureFlags(
+            flags=self.feature_flags,
+            environment=FlagEnvironment.for_deployment(self.infra.settings.environment),
+        )
 
     @property
     def request_photo_upload(self) -> RequestPhotoUpload:

@@ -10,6 +10,7 @@ from tests.fakes.phone_verification import FAKE_CODE, FakePhoneVerifier
 from tests.fakes.repositories import (
     InMemoryCategoryRepository,
     InMemoryCreditLedgerRepository,
+    InMemoryFeatureFlagRepository,
     InMemoryLeadRepository,
     InMemoryPostalCodeRepository,
     InMemoryProcessedEventRepository,
@@ -34,6 +35,7 @@ __all__ = [
     "FakeTokenVerifier",
     "InMemoryCategoryRepository",
     "InMemoryCreditLedgerRepository",
+    "InMemoryFeatureFlagRepository",
     "InMemoryLeadRepository",
     "InMemoryPostalCodeRepository",
     "InMemoryProcessedEventRepository",

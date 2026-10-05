@@ -60,9 +60,12 @@ export function SubscriptionPanel() {
     if (!waitingForWebhook || account === null) return;
     if (account.is_active) {
       // Una sola vez: el resto de la app (banner, boton de compra) lee `me`.
+      // `silent` es imprescindible: sin el, `AuthGate` desmonta este panel mientras
+      // carga, el que monta despues ha olvidado `refreshedMe` y vuelve a refrescar:
+      // `/me` y `/me/account` en bucle.
       if (!refreshedMe.current) {
         refreshedMe.current = true;
-        void refreshMe();
+        void refreshMe({ silent: true });
       }
       return;
     }

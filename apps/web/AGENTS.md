@@ -109,6 +109,20 @@ solo `lib/firebase.ts` y ese hook.
 
 ---
 
+## Feature flags
+
+`FeatureFlagsProvider` (en el layout de idioma) recibe las flags que el servidor leyó con
+`featureFlagsService.list()`, cacheadas 60 s. En cliente: `useFeatureFlag("nombre")` o
+`<Feature name="nombre" fallback={…}>`. En un Server Component, llama a
+`featureFlagsService.list()` directamente (Next deduplica la petición).
+
+- Una flag que no existe o con el API caído es `false`: lo nuevo nace oculto. No lo cambies
+  a "encendida por defecto".
+- Es comodidad de interfaz, no autorización: lo que esté detrás se protege en el backend.
+- Las flags se cambian en la tabla `feature_flags` (ver README, "Feature flags").
+
+---
+
 ## Validación
 
 Los esquemas de `helpers/validators.ts` **duplican a propósito** las reglas del backend:
@@ -143,7 +157,7 @@ error fuera de pantalla hace que el botón "no haga nada". El patrón (ver `Prof
 ## Tests
 
 ```bash
-pnpm test              # vitest, 201 tests
+pnpm test              # vitest, 211 tests
 pnpm test:watch
 pnpm lint              # eslint + tsc --noEmit
 ```
@@ -191,8 +205,11 @@ Tailwind con el sistema de diseño **«Voy a Reformar»**
 - `Modal` (sin `<dialog>` nativo: jsdom no implementa `showModal()`) atrapa el foco, cierra
   con Escape o clic fuera y lo devuelve al cerrar; con `dismissible={false}` no se puede
   cerrar mientras hay una petición en curso.
-- Tras guardar un formulario, refresca la sesión con `auth.refreshMe({ silent: true })`:
-  sin `silent`, `AuthGate` marca `loading` y desmonta la página (parpadeo).
+- Tras guardar un formulario, refresca la sesión con `auth.refreshMe({ silent: true })`.
+  `useAuth` ya no desmonta la página al refrescar una sesión cargada (solo la primera carga
+  de cada usuario marca `loading`), pero `silent` deja clara la intención. Un refresco que
+  desmonta la página es un bucle en potencia: el componente vuelve a montarse y lo pide otra
+  vez (pasó con la mensualidad: `/me` y `/me/account` sin fin).
 - Clases condicionales con `cn()` (`helpers/cn.ts`), que resuelve conflictos de Tailwind.
 - La tipografía es Poppins autohospedada con `next/font/google` en el layout de idioma. No
   la sirvas desde `fonts.googleapis.com`: bloquearía el primer render.

@@ -9,7 +9,9 @@ import { SiteFooter } from "@/components/features/SiteFooter";
 import { SiteHeader } from "@/components/features/SiteHeader";
 import { LOGO_PATH, LOGO_SIZE, siteUrl } from "@/helpers/site";
 import { AuthProvider } from "@/hooks/useAuth";
+import { FeatureFlagsProvider } from "@/hooks/useFeatureFlag";
 import { isAppLocale, locales, type AppLocale } from "@/i18n/routing";
+import { featureFlagsService } from "@/services/featureFlags.service";
 
 /**
  * Poppins autohospedada por `next/font`.
@@ -82,19 +84,23 @@ export default async function LocaleLayout({
   }
   // Habilita el renderizado estatico de las paginas de este segmento.
   setRequestLocale(locale);
-  const messages = await getMessages();
+  // Cacheadas 60 s (ISR): las paginas siguen siendo estaticas para el SEO y un cambio
+  // en la tabla se ve, como mucho, un minuto despues.
+  const [messages, flags] = await Promise.all([getMessages(), featureFlagsService.list()]);
 
   return (
     <html lang={locale} className={poppins.variable}>
       <body className="flex min-h-dvh flex-col">
         <NextIntlClientProvider messages={messages}>
-          <AuthProvider locale={locale as AppLocale}>
-            <SiteHeader />
-            {/* Cada pagina fija su propio ancho: el home necesita secciones a
-                sangre completa que un contenedor aqui impediria. */}
-            <main className="flex-1">{children}</main>
-            <SiteFooter />
-          </AuthProvider>
+          <FeatureFlagsProvider flags={flags}>
+            <AuthProvider locale={locale as AppLocale}>
+              <SiteHeader />
+              {/* Cada pagina fija su propio ancho: el home necesita secciones a
+                  sangre completa que un contenedor aqui impediria. */}
+              <main className="flex-1">{children}</main>
+              <SiteFooter />
+            </AuthProvider>
+          </FeatureFlagsProvider>
         </NextIntlClientProvider>
       </body>
     </html>

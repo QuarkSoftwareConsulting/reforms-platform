@@ -17,6 +17,7 @@ from app.application.use_cases.apply_chargeback import ApplyChargeback
 from app.application.use_cases.apply_subscription_event import ApplySubscriptionEvent
 from app.application.use_cases.create_lead import CreateLead
 from app.application.use_cases.credit_ledger import CreditLedgerService
+from app.application.use_cases.feature_flags import ListFeatureFlags
 from app.application.use_cases.get_lead_detail import GetLeadDetail
 from app.application.use_cases.handle_payment_event import (
     HandlePaymentEvent,
@@ -87,6 +88,7 @@ __all__ = [
     "ListAdminPurchases",
     "ListAdminUsers",
     "ListCategories",
+    "ListFeatureFlags",
     "ListLeadPurchasesForAdmin",
     "ListLeads",
     "ListMyPurchases",

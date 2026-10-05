@@ -45,8 +45,10 @@ export interface AuthState {
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   /**
-   * `silent` recarga el perfil sin marcar `loading`: `AuthGate` desmonta la pagina
-   * mientras carga, y tras guardar un formulario eso se ve como un parpadeo.
+   * Recarga el perfil. Solo marca `loading` (y `AuthGate` desmonta la pagina) la primera
+   * vez para cada usuario: refrescar una sesion ya cargada nunca la desmonta, se pase o
+   * no `silent`. Asi ningun refresco puede provocar un bucle de desmontar y volver a
+   * pedir (paso con la mensualidad: `/me` y `/me/account` sin fin).
    */
   refreshMe: (options?: { silent?: boolean }) => Promise<Me | null>;
 }
@@ -72,6 +74,8 @@ export function AuthProvider({
   // volver de Stripe, que recargan la pagina).
   const [profileResolvedFor, setProfileResolvedFor] = useState<string | null>(null);
   const currentUser = useRef<FirebaseUser | null>(null);
+  // Lo mismo que `profileResolvedFor`, legible dentro de `refreshMe` sin recrearlo.
+  const resolvedUid = useRef<string | null>(null);
 
   // El cliente HTTP pide el token justo antes de cada peticion en vez de recibir
   // una copia: asi nunca envia uno caducado.
@@ -90,7 +94,14 @@ export function AuthProvider({
     return onIdTokenChanged(firebaseAuth(), (user) => {
       currentUser.current = user;
       setFirebaseUser(user);
-      if (!user) setMe(null);
+      if (!user) {
+        // Sin sesion se olvida lo cargado: si vuelve a entrar el mismo usuario, su
+        // perfil se carga de nuevo con `loading` (si no, `AuthGate` lo veria "sin
+        // perfil" y lo mandaria a /perfil).
+        setMe(null);
+        resolvedUid.current = null;
+        setProfileResolvedFor(null);
+      }
     });
   }, []);
 
@@ -100,18 +111,29 @@ export function AuthProvider({
       setMe(null);
       return null;
     }
-    if (!silent) setProfileLoading(true);
+    const alreadyLoaded = resolvedUid.current === user.uid;
+    const blocking = !silent && !alreadyLoaded;
+    if (blocking) setProfileLoading(true);
+    // Si la sesion cambio mientras llegaba la respuesta (salio, o entro otro), esa
+    // respuesta ya no es de nadie: aplicarla dejaria el perfil de A tras su logout o
+    // lo marcaria como "cargado" y, al volver a entrar, `AuthGate` no esperaria a su `me`.
+    const stillCurrent = () => currentUser.current?.uid === user.uid;
     try {
       const profile = await professionalService.me(locale);
-      setMe(profile);
+      if (stillCurrent()) setMe(profile);
       return profile;
     } catch {
-      // Un fallo aqui no debe tumbar la app: la UI lo tratara como "sin perfil".
-      setMe(null);
+      // Un fallo aqui no debe tumbar la app. En la primera carga la UI lo trata como
+      // "sin perfil"; en un refresco se conserva el perfil que ya habia: borrarlo
+      // mandaria a /perfil a un profesional por un fallo de red pasajero.
+      if (stillCurrent() && !alreadyLoaded) setMe(null);
       return null;
     } finally {
-      setProfileResolvedFor(user.uid);
-      if (!silent) setProfileLoading(false);
+      if (stillCurrent()) {
+        resolvedUid.current = user.uid;
+        setProfileResolvedFor(user.uid);
+      }
+      if (blocking) setProfileLoading(false);
     }
   }, [locale]);
 

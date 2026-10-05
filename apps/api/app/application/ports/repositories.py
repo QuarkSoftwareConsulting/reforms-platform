@@ -15,6 +15,8 @@ from app.domain.models import (
     Category,
     CreditEntry,
     CreditEntryKind,
+    FeatureFlag,
+    FlagEnvironment,
     Lead,
     LeadSource,
     LeadStatus,
@@ -447,6 +449,14 @@ class CreditLedgerRepositoryPort(ABC):
     @abstractmethod
     async def daily_topups(self, *, start: datetime, end: datetime, tz: str) -> list[DailyCount]:
         """Recargas cobradas por dia en `[start, end)`, con su importe."""
+
+
+class FeatureFlagRepositoryPort(ABC):
+    """Solo lectura: las flags se cambian directamente en la base de datos."""
+
+    @abstractmethod
+    async def list_for(self, environment: FlagEnvironment) -> list[FeatureFlag]:
+        """Las flags de ese entorno, por nombre."""
 
 
 class SubscriptionPriceRepositoryPort(ABC):

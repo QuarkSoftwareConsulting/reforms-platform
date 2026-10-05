@@ -210,6 +210,48 @@ no se compra hasta que la siguiente recarga la salde.
 
 ---
 
+### Feature flags
+
+Interruptores por entorno para mostrar u ocultar partes del frontend. **No tienen
+interfaz**: se crean y se cambian directamente en la tabla `feature_flags`.
+
+| Columna | Qué es |
+| --- | --- |
+| `name` | Clave que usa el frontend: minúsculas, dígitos, `-`, `_` y `.` (`new-checkout`, `admin.reports`) |
+| `version` | Versión de la app en que se introdujo; sirve para saber cuándo retirarla |
+| `description` | Opcional, para quien edita la tabla (no sale en el API) |
+| `environment` | `dev` o `prod` |
+| `enabled` | Si está activa |
+
+El despliegue con `ENVIRONMENT=production` lee las de `prod`; cualquier otro (local, dev,
+staging), las de `dev`. Una flag que no existe cuenta como **apagada**, así que lo nuevo
+nace oculto. `id`, `created_at` y `updated_at` los pone Postgres (un trigger mantiene
+`updated_at` al cambiarla).
+
+```sql
+-- Crear (nace apagada) en los dos entornos
+INSERT INTO feature_flags (name, version, description, environment)
+VALUES ('new-checkout', '1.4.0', 'Checkout en una sola página', 'dev'),
+       ('new-checkout', '1.4.0', 'Checkout en una sola página', 'prod');
+
+-- Encender solo en dev
+UPDATE feature_flags SET enabled = true WHERE name = 'new-checkout' AND environment = 'dev';
+```
+
+La web tarda **hasta 60 s** en ver el cambio: el layout las lee en el servidor y las cachea
+un minuto, para que las páginas sigan siendo estáticas y no haya parpadeo. Si el API no
+responde, todas cuentan como apagadas. En el frontend:
+
+```tsx
+const showReports = useFeatureFlag("admin.reports"); // hooks/useFeatureFlag
+
+<Feature name="new-checkout" fallback={<OldCheckout />}>   {/* components/features/Feature */}
+  <NewCheckout />
+</Feature>
+```
+
+Una flag **oculta**, no protege: lo que esté detrás debe seguir comprobado en el backend.
+
 ## Comandos
 
 ```bash
