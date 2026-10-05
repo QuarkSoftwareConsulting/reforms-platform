@@ -6,6 +6,7 @@ from datetime import datetime
 from uuid import UUID
 
 from app.application.ports import (
+    ChargeOwner,
     CheckoutRequest,
     CheckoutSession,
     CustomerRequest,
@@ -39,7 +40,13 @@ class FakePaymentGateway(PaymentPort):
         # Como la pasarela real: una clave de idempotencia repetida no reembolsa otra vez.
         self.refunds: dict[str, str] = {}
         self.canceled_subscriptions: set[str] = set()
+        # Clientes con una recarga viva en la pasarela (aunque el webhook no haya llegado).
+        self.live_subscription_customers: set[str] = set()
+        self.fail_on_live_check = False
         self.fail_on_refund = False
+        # De quien es cada cargo, para las devoluciones (la disputa no lo trae).
+        self.charge_owners: dict[str, ChargeOwner] = {}
+        self.fail_on_describe = False
         self.fail_on_create = fail_on_create
         self._counter = 0
 
@@ -80,7 +87,15 @@ class FakePaymentGateway(PaymentPort):
             occurred_at=(
                 datetime.fromisoformat(data["occurred_at"]) if data.get("occurred_at") else None
             ),
+            dispute_id=data.get("dispute_id"),
+            charge_id=data.get("charge_id"),
         )
+
+    async def describe_charge(self, charge_id: str) -> ChargeOwner:
+        await asyncio.sleep(0)
+        if self.fail_on_describe:
+            raise PaymentGatewayError()
+        return self.charge_owners.get(charge_id, ChargeOwner(customer_id=None, purchase_id=None))
 
     async def expire_checkout_session(self, session_id: str) -> None:
         self.expired_sessions.append(session_id)
@@ -112,6 +127,12 @@ class FakePaymentGateway(PaymentPort):
         self.created_prices[price_id] = amount
         return price_id
 
+    async def has_live_subscription(self, customer_id: str) -> bool:
+        await asyncio.sleep(0)
+        if self.fail_on_live_check:
+            raise PaymentGatewayError("La pasarela no responde")
+        return customer_id in self.live_subscription_customers
+
     async def create_billing_portal_session(
         self, *, customer_id: str, return_url: str, locale: str = "es"
     ) -> str:
@@ -131,6 +152,27 @@ class FakePaymentGateway(PaymentPort):
         self.canceled_subscriptions.add(subscription_id)
 
     # ------------------------- helpers para los tests --------------------
+
+    @staticmethod
+    def dispute_event_payload(
+        *,
+        event_id: str,
+        event_type: PaymentEventType,
+        dispute_id: str = "dp_1",
+        charge_id: str = "ch_topup",
+        amount_cents: int = 1800,
+    ) -> bytes:
+        return json.dumps(
+            {
+                "id": event_id,
+                "type": event_type.value,
+                "raw_type": f"stripe.{event_type.value}",
+                "dispute_id": dispute_id,
+                "charge_id": charge_id,
+                "amount_cents": amount_cents,
+                "currency": "EUR",
+            }
+        ).encode()
 
     @staticmethod
     def event_payload(

@@ -9,6 +9,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ApiError } from "@/services/api";
 import type { AdminProfessional, Verification, VerificationDossier } from "@/types/api";
 
 const professionals = vi.fn();
@@ -44,34 +45,26 @@ function verification(overrides: Partial<Verification> = {}): Verification {
 }
 
 describe("VerificationCard", () => {
-  it("lists what is missing and does not allow submitting", () => {
+  it("lists what is missing", () => {
     renderWithIntl(
       <VerificationCard
         verification={verification({ missing: ["tax_id", "document_tax_registration"] })}
-        onSubmit={vi.fn()}
-        submitting={false}
       />,
     );
     expect(screen.getByText(t.missing.tax_id)).toBeDefined();
     expect(screen.getByText(t.missing.document_tax_registration)).toBeDefined();
-    expect(screen.getByRole("button", { name: t.submit })).toHaveProperty("disabled", true);
   });
 
-  it("offers to submit when nothing is missing", async () => {
-    const onSubmit = vi.fn();
-    renderWithIntl(
-      <VerificationCard verification={verification()} onSubmit={onSubmit} submitting={false} />,
-    );
-    await userEvent.setup().click(screen.getByRole("button", { name: t.submit }));
-    expect(onSubmit).toHaveBeenCalledOnce();
+  it("has no submit button: sending is confirmed after saving, not from here", () => {
+    renderWithIntl(<VerificationCard verification={verification()} />);
+    expect(screen.getByText(t.readyBody)).toBeDefined();
+    expect(screen.queryByRole("button")).toBeNull();
   });
 
   it("shows the rejection reason", () => {
     renderWithIntl(
       <VerificationCard
         verification={verification({ status: "rejected", rejection_reason: "Ilegible" })}
-        onSubmit={vi.fn()}
-        submitting={false}
       />,
     );
     expect(screen.getByText(t.rejectedTitle)).toBeDefined();
@@ -123,6 +116,13 @@ describe("AdminVerificationQueue", () => {
       address: "Calle Mayor 1",
       phone: "611223344",
       postal_code: "28001",
+      verification: {
+        status: "pending",
+        submitted_at: "2026-09-28T09:00:00Z",
+        reviewed_at: null,
+        rejection_reason: null,
+        missing: [],
+      },
     },
     email: "ana@example.com",
     documents: [
@@ -180,5 +180,27 @@ describe("AdminVerificationQueue", () => {
       expect(rejectProfessional).toHaveBeenCalledWith("pro-1", "Documento ilegible", "es"),
     );
     expect(await screen.findByText(/Se reembolsaron 18,00/)).toBeDefined();
+  });
+
+  it("clears a failed reload's error once a later reload succeeds", async () => {
+    const page = (items: AdminProfessional[]) => ({ items, total: items.length, limit: 20, offset: 0 });
+    professionals
+      .mockReset()
+      .mockResolvedValueOnce(page([queued]))
+      .mockRejectedValueOnce(new ApiError(503, { code: "PAYMENT_GATEWAY_ERROR", message: "x" }))
+      .mockResolvedValue(page([]));
+    const user = userEvent.setup();
+    renderWithIntl(<AdminVerificationQueue />);
+
+    // Aprobar recarga la cola: esa recarga falla y la lista anterior sigue visible.
+    await user.click(await screen.findByRole("button", { name: tAdmin.review }));
+    await user.click(await screen.findByRole("button", { name: tAdmin.approve }));
+    expect(await screen.findByText(messages.errors.PAYMENT_GATEWAY_ERROR)).toBeDefined();
+
+    // La siguiente recarga funciona: el error viejo no debe quedarse.
+    await user.click(await screen.findByRole("button", { name: tAdmin.review }));
+    await user.click(await screen.findByRole("button", { name: tAdmin.approve }));
+    expect(await screen.findByText(tAdmin.empty)).toBeDefined();
+    expect(screen.queryByText(messages.errors.PAYMENT_GATEWAY_ERROR)).toBeNull();
   });
 });

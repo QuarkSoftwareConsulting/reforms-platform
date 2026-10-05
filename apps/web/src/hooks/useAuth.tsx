@@ -44,7 +44,11 @@ export interface AuthState {
   signUpWithEmail: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
-  refreshMe: () => Promise<Me | null>;
+  /**
+   * `silent` recarga el perfil sin marcar `loading`: `AuthGate` desmonta la pagina
+   * mientras carga, y tras guardar un formulario eso se ve como un parpadeo.
+   */
+  refreshMe: (options?: { silent?: boolean }) => Promise<Me | null>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -61,6 +65,12 @@ export function AuthProvider({
   );
   const [me, setMe] = useState<Me | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
+  // Usuario de Firebase cuyo `me` ya se resolvio (con o sin perfil). Hasta entonces la
+  // sesion sigue "cargando": Firebase restaura al usuario un render antes de que
+  // empiece la peticion de `me`, y en ese render `AuthGate` veia "sin perfil" y
+  // mandaba a /perfil a un profesional que si lo tiene (tras comprar un contacto o
+  // volver de Stripe, que recargan la pagina).
+  const [profileResolvedFor, setProfileResolvedFor] = useState<string | null>(null);
   const currentUser = useRef<FirebaseUser | null>(null);
 
   // El cliente HTTP pide el token justo antes de cada peticion en vez de recibir
@@ -84,12 +94,13 @@ export function AuthProvider({
     });
   }, []);
 
-  const refreshMe = useCallback(async (): Promise<Me | null> => {
-    if (!currentUser.current) {
+  const refreshMe = useCallback(async ({ silent = false } = {}): Promise<Me | null> => {
+    const user = currentUser.current;
+    if (!user) {
       setMe(null);
       return null;
     }
-    setProfileLoading(true);
+    if (!silent) setProfileLoading(true);
     try {
       const profile = await professionalService.me(locale);
       setMe(profile);
@@ -99,7 +110,8 @@ export function AuthProvider({
       setMe(null);
       return null;
     } finally {
-      setProfileLoading(false);
+      setProfileResolvedFor(user.uid);
+      if (!silent) setProfileLoading(false);
     }
   }, [locale]);
 
@@ -113,7 +125,10 @@ export function AuthProvider({
     () => ({
       firebaseUser,
       me,
-      loading: firebaseUser === undefined || profileLoading,
+      loading:
+        firebaseUser === undefined ||
+        profileLoading ||
+        (firebaseUser !== null && profileResolvedFor !== firebaseUser.uid),
       isAuthenticated: Boolean(firebaseUser),
       hasProfile: Boolean(me?.professional),
       configured: isFirebaseConfigured,
@@ -132,7 +147,7 @@ export function AuthProvider({
       },
       refreshMe,
     }),
-    [firebaseUser, me, profileLoading, refreshMe],
+    [firebaseUser, me, profileLoading, profileResolvedFor, refreshMe],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

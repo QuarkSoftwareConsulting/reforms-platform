@@ -89,7 +89,7 @@ export function useProfessionalFiles(): ProfessionalFilesState {
       await run(async () => {
         const key = await putToBucket("document", file);
         await professionalService.addDocument(kind, key, file.name);
-        await auth.refreshMe();
+        await auth.refreshMe({ silent: true });
       });
     },
     [run, auth],
@@ -99,7 +99,7 @@ export function useProfessionalFiles(): ProfessionalFilesState {
     async (documentId: string): Promise<void> => {
       await run(async () => {
         await professionalService.removeDocument(documentId);
-        await auth.refreshMe();
+        await auth.refreshMe({ silent: true });
       });
     },
     [run, auth],

@@ -23,10 +23,17 @@ import type { LeadDetail } from "@/types/api";
  * Sin la recarga mensual al dia no se ofrece comprar: se lleva a activarla. Con
  * saldo se anuncia cuanto se pagara con el (el importe real lo decide el API).
  */
-export function PurchaseButton({ detail }: { detail: LeadDetail }) {
+export function PurchaseButton({
+  detail,
+  onUnlocked,
+}: {
+  detail: LeadDetail;
+  /** El saldo pago el contacto: quien muestra la solicitud la recarga ahi mismo. */
+  onUnlocked?: (purchaseId: string) => void;
+}) {
   const locale = useLocale() as AppLocale;
   const t = useTranslations("lead");
-  const purchase = useLeadPurchase();
+  const purchase = useLeadPurchase({ onUnlocked });
   const auth = useAuth();
 
   if (detail.is_unlocked) {
@@ -82,6 +89,18 @@ export function PurchaseButton({ detail }: { detail: LeadDetail }) {
             className="flex min-h-[56px] w-full items-center justify-center rounded-control bg-accent px-8 text-[17px] font-semibold text-ink hover:bg-accent-hover"
           >
             {t("completeRegistration")}
+          </Link>
+        </>
+      ) : plan.kind === "debt" ? (
+        <>
+          <Alert tone="warning">
+            {t("debtBlocksPurchase", { debt: formatMoney(plan.debt, locale) })}
+          </Alert>
+          <Link
+            href={path(locale, "subscription")}
+            className="flex min-h-[56px] w-full items-center justify-center rounded-control bg-accent px-8 text-[17px] font-semibold text-ink hover:bg-accent-hover"
+          >
+            {t("reviewAccount")}
           </Link>
         </>
       ) : plan.kind === "inactive" ? (

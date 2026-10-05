@@ -2,17 +2,21 @@
 
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
+import { useId, useRef } from "react";
 
 import { CategoryPicker } from "@/components/features/CategoryPicker";
 import { DocumentsSection } from "@/components/features/profile/DocumentsSection";
 import { MediaFields } from "@/components/features/profile/MediaFields";
+import { ReviewConfirmDialog } from "@/components/features/profile/ReviewConfirmDialog";
 import { VerificationCard } from "@/components/features/profile/VerificationCard";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ChipGroup } from "@/components/ui/ChipGroup";
-import { SelectField, TextField } from "@/components/ui/Field";
+import { FieldError, SelectField, TextField } from "@/components/ui/Field";
+import { FormErrorSummary, type SummaryIssue } from "@/components/ui/FormErrorSummary";
 import { OptionCard } from "@/components/ui/OptionCard";
+import { focusField } from "@/helpers/formErrors";
 import { PROFESSIONAL_TYPES } from "@/helpers/professionalOptions";
 import { useProfessionalFiles } from "@/hooks/useProfessionalFiles";
 import { useProfessionalProfile, type ProfileValues } from "@/hooks/useProfessionalProfile";
@@ -20,6 +24,21 @@ import { path, type AppLocale } from "@/i18n/routing";
 import type { CatalogCategory, Media } from "@/types/api";
 
 const RADIUS_OPTIONS = [5, 10, 25, 50, 100, 200, 300] as const;
+
+/** Orden de los campos en pantalla: el resumen de errores los lista igual. */
+const FIELD_ORDER: (keyof ProfileValues)[] = [
+  "businessName",
+  "phone",
+  "postalCode",
+  "serviceRadiusKm",
+  "categoryIds",
+  "serviceIds",
+  "professionalType",
+  "legalName",
+  "taxId",
+  "address",
+  "workPhotos",
+];
 
 /**
  * Perfil profesional y alta (F02). Sirve de onboarding y de edicion.
@@ -33,20 +52,54 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
   const t = useTranslations("profile");
   const tCommon = useTranslations("common");
   const tValidation = useTranslations("validation");
+  const tErrors = useTranslations("errors");
   const form = useProfessionalProfile();
   const files = useProfessionalFiles();
+  const formRef = useRef<HTMLFormElement>(null);
+  const uid = useId();
   const { values, professional } = form;
 
-  const error = (field: keyof ProfileValues): string | undefined => {
-    const key = form.errors[field];
-    return key ? tValidation(key) : undefined;
+  const error = (field: keyof ProfileValues): string | undefined => form.errors[field];
+
+  const fieldLabels: Record<keyof ProfileValues, string> = {
+    businessName: t("businessNameLabel"),
+    phone: t("phoneLabel"),
+    postalCode: t("postalCodeLabel"),
+    serviceRadiusKm: t("radiusLabel"),
+    categoryIds: t("categoriesLabel"),
+    serviceIds: t("servicesShortLabel"),
+    professionalType: t("typeShortLabel"),
+    legalName: t("legalNameLabel"),
+    taxId: t("taxIdLabel"),
+    address: t("addressLabel"),
+    profilePhoto: t("sections.media"),
+    logo: t("sections.media"),
+    workPhotos: t("sections.media"),
   };
+  /** Error de un grupo que no es un `Field` (servicios, tipo de alta, fotos). */
+  const groupErrorId = (field: keyof ProfileValues) => `${uid}-${field}-error`;
+  const groupError = (field: keyof ProfileValues) => {
+    const message = error(field);
+    return message ? <FieldError id={groupErrorId(field)}>{message}</FieldError> : null;
+  };
+  /** Atributos del contenedor de un grupo: el resumen lo enfoca y el lector lee su error. */
+  const groupProps = (field: keyof ProfileValues) => ({
+    "data-field": field,
+    tabIndex: -1,
+    "aria-describedby": error(field) ? groupErrorId(field) : undefined,
+  });
+  const summaryIssues: SummaryIssue[] = FIELD_ORDER.flatMap((field) => {
+    const message = form.errors[field];
+    return message ? [{ field, label: fieldLabels[field], message }] : [];
+  });
   const servicesOf = (categoryId: string): string[] =>
     categories.find((category) => category.id === categoryId)?.services.map((s) => s.id) ?? [];
   const selectedCategories = categories.filter((c) => values.categoryIds.includes(c.id));
 
   return (
     <form
+      ref={formRef}
+      noValidate
       onSubmit={(event) => {
         event.preventDefault();
         void form.save();
@@ -57,18 +110,10 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
         <h1 className="text-h1 font-bold text-ink">
           {professional ? t("title") : t("onboardingTitle")}
         </h1>
-        <p className="text-secondary">
-          {professional ? t("subtitle") : t("onboardingSubtitle")}
-        </p>
+        <p className="text-secondary">{professional ? t("subtitle") : t("onboardingSubtitle")}</p>
       </header>
 
-      {professional && (
-        <VerificationCard
-          verification={professional.verification}
-          submitting={form.submitting}
-          onSubmit={() => void form.submitForReview()}
-        />
-      )}
+      {professional && <VerificationCard verification={professional.verification} />}
 
       <Card className="space-y-5">
         <h2 className="text-card-title font-semibold text-ink">{t("sections.business")}</h2>
@@ -77,6 +122,8 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
           value={values.businessName}
           onChange={(event) => form.setField("businessName", event.target.value)}
           error={error("businessName")}
+          fieldKey="businessName"
+          onBlur={() => form.checkField("businessName")}
           required
           autoComplete="organization"
         />
@@ -86,6 +133,8 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
           value={values.phone}
           onChange={(event) => form.setField("phone", event.target.value)}
           error={error("phone")}
+          fieldKey="phone"
+          onBlur={() => form.checkField("phone")}
           required
           type="tel"
           inputMode="tel"
@@ -97,6 +146,8 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
           value={values.postalCode}
           onChange={(event) => form.setField("postalCode", event.target.value)}
           error={error("postalCode")}
+          fieldKey="postalCode"
+          onBlur={() => form.checkField("postalCode")}
           required
           inputMode="numeric"
           maxLength={5}
@@ -108,6 +159,7 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
           value={String(values.serviceRadiusKm)}
           onChange={(event) => form.setField("serviceRadiusKm", Number(event.target.value))}
           error={error("serviceRadiusKm")}
+          fieldKey="serviceRadiusKm"
         >
           {RADIUS_OPTIONS.map((km) => (
             <option key={km} value={km}>
@@ -127,31 +179,41 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
           label={t("categoriesLabel")}
           hint={t("categoriesHint")}
           error={error("categoryIds")}
+          fieldKey="categoryIds"
         />
-        {selectedCategories
-          .filter((category) => category.services.length > 0)
-          .map((category) => (
-            <ChipGroup
-              key={category.id}
-              name={`services-${category.id}`}
-              label={t("servicesLabel", { category: category.name })}
-              hint={t("servicesHint")}
-              options={category.services.map((service) => ({
-                value: service.id,
-                label: service.name,
-              }))}
-              selected={values.serviceIds}
-              multiple
-              onToggle={(id) =>
-                form.setField(
-                  "serviceIds",
-                  values.serviceIds.includes(id)
-                    ? values.serviceIds.filter((x) => x !== id)
-                    : [...values.serviceIds, id],
-                )
-              }
-            />
-          ))}
+        {/* Un solo hueco de error para todos los servicios: el backend los valida juntos. */}
+        <div
+          className="space-y-5 focus:outline-none"
+          role="group"
+          aria-label={fieldLabels.serviceIds}
+          {...groupProps("serviceIds")}
+        >
+          {selectedCategories
+            .filter((category) => category.services.length > 0)
+            .map((category) => (
+              <ChipGroup
+                key={category.id}
+                name={`services-${category.id}`}
+                label={t("servicesLabel", { category: category.name })}
+                hint={t("servicesHint")}
+                options={category.services.map((service) => ({
+                  value: service.id,
+                  label: service.name,
+                }))}
+                selected={values.serviceIds}
+                multiple
+                onToggle={(id) =>
+                  form.setField(
+                    "serviceIds",
+                    values.serviceIds.includes(id)
+                      ? values.serviceIds.filter((x) => x !== id)
+                      : [...values.serviceIds, id],
+                  )
+                }
+              />
+            ))}
+          {groupError("serviceIds")}
+        </div>
       </Card>
 
       <Card className="space-y-5">
@@ -161,7 +223,11 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
             {form.identityLocked ? t("identityLocked") : t("registrationHint")}
           </p>
         </div>
-        <fieldset className="space-y-3" disabled={form.identityLocked}>
+        <fieldset
+          className="space-y-3 focus:outline-none"
+          disabled={form.identityLocked}
+          {...groupProps("professionalType")}
+        >
           <legend className="text-[15px] font-semibold text-ink">{t("typeLabel")}</legend>
           <div className="grid gap-3 sm:grid-cols-3">
             {PROFESSIONAL_TYPES.map((type) => (
@@ -176,6 +242,7 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
               />
             ))}
           </div>
+          {groupError("professionalType")}
         </fieldset>
         <TextField
           label={t("legalNameLabel")}
@@ -183,15 +250,18 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
           value={values.legalName}
           onChange={(event) => form.setField("legalName", event.target.value)}
           error={error("legalName")}
+          fieldKey="legalName"
+          onBlur={() => form.checkField("legalName")}
           disabled={form.identityLocked}
           autoComplete="name"
         />
         <TextField
           label={t("taxIdLabel")}
-          hint={t("taxIdHint")}
           value={values.taxId}
           onChange={(event) => form.setField("taxId", event.target.value)}
           error={error("taxId")}
+          fieldKey="taxId"
+          onBlur={() => form.checkField("taxId")}
           disabled={form.identityLocked}
           maxLength={20}
         />
@@ -200,6 +270,8 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
           value={values.address}
           onChange={(event) => form.setField("address", event.target.value)}
           error={error("address")}
+          fieldKey="address"
+          onBlur={() => form.checkField("address")}
           autoComplete="street-address"
         />
       </Card>
@@ -208,16 +280,24 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
         <>
           <Card className="space-y-5">
             <h2 className="text-card-title font-semibold text-ink">{t("sections.media")}</h2>
-            <MediaFields
-              files={files}
-              profilePhoto={values.profilePhoto}
-              logo={values.logo}
-              workPhotos={values.workPhotos}
-              onChange={(field, value) => {
-                if (field === "workPhotos") form.setField("workPhotos", value as Media[]);
-                else form.setField(field, value as Media | null);
-              }}
-            />
+            <div
+              className="space-y-5 focus:outline-none"
+              role="group"
+              aria-label={fieldLabels.workPhotos}
+              {...groupProps("workPhotos")}
+            >
+              <MediaFields
+                files={files}
+                profilePhoto={values.profilePhoto}
+                logo={values.logo}
+                workPhotos={values.workPhotos}
+                onChange={(field, value) => {
+                  if (field === "workPhotos") form.setField("workPhotos", value as Media[]);
+                  else form.setField(field, value as Media | null);
+                }}
+              />
+              {groupError("workPhotos")}
+            </div>
           </Card>
           <Card className="space-y-5">
             <h2 className="text-card-title font-semibold text-ink">{t("sections.documents")}</h2>
@@ -238,6 +318,15 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
       {form.error && <Alert tone="error">{form.error}</Alert>}
       {form.saved && <Alert tone="success">{t("saved")}</Alert>}
 
+      {/* Junto al boton: en un formulario largo el error queda arriba, fuera de pantalla,
+          y sin esto pulsar "Guardar" parece no hacer nada. */}
+      <FormErrorSummary
+        title={tErrors("summary", { count: summaryIssues.length })}
+        issues={summaryIssues}
+        attempt={form.failedAttempts}
+        onSelect={(field) => focusField(formRef.current, field)}
+      />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Button type="submit" size="lg" loading={form.saving}>
           {professional ? tCommon("save") : t("create")}
@@ -251,6 +340,13 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
           </Link>
         )}
       </div>
+
+      <ReviewConfirmDialog
+        open={form.reviewPrompt}
+        submitting={form.submitting}
+        onConfirm={() => void form.confirmReview()}
+        onCancel={form.dismissReview}
+      />
     </form>
   );
 }

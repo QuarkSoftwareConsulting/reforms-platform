@@ -41,6 +41,7 @@ pytestmark = pytest.mark.integration
 # Tablas a vaciar entre tests, en orden inverso de dependencias.
 TRUNCATE_ORDER = (
     "processed_payment_events",
+    "rate_limit_counters",
     "credit_entries",
     "professional_accounts",
     "subscription_prices",
@@ -55,6 +56,7 @@ TRUNCATE_ORDER = (
     "professional_work_photos",
     "professional_verification_events",
     "professionals",
+    "user_role_events",
     "users",
     "services",
     "categories",

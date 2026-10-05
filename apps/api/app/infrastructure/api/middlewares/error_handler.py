@@ -87,6 +87,22 @@ def _clean_errors(exc: RequestValidationError) -> list[dict[str, object]]:
             "field": ".".join(str(part) for part in error.get("loc", ())[1:]),
             "type": error.get("type"),
             "message": error.get("msg"),
+            "limits": _limits(error.get("ctx")),
         }
         for error in exc.errors()
     ]
+
+
+def _limits(ctx: object) -> dict[str, int]:
+    """Los limites numericos de la regla (`min_length`, `max_length`...), nada mas.
+
+    `ctx` puede traer la excepcion original de un validador, que no es serializable ni
+    debe salir al cliente. El frontend solo necesita los enteros para decir "minimo 20".
+    """
+    if not isinstance(ctx, dict):
+        return {}
+    return {
+        str(key): value
+        for key, value in ctx.items()
+        if isinstance(value, int) and not isinstance(value, bool)
+    }

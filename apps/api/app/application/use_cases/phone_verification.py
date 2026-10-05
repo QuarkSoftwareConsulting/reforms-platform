@@ -9,9 +9,14 @@ al formulario que publique sin pedir codigo.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import timedelta
 
-from app.application.ports import PhoneVerificationPort
-from app.domain.exceptions import PhoneNotMobileError, ValidationError
+from app.application.parsing import parse_phone
+from app.application.ports import ClockPort, PhoneVerificationPort, RateLimiterPort, UnitOfWork
+from app.domain.exceptions import (
+    PhoneNotMobileError,
+    TooManyVerificationAttemptsError,
+)
 from app.domain.value_objects import PhoneNumber
 
 
@@ -22,21 +27,52 @@ class PhoneVerificationStart:
 
 
 def parse_mobile(raw: str) -> PhoneNumber:
-    try:
-        phone = PhoneNumber(raw)
-    except ValueError as exc:
-        raise ValidationError("Telefono invalido") from exc
+    phone = parse_phone(raw)
     if not phone.is_spanish_mobile:
         raise PhoneNotMobileError()
     return phone
 
 
+@dataclass(frozen=True, slots=True)
+class OriginLimit:
+    """Tope de envios por origen (IP) y ventana, con lo necesario para contarlos.
+
+    Va junto para que no se pueda cablear a medias: o se limita del todo o no.
+    """
+
+    limiter: RateLimiterPort
+    clock: ClockPort
+    uow: UnitOfWork
+    limit: int
+    window: timedelta
+
+
 @dataclass(slots=True)
 class StartPhoneVerification:
     verifier: PhoneVerificationPort | None
+    origin_limit: OriginLimit | None = None
 
-    async def execute(self, phone: str) -> PhoneVerificationStart:
+    async def execute(self, phone: str, *, origin: str | None = None) -> PhoneVerificationStart:
+        """`origin` identifica de donde viene la peticion (la IP, tomada del servidor)."""
         if self.verifier is None:
             return PhoneVerificationStart(required=False)
-        await self.verifier.send_code(parse_mobile(phone))
+        mobile = parse_mobile(phone)
+        # Despues de validar el movil (un numero invalido no gasta SMS ni cupo) y
+        # antes de enviar: el intento cuenta aunque el proveedor falle.
+        if origin is not None and self.origin_limit is not None:
+            await self._count(self.origin_limit, origin)
+        await self.verifier.send_code(mobile)
         return PhoneVerificationStart(required=True)
+
+    @staticmethod
+    async def _count(limit: OriginLimit, origin: str) -> None:
+        # Transaccion propia: el contador se confirma aunque el envio falle despues.
+        async with limit.uow:
+            allowed = await limit.limiter.allow(
+                f"sms-origin:{origin}",
+                limit=limit.limit,
+                window=limit.window,
+                now=limit.clock.now(),
+            )
+        if not allowed:
+            raise TooManyVerificationAttemptsError()

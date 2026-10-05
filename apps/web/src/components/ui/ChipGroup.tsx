@@ -1,5 +1,8 @@
 "use client";
 
+import { useId } from "react";
+
+import { FieldError } from "@/components/ui/Field";
 import { cn } from "@/helpers/cn";
 
 export interface ChipOption<T extends string = string> {
@@ -24,6 +27,7 @@ export function ChipGroup<T extends string>({
   required = false,
   error,
   className,
+  fieldKey,
 }: {
   name: string;
   label: string;
@@ -35,12 +39,25 @@ export function ChipGroup<T extends string>({
   required?: boolean;
   error?: string;
   className?: string;
+  /** Clave con la que `FormErrorSummary` encuentra el grupo para llevar el foco. */
+  fieldKey?: string;
 }) {
+  const errorId = useId();
   return (
-    <fieldset className={cn("space-y-3", className)}>
+    // `tabIndex={-1}`: el resumen de errores puede enfocar el grupo aunque no sea un control.
+    <fieldset
+      className={cn("space-y-3 focus:outline-none", className)}
+      data-field={fieldKey}
+      tabIndex={fieldKey ? -1 : undefined}
+      aria-describedby={error ? errorId : undefined}
+    >
       <legend className="text-[15px] font-semibold text-ink">
         {label}
-        {required && <span className="ml-0.5 text-danger">*</span>}
+        {required && (
+          <span aria-hidden className="ml-0.5 text-danger">
+            *
+          </span>
+        )}
       </legend>
       {hint && !error && <p className="text-help text-muted">{hint}</p>}
 
@@ -64,6 +81,8 @@ export function ChipGroup<T extends string>({
                 value={option.value}
                 checked={checked}
                 onChange={() => onToggle(option.value)}
+                // En un grupo de radios, `required` es lo que anuncia "obligatorio".
+                required={required && !multiple}
                 className="sr-only"
               />
               {option.label}
@@ -72,11 +91,7 @@ export function ChipGroup<T extends string>({
         })}
       </div>
 
-      {error && (
-        <p role="alert" className="text-help font-medium text-danger">
-          {error}
-        </p>
-      )}
+      {error && <FieldError id={errorId}>{error}</FieldError>}
     </fieldset>
   );
 }

@@ -26,7 +26,8 @@
     "subscription": "My monthly fee"
   },
   "footer": {
-    "tagline": "Your ideas. The best professionals."
+    "tagline": "Your ideas. The best professionals.",
+    "geonames": "Postcodes: data from <source>GeoNames</source>, adapted, licensed under <license>CC BY 4.0</license>."
   },
   "home": {
     "title": "Phone-verified renovation contacts across Spain",
@@ -126,6 +127,7 @@
     "emailLabel": "Email",
     "emailHint": "We'll send you a copy of your request.",
     "consentLabel": "I have read and accept the data processing policy. I authorise Voy a Reformar to process my data to validate the request, to show my first name and postcode to registered professionals and to share my contact details with up to {maxProfessionals} professionals who buy the contact, under GDPR (EU) 2016/679 and LOPDGDD 3/2018.",
+    "consentShortLabel": "Consent",
     "policyShow": "See the data policy summary",
     "policyHide": "Hide the summary",
     "policy": {
@@ -234,7 +236,13 @@
     "paymentCancelled": "You cancelled the payment. If your reservation is still valid, you can complete it before it expires.",
     "needsApproval": "To buy contacts we need to validate your registration.",
     "needsApprovalPending": "Your registration is under review. You can buy once we approve it.",
-    "completeRegistration": "See my registration"
+    "completeRegistration": "See my registration",
+    "debtBlocksPurchase": "You owe {debt} for a monthly fee your bank returned. You can buy once your next monthly fee settles it.",
+    "reviewAccount": "View my monthly fee",
+    "purchaseConfirmed": "Payment confirmed. You can now contact the client.",
+    "purchaseConfirming": "We're confirming your payment. The contact will appear here in a few seconds; there's no need to pay again.",
+    "purchaseDelayed": "Your payment hasn't been confirmed yet. Don't pay again: the contact will unlock as soon as Stripe confirms it, and you'll also see it in “My contacts”.",
+    "checkAgain": "Check again"
   },
   "purchases": {
     "title": "My contacts",
@@ -276,6 +284,9 @@
     "canceledNotice": "Your top-up is canceled. You can still browse requests and your balance is kept; to buy, reactivate it.",
     "checkoutSuccess": "We've received your payment details. Your account will be activated once the charge is confirmed.",
     "checkoutCancelled": "You cancelled the payment. Your monthly fee hasn't been activated.",
+    "confirming": "We're confirming your payment with Stripe. It usually takes a few seconds; there's no need to pay again.",
+    "confirmationDelayed": "Your payment hasn't been confirmed yet. Don't pay again: your plan will activate as soon as Stripe confirms it. If nothing changes in a few minutes, contact us.",
+    "checkAgain": "Check again",
     "historyTitle": "Balance history",
     "historyEmpty": "No movements yet.",
     "entry": {
@@ -283,12 +294,17 @@
       "spend": "Contact purchase",
       "spend_reversal": "Refund of unpaid reservation",
       "adjustment_credit": "Admin credit",
-      "adjustment_debit": "Admin charge"
+      "adjustment_debit": "Admin charge",
+      "verification_refund": "First charge refunded (registration rejected)",
+      "chargeback": "Monthly fee returned by the bank",
+      "chargeback_reversal": "Return reversed: amount recovered"
     },
     "bannerActive": "Active account · Balance: {balance}",
     "bannerInactive": "Inactive account: you can browse requests, but to buy contacts you need an up-to-date monthly top-up.",
     "bannerCta": "Activate monthly fee",
-    "bannerManage": "View my monthly fee"
+    "bannerManage": "View my monthly fee",
+    "bannerDebt": "Your bank returned a monthly fee you had already spent and you owe {debt}. You can browse requests, but not buy until your next monthly fee settles it.",
+    "debtNotice": "Your bank returned a monthly fee you had already spent on contacts. {debt} is outstanding: it will be taken from your next monthly fee and, until then, you can't buy contacts."
   },
   "profile": {
     "title": "My professional profile",
@@ -317,6 +333,8 @@
     "registrationHint": "We need these details to validate your registration and to invoice you.",
     "identityLocked": "You already sent your registration for review: type, legal name and tax ID can no longer change.",
     "typeLabel": "How are you registering?",
+    "typeShortLabel": "Registration type",
+    "servicesShortLabel": "Services",
     "types": {
       "self_employed": {
         "title": "Self-employed",
@@ -334,7 +352,13 @@
     "legalNameLabel": "Legal name or full name",
     "legalNameHint": "The name we will invoice.",
     "taxIdLabel": "NIF, NIE or CIF",
-    "taxIdHint": "If you are an independent worker with a passport, you can leave it blank.",
+    "reviewDialog": {
+      "title": "Send your registration for review?",
+      "body": "We will review your profile and documents. Meanwhile you can browse requests, but you can only buy them once we approve your registration.",
+      "warning": "Once sent, you will not be able to change your registration type, legal name, tax ID or documents.",
+      "confirm": "Confirm and send",
+      "cancel": "Review first"
+    },
     "addressLabel": "Business or home address",
     "uploadsAfterSaving": "Once you save your profile you can upload your photos and documents.",
     "create": "Create profile",
@@ -371,8 +395,7 @@
       "reason": "Reason",
       "incompleteTitle": "Complete your registration",
       "incompleteBody": "To buy contacts we need to validate your registration. You are missing:",
-      "readyBody": "All set. Send your registration and we will review it.",
-      "submit": "Send registration for review",
+      "readyBody": "All set. When you save, we will ask you to confirm sending it for review.",
       "missing": {
         "categories": "Choosing at least one trade",
         "professional_type": "How you are registering",
@@ -434,6 +457,7 @@
       "policy": "Policy version",
       "acceptedAt": "Consent accepted at",
       "campaign": "Campaign reference",
+      "created": "Lead “{title}” published.",
       "submit": "Publish manual lead"
     },
     "categoryPricing": {
@@ -456,7 +480,10 @@
       "savePrice": "Save price",
       "purchases": "View purchases",
       "disable": "Disable",
-      "republish": "Republish"
+      "republish": "Republish",
+      "showManual": "Create manual request",
+      "hideManual": "Hide form",
+      "empty": "No requests match these filters."
     },
     "status": {
       "published": "Published",
@@ -481,12 +508,6 @@
       "expired": "Expired",
       "failed": "Failed",
       "refunded": "Refunded"
-    },
-    "professionals": {
-      "title": "Professional directory",
-      "subtitle": "Consult registered professional profiles.",
-      "search": "Search business or area",
-      "location": "{city} · {distance} km"
     },
     "account": "Monthly fee",
     "balance": "Balance",
@@ -525,6 +546,86 @@
       "back": "Back to the queue",
       "rejectedRefunded": "Registration rejected. {amount} was refunded and the top-up cancelled.",
       "rejectedNothingToRefund": "Registration rejected. There was no charge to refund."
+    },
+    "dashboard": {
+      "title": "Overview",
+      "range": "Period",
+      "lastDays": "Last {days} days",
+      "leadsChart": "Requests published per day",
+      "purchasesChart": "Contacts sold per day",
+      "revenueChart": "Contact revenue per day ({currency})",
+      "topupsChart": "Top-ups collected per day ({currency})",
+      "showTable": "Show the data as a table",
+      "day": "Day",
+      "value": "Value",
+      "published": "Published",
+      "exhausted": "Sold out",
+      "paidLeads": "Leads with at least one sale",
+      "topupRevenue": "Top-ups collected"
+    },
+    "users": {
+      "title": "Users",
+      "subtitle": "Everyone with an account. Clients have no account: they post as guests.",
+      "search": "Search by email or business",
+      "role": "Role",
+      "verificationStatus": "Sign-up status",
+      "all": "All",
+      "empty": "No users match these filters.",
+      "noProfile": "No professional profile",
+      "since": "Joined: {date}",
+      "roles": {
+        "professional": "Professional",
+        "admin": "Administrator"
+      },
+      "makeAdmin": "Make administrator",
+      "makeProfessional": "Remove administrator",
+      "viewDossier": "View file",
+      "confirmTitle": "Change the role of {email}",
+      "confirmPromote": "They will see purchases and professionals' data and be able to change prices and roles. It takes effect on their next action, without signing in again.",
+      "confirmDemote": "They will lose access to administration on their next action. Any professional profile is kept.",
+      "noteLabel": "Reason (optional)",
+      "noteHint": "It is kept in the role change history.",
+      "confirm": "Confirm change",
+      "roleChanged": "Role updated."
+    },
+    "allPurchases": {
+      "title": "Purchases",
+      "subtitle": "Who bought each contact, when and for how much. No client data.",
+      "status": "Status",
+      "from": "From",
+      "to": "To",
+      "all": "All",
+      "empty": "No purchases match these filters.",
+      "professional": "Professional",
+      "paidWithCredit": "{amount} from balance",
+      "unknownLead": "Deleted request"
+    },
+    "pagination": {
+      "previous": "Previous",
+      "next": "Next",
+      "page": "Page {page} of {pages}"
+    },
+    "debt": "Debt",
+    "adjustment": {
+      "open": "Adjust balance",
+      "direction": "Adjustment type",
+      "credit": "Add balance",
+      "debit": "Deduct balance",
+      "amount": "Amount (€)",
+      "note": "Reason",
+      "noteHint": "It is recorded in the professional's balance history.",
+      "submit": "Apply adjustment",
+      "done": "Adjustment applied. Balance: {balance}.",
+      "doneWithDebt": "Adjustment applied. Balance: {balance} · Outstanding debt: {debt}."
+    },
+    "nav": {
+      "label": "Admin sections",
+      "overview": "Overview",
+      "professionals": "Professionals",
+      "leads": "Requests",
+      "purchases": "Purchases",
+      "pricing": "Pricing",
+      "pending": "{count, plural, one {pending sign-up} other {pending sign-ups}}"
     }
   },
   "errors": {
@@ -548,12 +649,24 @@
     "UNAUTHENTICATED": "Your session expired. Please log in again.",
     "PERMISSION_DENIED": "You don't have permission for this action.",
     "INTERNAL_ERROR": "Server error. We're on it.",
+    "DOMAIN_ERROR": "We couldn't complete the operation. Please try again.",
+    "SERVICE_UNAVAILABLE": "The service is unavailable right now. Please try again in a few minutes.",
+    "PAYLOAD_TOO_LARGE": "The file or data you sent is too large.",
+    "TOO_MANY_REQUESTS": "Too many requests in a row. Wait a moment and try again.",
     "PAYMENT_GATEWAY_ERROR": "We couldn't start the payment. Please try again in a few minutes.",
     "auth/invalid-credential": "Wrong email or password.",
     "auth/email-already-in-use": "An account with that email already exists.",
     "auth/weak-password": "The password must be at least 6 characters.",
     "auth/invalid-email": "That email isn't valid.",
     "auth/too-many-requests": "Too many attempts. Try again in a few minutes.",
+    "auth/network-request-failed": "We couldn't connect. Check your internet connection.",
+    "auth/missing-password": "Enter your password.",
+    "auth/missing-email": "Enter your email.",
+    "auth/user-disabled": "This account is disabled. Contact us if you think this is a mistake.",
+    "auth/user-not-found": "Wrong email or password.",
+    "auth/wrong-password": "Wrong email or password.",
+    "auth/popup-blocked": "Your browser blocked the Google window. Allow pop-ups and try again.",
+    "auth/account-exists-with-different-credential": "You already have an account with that email. Sign in with your email and password.",
     "SUBSCRIPTION_REQUIRED": "Activate your monthly top-up to buy contacts.",
     "SUBSCRIPTION_ALREADY_EXISTS": "You already have a monthly fee in progress. Manage it from your account.",
     "INSUFFICIENT_CREDIT": "You don't have enough balance for this operation.",
@@ -568,7 +681,50 @@
     "INVALID_VERIFICATION_TRANSITION": "That registration is no longer waiting for review.",
     "REJECTION_AWAITING_PAYMENT": "This professional's first monthly fee payment is still processing (it can take several days with direct debit). You can reject the registration once it clears or fails.",
     "VERIFICATION_LOCKED": "You already sent your registration for review: those details can no longer change.",
-    "INVALID_TAX_ID": "The NIF, NIE or CIF is not valid: check the control letter or digit."
+    "INVALID_TAX_ID": "The NIF, NIE or CIF is not valid: check the control letter or digit.",
+    "USER_NOT_FOUND": "That user no longer exists.",
+    "CANNOT_CHANGE_OWN_ROLE": "You can't change your own role: ask another administrator.",
+    "LAST_ADMIN": "You can't remove the last administrator: appoint another one first.",
+    "CREDIT_DEBT_OUTSTANDING": "Your bank returned a monthly fee you had already spent. You can buy contacts once your next monthly fee settles it.",
+    "INVALID_PHONE": "The phone number is not valid. Check that it is complete and has no letters.",
+    "INVALID_EMAIL": "The email is not valid. Check that it looks like name@domain.com.",
+    "INVALID_POSTAL_CODE": "The postal code is not valid. Enter all 5 digits.",
+    "CLIENT_NAME_REQUIRED": "Enter the client's name.",
+    "CONSENT_DATE_IN_FUTURE": "The consent date cannot be later than the current moment. Check the date and time.",
+    "TITLE_LENGTH_INVALID": "The title must be between {min} and {max} characters, not counting leading and trailing spaces.",
+    "DESCRIPTION_LENGTH_INVALID": "The description must be between {min} and {max} characters, not counting leading and trailing spaces.",
+    "PURCHASE_NOT_FOUND": "We could not find that purchase.",
+    "PURCHASE_NOT_PAYABLE": "This purchase can no longer be paid. Start again from the request.",
+    "NOT_FOUND": "We could not find what you are looking for.",
+    "fields": {
+      "category_id": "Trade",
+      "title": "Title",
+      "description": "Description",
+      "postal_code": "Postal code",
+      "client_name": "Client name",
+      "client_phone": "Phone",
+      "client_email": "Email",
+      "photo_keys": "Photos",
+      "service_ids": "Services",
+      "property_type": "Property type",
+      "schedule": "Schedule",
+      "phone_verification_code": "SMS code",
+      "consent_policy_version": "Policy version",
+      "consent_accepted_at": "Acceptance date",
+      "consent_channel": "Capture channel",
+      "consent_campaign_reference": "Campaign reference"
+    },
+    "fieldError": {
+      "intro": "Check the form: {details}.",
+      "item": "{field}: {issue}"
+    },
+    "issue": {
+      "missing": "required",
+      "tooShort": "at least {min} characters",
+      "tooLong": "at most {max} characters",
+      "invalid": "invalid value"
+    },
+    "summary": "Check {count, plural, one {# field} other {# fields}} to continue"
   },
   "validation": {
     "categoryRequired": "Pick a trade.",
@@ -606,6 +762,16 @@
     "mediaType": "Only JPG, PNG, WEBP or HEIC photos are accepted.",
     "mediaTooLarge": "The photo is larger than 10 MB.",
     "documentType": "Upload the document as a PDF or an image.",
-    "documentTooLarge": "The document is larger than 10 MB."
+    "documentTooLarge": "The document is larger than 10 MB.",
+    "adjustmentAmount": "Enter an amount above 0 and up to €1000.",
+    "adjustmentNote": "Explain the reason for the adjustment (3 to 500 characters).",
+    "channelRequired": "Enter the channel where the consent was collected.",
+    "channelTooLong": "The channel cannot exceed 120 characters.",
+    "policyRequired": "Enter the policy version the client accepted.",
+    "policyTooLong": "The policy version cannot exceed 40 characters.",
+    "campaignTooLong": "The campaign reference cannot exceed 200 characters.",
+    "acceptedAtRequired": "Enter the date and time the client accepted.",
+    "acceptedAtInvalid": "The acceptance date is not valid.",
+    "acceptedAtFuture": "The acceptance date cannot be later than now."
   }
 }

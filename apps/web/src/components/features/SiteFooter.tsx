@@ -50,6 +50,28 @@ export async function SiteFooter() {
           ))}
         </nav>
       </Container>
+      {/* CC BY 4.0 exige citar la fuente, enlazar la licencia e indicar si los datos
+          se modificaron: el catalogo de CP se genera desde GeoNames y se filtra. */}
+      <Container className="mt-6">
+        <p className="text-[12.5px]">
+          {t.rich("geonames", {
+            source: (chunks) => (
+              <a href="https://www.geonames.org/" className="underline hover:text-accent">
+                {chunks}
+              </a>
+            ),
+            license: (chunks) => (
+              <a
+                href="https://creativecommons.org/licenses/by/4.0/"
+                className="underline hover:text-accent"
+                rel="license"
+              >
+                {chunks}
+              </a>
+            ),
+          })}
+        </p>
+      </Container>
     </footer>
   );
 }

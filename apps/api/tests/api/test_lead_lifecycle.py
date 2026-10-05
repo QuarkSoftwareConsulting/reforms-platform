@@ -289,7 +289,7 @@ class TestAuthorization:
         assert body["role"] == "professional"
         assert body["professional"] is None
 
-    async def test_admin_claim_is_mirrored_as_admin_role(
+    async def test_admin_claim_creates_the_account_as_admin(
         self, api: AsyncClient, admin_auth: dict[str, str]
     ) -> None:
         response = await api.get("/me", headers=admin_auth)
@@ -816,6 +816,36 @@ class TestPhoneVerificationOverHttp:
 
         right = await api.post("/leads", json={**payload, "phone_verification_code": FAKE_CODE})
         assert right.status_code == 201, right.text
+
+    @pytest.mark.sms
+    async def test_sms_per_ip_are_capped_even_rotating_a_forged_header(
+        self, api: AsyncClient, fake_phone_verifier: FakePhoneVerifier
+    ) -> None:
+        # Como en Cloud Run: el cliente escribe lo que quiera a la izquierda y el
+        # proxy anade su IP real al final. Rotar la parte falsa no abre cupo.
+        for attempt in range(10):
+            response = await api.post(
+                "/leads/phone-verification",
+                json={"phone": CLIENT_PHONE},
+                headers={"X-Forwarded-For": f"1.2.3.{attempt}, 83.45.12.9"},
+            )
+            assert response.status_code == 200, response.text
+
+        blocked = await api.post(
+            "/leads/phone-verification",
+            json={"phone": CLIENT_PHONE},
+            headers={"X-Forwarded-For": "9.9.9.9, 83.45.12.9"},
+        )
+        assert blocked.status_code == 429
+        assert blocked.json()["code"] == "TOO_MANY_VERIFICATION_ATTEMPTS"
+        assert len(fake_phone_verifier.sent_to) == 10
+
+        other = await api.post(
+            "/leads/phone-verification",
+            json={"phone": CLIENT_PHONE},
+            headers={"X-Forwarded-For": "90.1.2.3"},
+        )
+        assert other.status_code == 200
 
     @pytest.mark.sms
     async def test_a_landline_is_rejected_before_sending(

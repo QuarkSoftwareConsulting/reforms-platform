@@ -10,6 +10,7 @@ import { Card, Skeleton, Tag } from "@/components/ui/Card";
 import { formatMoney } from "@/helpers/currency";
 import { formatDate } from "@/helpers/date";
 import { useApiError } from "@/hooks/useApiError";
+import { ApiError } from "@/services/api";
 import { useAuth } from "@/hooks/useAuth";
 import type { AppLocale } from "@/i18n/routing";
 import { subscriptionService } from "@/services/subscription.service";
@@ -31,7 +32,10 @@ export function SubscriptionPanel() {
   const [account, setAccount] = useState<Account | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [redirecting, setRedirecting] = useState(false);
-  const pollCount = useRef(0);
+  const [polls, setPolls] = useState(0);
+  // Stripe ya cobra una recarga que nuestra BD aun no conoce (el backend lo dijo al
+  // pulsar "Activar"): se espera igual que al volver del checkout.
+  const [alreadyInStripe, setAlreadyInStripe] = useState(false);
   const refreshedMe = useRef(false);
   const { refreshMe } = auth;
 
@@ -48,10 +52,12 @@ export function SubscriptionPanel() {
     void load();
   }, [load]);
 
+  const waitingForWebhook = returnStatus === "success" || alreadyInStripe;
+
   // Al volver del checkout el cobro puede seguir sin confirmar (con SEPA, dias).
   // Se reintenta unos segundos por si fue con tarjeta; si no, queda "pendiente".
   useEffect(() => {
-    if (returnStatus !== "success" || account === null) return;
+    if (!waitingForWebhook || account === null) return;
     if (account.is_active) {
       // Una sola vez: el resto de la app (banner, boton de compra) lee `me`.
       if (!refreshedMe.current) {
@@ -60,13 +66,18 @@ export function SubscriptionPanel() {
       }
       return;
     }
-    if (pollCount.current >= MAX_POLLS) return;
+    if (polls >= MAX_POLLS) return;
     const timer = setTimeout(() => {
-      pollCount.current += 1;
+      setPolls((count) => count + 1);
       void load();
     }, POLL_INTERVAL_MS);
     return () => clearTimeout(timer);
-  }, [returnStatus, account, load, refreshMe]);
+  }, [waitingForWebhook, account, polls, load, refreshMe]);
+
+  const checkAgain = () => {
+    setPolls(0);
+    void load();
+  };
 
   const redirect = async (action: () => Promise<string>) => {
     setRedirecting(true);
@@ -75,8 +86,13 @@ export function SubscriptionPanel() {
       // Navegacion completa: el checkout y el portal estan en otro dominio.
       window.location.assign(await action());
     } catch (caught) {
-      setError(translateError(caught));
       setRedirecting(false);
+      if (caught instanceof ApiError && caught.code === "SUBSCRIPTION_ALREADY_EXISTS") {
+        setAlreadyInStripe(true);
+        checkAgain();
+        return;
+      }
+      setError(translateError(caught));
     }
   };
 
@@ -86,6 +102,11 @@ export function SubscriptionPanel() {
 
   const amount = formatMoney(account.topup_amount, locale);
   const canStart = account.status === "none" || account.status === "canceled";
+  // Pago hecho en Stripe y sin confirmar en nuestra BD: el webhook va en camino. Volver
+  // a mostrar "Activar" invitaba a pagar dos veces (el backend ya lo impide, ver
+  // `has_live_subscription`), asi que en su lugar se explica la espera.
+  const confirming = waitingForWebhook && canStart && !account.is_active;
+  const confirmationDelayed = confirming && polls >= MAX_POLLS;
   const notice = {
     none: null,
     active: null,
@@ -101,7 +122,7 @@ export function SubscriptionPanel() {
         <p className="text-secondary">{t("subtitle", { amount })}</p>
       </header>
 
-      {returnStatus === "success" && !account.is_active && (
+      {returnStatus === "success" && !account.is_active && !confirming && (
         <Alert tone="info">{t("checkoutSuccess")}</Alert>
       )}
       {returnStatus === "cancelled" && <Alert tone="warning">{t("checkoutCancelled")}</Alert>}
@@ -132,9 +153,25 @@ export function SubscriptionPanel() {
           </div>
         </dl>
 
+        {account.debt && account.debt.amount_cents > 0 && (
+          <Alert tone="warning">
+            {t("debtNotice", { debt: formatMoney(account.debt, locale) })}
+          </Alert>
+        )}
         {notice && <Alert tone="warning">{notice}</Alert>}
 
-        {canStart ? (
+        {confirming ? (
+          <div className="space-y-3">
+            <Alert tone={confirmationDelayed ? "warning" : "info"}>
+              {confirmationDelayed ? t("confirmationDelayed") : t("confirming")}
+            </Alert>
+            {confirmationDelayed && (
+              <Button variant="secondary" fullWidth onClick={checkAgain}>
+                {t("checkAgain")}
+              </Button>
+            )}
+          </div>
+        ) : canStart ? (
           <div className="space-y-3">
             <Button
               variant="accent"

@@ -73,6 +73,9 @@ class PaymentEventType(StrEnum):
     INVOICE_PAID = "invoice_paid"
     INVOICE_PAYMENT_FAILED = "invoice_payment_failed"
     SUBSCRIPTION_UPDATED = "subscription_updated"
+    # Devolucion de un cobro por el banco (adeudo SEPA devuelto o disputa de tarjeta)
+    CHARGE_DISPUTED = "charge_disputed"
+    DISPUTE_WON = "dispute_won"
     IGNORED = "ignored"
 
     @property
@@ -83,6 +86,10 @@ class PaymentEventType(StrEnum):
             PaymentEventType.INVOICE_PAYMENT_FAILED,
             PaymentEventType.SUBSCRIPTION_UPDATED,
         }
+
+    @property
+    def concerns_dispute(self) -> bool:
+        return self in {PaymentEventType.CHARGE_DISPUTED, PaymentEventType.DISPUTE_WON}
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,6 +113,18 @@ class PaymentEvent:
     period_end: datetime | None = None
     occurred_at: datetime | None = None
     """Cuando ocurrio en la pasarela (no cuando llego): ordena eventos desordenados."""
+    # Solo en devoluciones: la disputa (idempotencia del libro) y el cargo disputado.
+    dispute_id: str | None = None
+    charge_id: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ChargeOwner:
+    """De quien es un cargo de la pasarela, para saber a que afecta su devolucion."""
+
+    customer_id: str | None
+    purchase_id: UUID | None
+    """Solo si el cargo es la compra de un contacto (no la recarga)."""
 
 
 class PaymentPort(ABC):
@@ -134,6 +153,16 @@ class PaymentPort(ABC):
         """Checkout para suscribirse a la recarga mensual (tarjeta o domiciliacion)."""
 
     @abstractmethod
+    async def has_live_subscription(self, customer_id: str) -> bool:
+        """Si el cliente ya tiene en la pasarela una recarga viva (al dia o con un cobro
+        pendiente de reintentar).
+
+        Nuestra BD se entera por el webhook, que puede llegar tarde o no llegar: sin
+        preguntar a la pasarela, volver a pulsar "Activar" abriria una segunda
+        suscripcion y un segundo cobro mensual.
+        """
+
+    @abstractmethod
     async def create_recurring_price(self, *, amount: Money, product_name: str) -> str:
         """Crea un precio mensual en la pasarela y devuelve su identificador.
 
@@ -154,6 +183,10 @@ class PaymentPort(ABC):
 
         Cancelar una suscripcion ya cancelada no es un error: el reintento es seguro.
         """
+
+    @abstractmethod
+    async def describe_charge(self, charge_id: str) -> ChargeOwner:
+        """Cliente y compra (si la hay) de un cargo: la disputa no los trae."""
 
     @abstractmethod
     async def create_billing_portal_session(

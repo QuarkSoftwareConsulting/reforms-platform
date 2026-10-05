@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date, datetime, time, timedelta
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from app.application.dto import (
     AdminLeadItem,
@@ -12,9 +14,14 @@ from app.application.dto import (
     AdminProfessionalItem,
     AdminProfessionalListResult,
     AdminPurchaseItem,
+    AdminPurchaseListResult,
+    AdminPurchaseQuery,
+    DailyMetricsPoint,
+    MetricsTimeseries,
 )
 from app.application.ports import (
     AdminLeadFilters,
+    AdminPurchaseFilters,
     CategoryRepositoryPort,
     ClockPort,
     CreditLedgerRepositoryPort,
@@ -26,10 +33,14 @@ from app.application.ports import (
     PurchaseReviewRepositoryPort,
     UnitOfWork,
 )
-from app.domain.exceptions import LeadNotFoundError, PurchaseNotFoundError
-from app.domain.models import Lead, PurchaseReview, VerificationStatus
+from app.domain.exceptions import LeadNotFoundError, PurchaseNotFoundError, ValidationError
+from app.domain.models import Category, Lead, Professional, PurchaseReview, VerificationStatus
 
 MAX_PAGE_SIZE = 100
+BUSINESS_TIMEZONE = "Europe/Madrid"
+"""Donde se cortan los dias del panel: el negocio opera en la Comunidad de Madrid."""
+DEFAULT_TIMESERIES_DAYS = 30
+MAX_TIMESERIES_DAYS = 366
 
 
 @dataclass(slots=True)
@@ -224,3 +235,135 @@ class MarkPurchaseForReview:
                 created_at=self.clock.now(),
             )
             return await self.reviews.add(review)
+
+
+@dataclass(slots=True)
+class ListAdminPurchases:
+    """Todas las compras: quien compro que, cuando y por cuanto. Sin PII del cliente."""
+
+    purchases: PurchaseRepositoryPort
+    leads: LeadRepositoryPort
+    categories: CategoryRepositoryPort
+    professionals: ProfessionalRepositoryPort
+    reviews: PurchaseReviewRepositoryPort
+
+    timezone: str = BUSINESS_TIMEZONE
+
+    async def execute(self, query: AdminPurchaseQuery) -> AdminPurchaseListResult:
+        if query.from_day and query.to_day and query.from_day > query.to_day:
+            raise ValidationError("La fecha inicial debe ser anterior a la final")
+        zone = ZoneInfo(self.timezone)
+        normalized = AdminPurchaseFilters(
+            status=query.status,
+            professional_id=query.professional_id,
+            created_from=_day_start(query.from_day, zone) if query.from_day else None,
+            # El dia final entra entero: el limite es la medianoche siguiente, exclusiva.
+            created_to=(
+                _day_start(query.to_day + timedelta(days=1), zone) if query.to_day else None
+            ),
+            limit=min(max(query.limit, 1), MAX_PAGE_SIZE),
+            offset=max(query.offset, 0),
+        )
+        purchases = await self.purchases.list_admin(normalized)
+        leads: dict[UUID, Lead | None] = {}
+        professionals: dict[UUID, Professional | None] = {}
+        for purchase in purchases:
+            if purchase.lead_id not in leads:
+                leads[purchase.lead_id] = await self.leads.get(purchase.lead_id)
+            if purchase.professional_id not in professionals:
+                professionals[purchase.professional_id] = await self.professionals.get(
+                    purchase.professional_id
+                )
+        categories: dict[UUID, Category] = {
+            category.id: category
+            for category in await self.categories.get_many(
+                {lead.category_id for lead in leads.values() if lead is not None}
+            )
+        }
+        items: list[AdminPurchaseItem] = []
+        for purchase in purchases:
+            lead = leads[purchase.lead_id]
+            items.append(
+                AdminPurchaseItem(
+                    purchase=purchase,
+                    professional=professionals[purchase.professional_id],
+                    review_count=len(await self.reviews.list_for_purchase(purchase.id)),
+                    # Vista publica: el admin no necesita el contacto para auditar ventas.
+                    lead=lead.public_view() if lead is not None else None,
+                    category=categories.get(lead.category_id) if lead is not None else None,
+                )
+            )
+        return AdminPurchaseListResult(
+            items=items,
+            total=await self.purchases.count_admin(normalized),
+            limit=normalized.limit,
+            offset=normalized.offset,
+        )
+
+
+@dataclass(slots=True)
+class GetMetricsTimeseries:
+    """Actividad diaria del marketplace para las graficas del dashboard.
+
+    Los dias se cortan en la zona horaria del negocio, no en UTC: una compra a las
+    00:30 de Madrid cuenta en ese dia aunque en UTC sea el anterior.
+    """
+
+    leads: LeadRepositoryPort
+    purchases: PurchaseRepositoryPort
+    ledger: CreditLedgerRepositoryPort
+    clock: ClockPort
+    timezone: str = BUSINESS_TIMEZONE
+
+    async def execute(self, *, start: date | None, end: date | None) -> MetricsTimeseries:
+        zone = ZoneInfo(self.timezone)
+        last = end or self.clock.now().astimezone(zone).date()
+        first = start or last - timedelta(days=DEFAULT_TIMESERIES_DAYS - 1)
+        if first > last:
+            raise ValidationError("La fecha inicial debe ser anterior a la final")
+        if (last - first).days + 1 > MAX_TIMESERIES_DAYS:
+            raise ValidationError(f"El rango maximo es de {MAX_TIMESERIES_DAYS} dias")
+        range_start = _day_start(first, zone)
+        range_end = _day_start(last + timedelta(days=1), zone)
+
+        leads = {
+            row.day: row
+            for row in await self.leads.daily_created(
+                start=range_start, end=range_end, tz=self.timezone
+            )
+        }
+        paid = {
+            row.day: row
+            for row in await self.purchases.daily_paid(
+                start=range_start, end=range_end, tz=self.timezone
+            )
+        }
+        topups = {
+            row.day: row
+            for row in await self.ledger.daily_topups(
+                start=range_start, end=range_end, tz=self.timezone
+            )
+        }
+        points: list[DailyMetricsPoint] = []
+        day = first
+        while day <= last:
+            lead_row, paid_row, topup_row = leads.get(day), paid.get(day), topups.get(day)
+            points.append(
+                DailyMetricsPoint(
+                    day=day,
+                    leads_created=lead_row.count if lead_row else 0,
+                    paid_purchases=paid_row.count if paid_row else 0,
+                    revenue_by_currency=dict(paid_row.amount_by_currency) if paid_row else {},
+                    topups=topup_row.count if topup_row else 0,
+                    topup_revenue_by_currency=(
+                        dict(topup_row.amount_by_currency) if topup_row else {}
+                    ),
+                )
+            )
+            day += timedelta(days=1)
+        return MetricsTimeseries(start=first, end=last, timezone=self.timezone, points=points)
+
+
+def _day_start(day: date, zone: ZoneInfo) -> datetime:
+    """Medianoche de `day` en `zone`, con zona: nunca un instante sin zona horaria."""
+    return datetime.combine(day, time.min, tzinfo=zone)

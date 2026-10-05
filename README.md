@@ -6,9 +6,13 @@ de su zona y **pagan por desbloquear el contacto** del cliente. Cada solicitud s
 un máximo de 5 profesionales, y **el precio de cada contacto lo fija el administrador**
 (la categoría solo aporta un precio sugerido).
 
-- **Fase 1 (esta):** flujo completo cliente → profesional → pago → contacto desbloqueado.
-- **Fase 2:** panel de administración, ingesta manual de leads, emails transaccionales,
-  páginas SEO por oficio + ciudad, wallet prepago.
+- **Fase 1:** flujo completo cliente → profesional → pago → contacto desbloqueado.
+- **Etapa 1 (hecha, integrada en `develop`):** recarga mensual con saldo, reglas del lead
+  (5 plazas, IVA, vista previa), formulario del cliente (catálogo, Madrid, SMS) y alta y
+  validación del profesional, con un panel de administración básico (`/admin`).
+  Estado y decisiones en [`docs/plan-etapa-1.md`](./docs/plan-etapa-1.md).
+- **Pendiente (Fase 5 de la Etapa 1 y posteriores):** notificaciones (SMS, email,
+  WhatsApp), factura, ingesta manual de leads y páginas SEO por oficio + ciudad.
 
 Documentos de producto en [`docs/`](./docs).
 
@@ -138,9 +142,16 @@ Next.js son servidor a servidor y no necesitan CORS del navegador; si se incorpo
 un `fetch` directo para descargar, añadir `GET` a la política. La firma `GET` no
 autoriza `HEAD`. Véase [CORS de Cloud Storage](https://cloud.google.com/storage/docs/cross-origin).
 
-### Gestionar administradores (CLI interna)
+### Gestionar administradores
 
-Desde `apps/api`, usa un único identificador (`--email` o `--uid`):
+El rol vive en la base de datos (`users.role`). Un admin da o quita el rol a otros desde
+el panel (`/admin`, sección **Usuarios**) y el cambio surte efecto en la siguiente
+petición del usuario: no hace falta que cierre sesión. Cada cambio queda auditado en
+`user_role_events`. Nadie puede cambiar su propio rol ni quitar al último admin.
+
+Para el **primer admin** (o para recuperar el acceso si no queda ninguno) hay una CLI que
+escribe directamente en la BD con esas mismas reglas. El usuario tiene que haber iniciado
+sesión al menos una vez. Desde `apps/api`:
 
 ```bash
 uv run python -m scripts.manage_admin grant --email admin@example.com
@@ -149,22 +160,11 @@ uv run python -m scripts.manage_admin revoke --email admin@example.com
 uv run python -m scripts.manage_admin revoke --uid firebase-uid
 ```
 
-Requiere un proyecto Firebase y credenciales Firebase Admin con permisos para gestionar
-usuarios. Reutiliza la configuración del backend: `FIREBASE_PROJECT_ID`, credenciales en
-`FIREBASE_CREDENTIALS_JSON`, fichero externo mediante `GOOGLE_APPLICATION_CREDENTIALS`
-o credenciales predeterminadas del entorno. No guardes service accounts en el repositorio.
-Si está configurado `FIREBASE_AUTH_EMULATOR_HOST`, opera sobre ese emulador.
+Solo necesita `DATABASE_URL`: no toca Firebase ni necesita sus credenciales.
 
-`grant` establece `admin=true`; `revoke` elimina `admin` y `reforma_admin`, los dos claims
-que el backend reconoce como administrativos. Ambas acciones conservan los demás claims.
-Ejecuta estas operaciones de forma secuencial: Firebase reemplaza el conjunto de claims
-y no protege frente a otra escritura concurrente entre la lectura y la actualización.
-
-Firebase sigue siendo la fuente de verdad: la CLI no escribe en la base de datos local.
-Los cambios se reflejan cuando el usuario obtiene un ID token renovado (por ejemplo,
-cerrando sesión y volviendo a entrar) y la API sincroniza nuevamente su identidad.
-No invalidan de inmediato los ID tokens ya emitidos. Los errores devuelven un código de
-salida distinto de cero, sin imprimir tokens, credenciales ni contenido de los claims.
+El claim `admin` de Firebase (o `reforma_admin`) solo cuenta **al crear la cuenta**: un
+usuario que entra por primera vez con ese claim nace admin. Después se ignora, así que
+quitar o poner el claim a un usuario existente no cambia nada; hazlo desde el panel.
 
 ### Pagos en local
 
@@ -172,29 +172,41 @@ salida distinto de cero, sin imprimir tokens, credenciales ni contenido de los c
 Con claves de test de Stripe:
 
 ```bash
-stripe listen --forward-to localhost:8010/api/v1/webhooks/stripe
-# copia el whsec_... que imprime a STRIPE_WEBHOOK_SECRET en apps/api/.env
+stripe listen --all-snapshot --forward-to localhost:8010/api/v1/webhooks/stripe
+# copia el whsec_... que imprime (o `stripe listen --print-secret`) a
+# STRIPE_WEBHOOK_SECRET en apps/api/.env y reinicia el API: el .env se lee al arrancar
 ```
+
+Las versiones recientes de la CLI exigen `--events <lista>` o `--all-snapshot`; sin ninguno
+no arrancan. Si al volver del checkout la cuenta no se activa, mira la terminal de
+`stripe listen`: un `[401]` en cada evento es un `STRIPE_WEBHOOK_SECRET` que no coincide
+(por ejemplo, el `whsec_xxx` de `.env.example`) y el pago queda sin aplicar. Corregido el
+secreto, `stripe events resend <evt_id>` reenvía los eventos perdidos.
 
 Sin clave configurada, `POST /leads/{id}/purchase` responde `503 PAYMENT_GATEWAY_ERROR` y
 **libera la plaza reservada** en el acto, para que un fallo de infraestructura no consuma
 una de las plazas del lead.
 
-**Mensualidad.** Ver y comprar solicitudes exige la mensualidad al día. El admin fija su
+**Mensualidad.** Comprar solicitudes exige la mensualidad al día; **verlas no**: una cuenta
+inactiva ve el listado y el detalle (sin datos de contacto) pero `POST /leads/{id}/purchase`
+responde `402 SUBSCRIPTION_REQUIRED`. Además, solo compra quien tiene el alta aprobada. El admin fija su
 importe desde el panel, y eso crea el precio en Stripe. Para arrancar sin intervención del
 admin, crea en Stripe un precio recurrente mensual (EUR, IVA incluido) y ponlo en
 `STRIPE_TOPUP_PRICE_ID` junto a su importe en `SUBSCRIPTION_TOPUP_CENTS`. El webhook debe escuchar,
 además de los eventos de checkout, `invoice.paid`, `invoice.payment_failed` y
-`customer.subscription.created|updated|deleted`. Activa el Customer Portal en el panel de
+`customer.subscription.created|updated|deleted` y, para las devoluciones de un cobro por el
+banco, `charge.dispute.created|funds_withdrawn|funds_reinstated|closed`. Activa el Customer Portal en el panel de
 Stripe para `POST /me/subscription/portal`. En local:
 
 ```bash
 stripe listen --forward-to localhost:8010/api/v1/webhooks/stripe \
-  --events checkout.session.completed,checkout.session.expired,invoice.paid,invoice.payment_failed,customer.subscription.created,customer.subscription.updated,customer.subscription.deleted,payment_intent.payment_failed,charge.refunded
+  --events checkout.session.completed,checkout.session.expired,invoice.paid,invoice.payment_failed,customer.subscription.created,customer.subscription.updated,customer.subscription.deleted,payment_intent.payment_failed,charge.refunded,charge.dispute.created,charge.dispute.funds_withdrawn,charge.dispute.funds_reinstated,charge.dispute.closed
 ```
 
 `invoice.paid` activa la cuenta y abona el importe como saldo; el saldo se gasta en
-contactos y, si no alcanza, el resto se cobra con Checkout.
+contactos y, si no alcanza, el resto se cobra con Checkout. Si el banco devuelve una
+recarga (adeudo SEPA devuelto o disputa), se retira el saldo y lo ya gastado queda como deuda:
+no se compra hasta que la siguiente recarga la salde.
 
 ---
 
@@ -262,8 +274,8 @@ fijar otro para un lead concreto (`leads.price_override_cents`) desde
 `Lead.sale_price(suggested=...)`, y el importe se congela dentro del bloqueo de fila de la
 reserva: cambiar el precio después no altera compras ya creadas ni la sesión de checkout
 que se emitió. Subir el precio sugerido de un oficio tampoco toca los leads que ya tienen
-precio propio. La UI de administración llega en la Fase 2; de momento los endpoints se
-usan desde `/docs` o con un cliente HTTP.
+precio propio. El admin lo hace desde el panel (`/admin`) o con
+`PUT /api/v1/admin/leads/{id}/price`.
 
 **Compra solo un profesional con el alta aprobada.** Tras registrarse, el profesional
 aporta tipo de alta, datos fiscales y documentos y la envía a revisión; hasta que el admin

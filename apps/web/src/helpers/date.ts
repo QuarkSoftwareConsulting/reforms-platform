@@ -54,3 +54,43 @@ export function minutesUntil(iso: string | null, now = Date.now()): number {
   if (Number.isNaN(target)) return 0;
   return Math.max(0, Math.ceil((target - now) / MINUTE));
 }
+
+/** Zona horaria del negocio: el backend corta los dias del dashboard en ella. */
+export const BUSINESS_TIME_ZONE = "Europe/Madrid";
+
+/**
+ * Ultimos `days` dias naturales en la zona del negocio, ambos incluidos, como
+ * `YYYY-MM-DD`. Se calcula en Madrid y no en la zona del navegador para que un
+ * admin de viaje pida los mismos dias que ve el resto.
+ */
+export function lastDaysRange(
+  days: number,
+  now = Date.now(),
+  timeZone = BUSINESS_TIME_ZONE,
+): { from: string; to: string } {
+  // `en-CA` formatea como YYYY-MM-DD.
+  const to = new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date(now));
+  const start = new Date(`${to}T00:00:00Z`);
+  start.setUTCDate(start.getUTCDate() - (days - 1));
+  return { from: start.toISOString().slice(0, 10), to };
+}
+
+/** "3 mar" / "Mar 3" para un dia `YYYY-MM-DD`, sin desplazarlo por la zona horaria. */
+export function formatDay(day: string, locale: Locale = "es"): string {
+  const date = new Date(`${day}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat(LOCALE_TAGS[locale], {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  }).format(date);
+}
+
+/** Valor para un `<input type="datetime-local">`: hora local, sin zona y sin segundos. */
+export function toDatetimeLocal(date: Date): string {
+  const pad = (value: number): string => String(value).padStart(2, "0");
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+    `T${pad(date.getHours())}:${pad(date.getMinutes())}`
+  );
+}

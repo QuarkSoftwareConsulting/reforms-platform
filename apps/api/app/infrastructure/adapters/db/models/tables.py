@@ -96,6 +96,25 @@ class UserRow(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
 
 
+class UserRoleEventRow(Base, UUIDPrimaryKeyMixin):
+    """Auditoria de los cambios de rol. Append-only: nunca se actualiza ni se borra."""
+
+    __tablename__ = "user_role_events"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    from_role: Mapped[UserRole] = mapped_column(user_role_enum, nullable=False)
+    to_role: Mapped[UserRole] = mapped_column(user_role_enum, nullable=False)
+    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
+    )
+    note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (Index("ix_user_role_events_user_id", "user_id"),)
+
+
 class CategoryRow(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "categories"
 
@@ -513,6 +532,23 @@ class ProcessedPaymentEventRow(Base):
     )
 
 
+class RateLimitCounterRow(Base):
+    """Intentos por clave y ventana fija (hoy: SMS de verificacion por IP).
+
+    En Postgres y no en memoria porque el API corre en varias instancias: un limite
+    por proceso se multiplicaria por cada una.
+    """
+
+    __tablename__ = "rate_limit_counters"
+
+    bucket_key: Mapped[str] = mapped_column(String(160), primary_key=True)
+    window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    hits: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    # La purga borra por fecha sin mirar la clave.
+    __table_args__ = (Index("ix_rate_limit_counters_window_start", "window_start"),)
+
+
 class ProfessionalAccountRow(Base, TimestampMixin):
     """Recarga mensual y saldo de un profesional.
 
@@ -536,11 +572,15 @@ class ProfessionalAccountRow(Base, TimestampMixin):
     current_period_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     status_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     balance_cents: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Recarga devuelta por el banco que ya se habia gastado. Nunca a la vez que saldo.
+    debt_cents: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="EUR")
 
     __table_args__ = (
         # Ultima barrera contra gastar saldo que no existe, aunque el dominio falle.
         CheckConstraint("balance_cents >= 0", name="balance_non_negative"),
+        CheckConstraint("debt_cents >= 0", name="debt_non_negative"),
+        CheckConstraint("balance_cents = 0 OR debt_cents = 0", name="balance_or_debt"),
     )
 
 

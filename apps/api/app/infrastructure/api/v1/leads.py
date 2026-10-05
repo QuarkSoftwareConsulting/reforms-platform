@@ -9,16 +9,16 @@ from uuid import UUID
 from fastapi import APIRouter, Query, Request, status
 
 from app.application.dto import ConsentInput, CreateLeadInput
+from app.application.parsing import parse_postal_code
 from app.domain.exceptions import UnknownPostalCodeError
 from app.domain.models import LeadSource
-from app.domain.value_objects import PostalCode
 from app.infrastructure.api import serializers
 from app.infrastructure.api.dependencies import (
     ContainerDep,
     CurrentProfessionalDep,
     LocaleDep,
 )
-from app.infrastructure.api.middlewares.request_context import client_ip
+from app.infrastructure.api.middlewares.request_context import client_ip, rate_limit_origin
 from app.infrastructure.api.schemas.leads import (
     CreateLeadIn,
     CreateLeadOut,
@@ -67,7 +67,7 @@ async def create_lead(
             consent=ConsentInput(
                 accepted=payload.consent.accepted,
                 policy_version=payload.consent.policy_version or settings.privacy_policy_version,
-                ip_address=client_ip(request),
+                ip_address=client_ip(request, settings.trusted_proxy_hops),
                 user_agent=request.headers.get("user-agent"),
             ),
         ),
@@ -82,14 +82,18 @@ async def create_lead(
     summary="Enviar el SMS que verifica el movil del cliente",
 )
 async def start_phone_verification(
-    payload: PhoneVerificationIn, container: ContainerDep
+    payload: PhoneVerificationIn, request: Request, container: ContainerDep
 ) -> PhoneVerificationOut:
     """Endpoint publico, como la publicacion: el cliente no tiene cuenta.
 
     Con `required=False` el entorno no verifica por SMS y el formulario publica sin
-    codigo. El limite de envios por telefono lo aplica el proveedor.
+    codigo. El limite de envios por telefono lo aplica el proveedor; el limite por IP
+    (contra el "SMS pumping") lo aplica el caso de uso, con la IP tomada del servidor.
     """
-    result = await container.start_phone_verification.execute(payload.phone)
+    ip = client_ip(request, container.infra.settings.trusted_proxy_hops)
+    result = await container.start_phone_verification.execute(
+        payload.phone, origin=rate_limit_origin(ip)
+    )
     return PhoneVerificationOut(required=result.required)
 
 
@@ -186,7 +190,7 @@ async def start_purchase(
     summary="Resolver ciudad y provincia de un codigo postal",
 )
 async def get_postal_code(code: str, container: ContainerDep) -> PostalCodeOut:
-    info = await container.postal_codes.get(PostalCode(code))
+    info = await container.postal_codes.get(parse_postal_code(code))
     if info is None:
         raise UnknownPostalCodeError(f"Codigo postal no reconocido: {code}")
     return PostalCodeOut(

@@ -20,7 +20,6 @@
 **/.ruff_cache
 **/.cache
 **/.coverage*
-**/coverage*
 **/htmlcov
 **/node_modules
 **/credentials*

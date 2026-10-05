@@ -3,7 +3,7 @@ packages:
 
 # Paquetes autorizados a ejecutar sus scripts de instalacion: sharp (optimizacion de
 # imagenes de Next), esbuild (bundler de Vitest), unrs-resolver (resolucion de modulos
-# de ESLint) y los binarios nativos de Firebase. pnpm 11 exige declararlos.
+# de ESLint) y los binarios nativos de Firebase. pnpm 10.34.5 exige declararlos.
 allowBuilds:
   "@firebase/util": true
   esbuild: true

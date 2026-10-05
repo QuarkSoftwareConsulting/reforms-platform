@@ -30,6 +30,7 @@ from app.application.use_cases.credit_ledger import CreditLedgerService
 from app.domain.exceptions import (
     PaymentGatewayError,
     ProfessionalNotFoundError,
+    SubscriptionAlreadyExistsError,
     SubscriptionRequiredError,
     ValidationError,
 )
@@ -130,6 +131,11 @@ class StartSubscription:
             raise PaymentGatewayError("La mensualidad no esta configurada")
 
         customer_id = account.stripe_customer_id if account is not None else None
+        if customer_id is not None and await self.payments.has_live_subscription(customer_id):
+            # La pasarela ya cobra una recarga que nuestra BD aun no conoce: el webhook
+            # viene en camino (o se perdio). Otro checkout seria un segundo cobro. Si la
+            # pasarela no responde, el error sube: sin saberlo, no se abre el checkout.
+            raise SubscriptionAlreadyExistsError()
         if customer_id is None:
             # Llamada de red fuera de la transaccion, como en la compra de leads.
             customer_id = await self.payments.create_customer(
@@ -220,6 +226,7 @@ class GetProfessionalAccount:
             current_period_end=account.current_period_end,
             can_manage_billing=account.stripe_customer_id is not None,
             entries=entries,
+            debt=account.debt,
         )
 
 

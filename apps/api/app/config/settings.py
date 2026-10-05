@@ -11,6 +11,15 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from app.domain.models import policy_covers_public_preview
 
 
+def _is_unset(value: str) -> bool:
+    """Vacio o el valor de ejemplo de `.env.example` (`sk_test_xxx`, `whsec_xxx`...).
+
+    Copiar `.env.example` deja esos valores: no estan vacios, pero con ellos Stripe
+    rechaza la clave y cada webhook falla la firma. Contaban como configurados.
+    """
+    return not value.strip() or value.strip().endswith("_xxx")
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore", case_sensitive=False
@@ -43,6 +52,13 @@ class Settings(BaseSettings):
     # Verificacion del movil del cliente por SMS antes de publicar. "disabled" hasta
     # que haya proveedor; "console" escribe el codigo en el log (solo desarrollo).
     phone_verification_backend: Literal["disabled", "console"] = "disabled"
+    # Tope de SMS por IP y hora, contra el "SMS pumping". Holgado para una oficina o
+    # una red movil con NAT compartido; el proveedor limita ademas por telefono.
+    phone_verification_per_ip_hourly: int = Field(default=10, ge=1, le=1000)
+    # Proxies propios que anaden su IP a X-Forwarded-For. Cloud Run sin balanceador
+    # anade uno; con un balanceador delante serian dos. La IP del cliente es la que
+    # esta a esa distancia desde la derecha: las de la izquierda las escribe el cliente.
+    trusted_proxy_hops: int = Field(default=1, ge=0, le=5)
     enforce_category_match: bool = True
 
     # ------------------------------- Stripe ------------------------------
@@ -140,6 +156,17 @@ class Settings(BaseSettings):
         """Version sincrona (psycopg) que necesita Alembic para autogenerar."""
         return self.database_url.replace("+asyncpg", "")
 
+    def unconfigured_payment_secrets(self) -> list[str]:
+        """Secretos de Stripe sin valor real: sin ellos no se cobra ni se confirma nada."""
+        return [
+            name
+            for name, value in (
+                ("STRIPE_SECRET_KEY", self.stripe_secret_key),
+                ("STRIPE_WEBHOOK_SECRET", self.stripe_webhook_secret),
+            )
+            if _is_unset(value)
+        ]
+
     def assert_production_ready(self) -> None:
         """Falla al arrancar si falta un secreto imprescindible en produccion.
 
@@ -148,15 +175,9 @@ class Settings(BaseSettings):
         """
         if not self.is_production:
             return
-        missing = [
-            name
-            for name, value in (
-                ("STRIPE_SECRET_KEY", self.stripe_secret_key),
-                ("STRIPE_WEBHOOK_SECRET", self.stripe_webhook_secret),
-                ("FIREBASE_PROJECT_ID", self.firebase_project_id),
-            )
-            if not value
-        ]
+        missing = self.unconfigured_payment_secrets()
+        if _is_unset(self.firebase_project_id):
+            missing.append("FIREBASE_PROJECT_ID")
         if self.storage_backend == "s3":
             missing.extend(
                 name

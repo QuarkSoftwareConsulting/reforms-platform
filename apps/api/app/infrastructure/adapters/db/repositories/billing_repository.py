@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.ports import (
     CreditLedgerRepositoryPort,
+    DailyCount,
     ProfessionalAccountRepositoryPort,
     SubscriptionPriceRepositoryPort,
 )
@@ -23,6 +24,7 @@ from app.domain.models import (
     SubscriptionPrice,
     SubscriptionStatus,
 )
+from app.infrastructure.adapters.db.aggregates import daily_counts
 from app.infrastructure.adapters.db.mappers import (
     account_to_domain,
     apply_account,
@@ -175,6 +177,25 @@ class SqlAlchemyCreditLedgerRepository(CreditLedgerRepositoryPort):
         )
         row = (await self._session.execute(stmt)).scalar_one_or_none()
         return credit_entry_to_domain(row) if row is not None else None
+
+    async def find(self, kind: CreditEntryKind, source_ref: str) -> CreditEntry | None:
+        stmt = select(CreditEntryRow).where(
+            CreditEntryRow.kind == kind, CreditEntryRow.source_ref == source_ref
+        )
+        row = (await self._session.execute(stmt)).scalar_one_or_none()
+        return credit_entry_to_domain(row) if row is not None else None
+
+    async def daily_topups(self, *, start: datetime, end: datetime, tz: str) -> list[DailyCount]:
+        return await daily_counts(
+            self._session,
+            at=CreditEntryRow.created_at,
+            start=start,
+            end=end,
+            tz=tz,
+            where=CreditEntryRow.kind == CreditEntryKind.TOPUP,
+            currency=CreditEntryRow.currency,
+            amount=CreditEntryRow.amount_cents,
+        )
 
     async def topup_totals(self) -> dict[str, int]:
         stmt = (

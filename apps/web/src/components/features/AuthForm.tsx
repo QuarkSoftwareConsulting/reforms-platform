@@ -9,7 +9,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { TextField } from "@/components/ui/Field";
-import { useApiError } from "@/hooks/useApiError";
+import { isAuthDismissal, useApiError } from "@/hooks/useApiError";
 import { useAuth } from "@/hooks/useAuth";
 import { path, type AppLocale } from "@/i18n/routing";
 
@@ -45,7 +45,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
       await action();
       // La redireccion la hace el efecto de arriba cuando llega el perfil.
     } catch (caught) {
-      setError(translateError(caught));
+      setError(isAuthDismissal(caught) ? null : translateError(caught));
       setSubmitting(false);
     }
   };

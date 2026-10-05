@@ -6,6 +6,7 @@ from uuid import uuid4
 import pytest
 
 from app.domain.exceptions import (
+    CreditDebtOutstandingError,
     InsufficientCreditError,
     PurchaseNotPayableError,
     SubscriptionAlreadyExistsError,
@@ -101,6 +102,63 @@ class TestActivation:
         account.record_payment_failed(at=NOW - timedelta(minutes=5))
         assert account.subscription_status is SubscriptionStatus.CANCELED
 
+    def test_payment_activates_even_if_a_later_subscription_sync_arrived_first(self) -> None:
+        # Orden real de un pago con tarjeta (4 de octubre): `invoice.paid` a las :09,
+        # `customer.subscription.created` (active) a las :10. Stripe no garantiza el
+        # orden de entrega: si el segundo llega antes deja la cuenta en PENDING
+        # (sincronizar no activa) y el cobro, un segundo "mas viejo", se descartaba
+        # como obsoleto. El dinero se abonaba y la cuenta no se activaba en un mes.
+        account = make_account(subscription_status=SubscriptionStatus.NONE)
+        account.sync_subscription(
+            status=SubscriptionStatus.ACTIVE,
+            subscription_id="sub_1",
+            period_end=None,
+            at=NOW + timedelta(seconds=1),
+        )
+        account.record_invoice_paid(subscription_id="sub_1", period_end=None, at=NOW)
+        assert account.subscription_status is SubscriptionStatus.ACTIVE
+        # Y lo que llegue despues sigue comparandose con el evento mas reciente.
+        account.record_checkout_completed(subscription_id="sub_1", at=NOW + timedelta(seconds=2))
+        assert account.subscription_status is SubscriptionStatus.ACTIVE
+
+    def test_a_late_payment_of_a_canceled_subscription_does_not_activate_the_new_one(
+        self,
+    ) -> None:
+        # Revision de la PR 27: se cancela, se vuelve a suscribir con SEPA (PENDING
+        # mientras el adeudo se procesa) y Stripe reintenta un `invoice.paid` antiguo
+        # de la suscripcion cancelada. Ese dinero no paga la nueva.
+        account = make_account(
+            subscription_status=SubscriptionStatus.CANCELED, stripe_subscription_id="sub_old"
+        )
+        account.record_checkout_completed(subscription_id="sub_new", at=NOW)
+        assert account.subscription_status is SubscriptionStatus.PENDING
+
+        account.record_invoice_paid(
+            subscription_id="sub_old",
+            period_end=NOW + timedelta(days=60),
+            at=NOW - timedelta(days=2),
+        )
+
+        assert account.subscription_status is SubscriptionStatus.PENDING
+        assert account.stripe_subscription_id == "sub_new"
+        assert account.current_period_end == NOW + timedelta(days=30)
+
+    @pytest.mark.parametrize("newer", [SubscriptionStatus.CANCELED, SubscriptionStatus.PAST_DUE])
+    def test_an_old_payment_does_not_undo_a_newer_cancellation_or_failure(
+        self, newer: SubscriptionStatus
+    ) -> None:
+        account = make_account(subscription_status=SubscriptionStatus.ACTIVE)
+        if newer is SubscriptionStatus.CANCELED:
+            account.sync_subscription(
+                status=newer, subscription_id="sub_1", period_end=None, at=NOW
+            )
+        else:
+            account.record_payment_failed(at=NOW)
+        account.record_invoice_paid(
+            subscription_id="sub_1", period_end=None, at=NOW - timedelta(days=30)
+        )
+        assert account.subscription_status is newer
+
     def test_checkout_completed_after_payment_does_not_go_back_to_pending(self) -> None:
         account = make_account(subscription_status=SubscriptionStatus.NONE)
         account.record_invoice_paid(subscription_id="sub_1", period_end=None, at=NOW)
@@ -141,8 +199,54 @@ class TestBalance:
 
     def test_balance_after_does_not_mutate(self) -> None:
         account = make_account(balance_cents=1000)
-        assert account.balance_after(entry(account, CreditEntryKind.SPEND, 400)).amount_cents == 600
+        balance, debt = account.balance_after(entry(account, CreditEntryKind.SPEND, 400))
+        assert (balance.amount_cents, debt.amount_cents) == (600, 0)
         assert account.balance.amount_cents == 1000
+
+
+class TestChargeback:
+    """Recarga devuelta por el banco: el importe se retira aunque ya se gastara."""
+
+    def test_takes_the_balance_first_and_the_rest_becomes_debt(self) -> None:
+        account = make_account(balance_cents=500)
+        account.apply(entry(account, CreditEntryKind.CHARGEBACK, 1800))
+        assert account.balance == Money(0, "EUR")
+        assert account.debt == Money(1300, "EUR")
+
+    def test_with_enough_balance_there_is_no_debt(self) -> None:
+        account = make_account(balance_cents=3600)
+        account.apply(entry(account, CreditEntryKind.CHARGEBACK, 1800))
+        assert account.balance == Money(1800, "EUR")
+        assert account.debt == Money(0, "EUR")
+
+    def test_any_credit_settles_the_debt_first(self) -> None:
+        account = make_account(balance_cents=0, debt_cents=1300)
+        account.apply(entry(account, CreditEntryKind.TOPUP, 1800))
+        assert account.debt == Money(0, "EUR")
+        assert account.balance == Money(500, "EUR")
+
+    def test_a_partial_credit_only_reduces_the_debt(self) -> None:
+        account = make_account(balance_cents=0, debt_cents=1300)
+        account.apply(entry(account, CreditEntryKind.ADJUSTMENT_CREDIT, 1000))
+        assert account.debt == Money(300, "EUR")
+        assert account.balance == Money(0, "EUR")
+
+    def test_other_debits_still_cannot_exceed_the_balance(self) -> None:
+        account = make_account(balance_cents=0, debt_cents=1300)
+        with pytest.raises(InsufficientCreditError):
+            account.apply(entry(account, CreditEntryKind.ADJUSTMENT_DEBIT, 1))
+        assert account.debt == Money(1300, "EUR")
+
+    def test_cannot_buy_with_debt_even_with_the_top_up_up_to_date(self) -> None:
+        account = make_account(debt_cents=1)
+        assert account.is_active(NOW)
+        with pytest.raises(CreditDebtOutstandingError):
+            account.assert_can_purchase(NOW)
+
+    def test_settled_debt_allows_buying_again(self) -> None:
+        account = make_account(balance_cents=0, debt_cents=1800)
+        account.apply(entry(account, CreditEntryKind.TOPUP, 1800))
+        account.assert_can_purchase(NOW)
 
 
 class TestCreditToApply:

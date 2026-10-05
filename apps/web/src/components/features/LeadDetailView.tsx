@@ -6,6 +6,8 @@ import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 
+import { Button } from "@/components/ui/Button";
+
 import { ContactPanel } from "@/components/features/ContactPanel";
 import { PurchaseButton } from "@/components/features/PurchaseButton";
 import { Alert } from "@/components/ui/Alert";
@@ -13,9 +15,14 @@ import { Card, Seal, Skeleton, Tag } from "@/components/ui/Card";
 import { formatRelative } from "@/helpers/date";
 import { formatDistance } from "@/helpers/distance";
 import { useApiError } from "@/hooks/useApiError";
+import { useAuth } from "@/hooks/useAuth";
 import { path, type AppLocale } from "@/i18n/routing";
 import { leadsService } from "@/services/leads.service";
 import type { LeadDetail } from "@/types/api";
+
+/** Espera del webhook al volver del checkout: hasta 20 s antes de pedir paciencia. */
+const POLL_INTERVAL_MS = 2500;
+const MAX_POLLS = 8;
 
 /**
  * Detalle de una solicitud: descripcion, fotos y bloque de compra o contacto.
@@ -29,28 +36,61 @@ export function LeadDetailView({ leadId }: { leadId: string }) {
   const tProjects = useTranslations("projects");
   const tProject = useTranslations("project");
   const translateError = useApiError();
-  // `?status=cancelled` al volver de un checkout que el profesional abandono.
-  const paymentCancelled = useSearchParams().get("status") === "cancelled";
+  const { refreshMe } = useAuth();
+  // `?status=` al volver del checkout: `cancelled` si lo abandono, `success` si pago.
+  const returnStatus = useSearchParams().get("status");
+  const paymentCancelled = returnStatus === "cancelled";
 
   const [detail, setDetail] = useState<LeadDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  // Pagado (con saldo aqui, o en Stripe y de vuelta): se espera a ver el contacto.
+  const [paid, setPaid] = useState(returnStatus === "success");
+  const [polls, setPolls] = useState(0);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setDetail(await leadsService.detail(leadId, locale));
-    } catch (caught) {
-      setError(translateError(caught));
-    } finally {
-      setLoading(false);
-    }
-  }, [leadId, locale, translateError]);
+  /** `silent`: recarga sin el esqueleto, para no desmontar lo que el usuario ve. */
+  const load = useCallback(
+    async ({ silent = false } = {}) => {
+      if (!silent) setLoading(true);
+      setError(null);
+      try {
+        setDetail(await leadsService.detail(leadId, locale));
+      } catch (caught) {
+        setError(translateError(caught));
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [leadId, locale, translateError],
+  );
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  // De vuelta del checkout el webhook puede no haber llegado: se consulta unas veces
+  // en vez de ofrecer pagar otra vez una reserva que ya esta pagada.
+  const awaitingPayment = paid && detail !== null && !detail.is_unlocked;
+  useEffect(() => {
+    if (!awaitingPayment || polls >= MAX_POLLS) return;
+    const timer = setTimeout(() => {
+      setPolls((count) => count + 1);
+      void load({ silent: true });
+    }, POLL_INTERVAL_MS);
+    return () => clearTimeout(timer);
+  }, [awaitingPayment, polls, load]);
+
+  const unlockedWithCredit = useCallback(() => {
+    setPaid(true);
+    void load({ silent: true });
+    // El saldo ha cambiado: el aviso de cuenta y el boton de otras solicitudes lo leen.
+    void refreshMe({ silent: true });
+  }, [load, refreshMe]);
+
+  const checkAgain = () => {
+    setPolls(0);
+    void load({ silent: true });
+  };
 
   if (loading) {
     return (
@@ -187,8 +227,20 @@ export function LeadDetailView({ leadId }: { leadId: string }) {
           {paymentCancelled && !detail.is_unlocked && (
             <Alert tone="warning">{t("paymentCancelled")}</Alert>
           )}
+          {paid && detail.is_unlocked && <Alert tone="success">{t("purchaseConfirmed")}</Alert>}
           {detail.contact ? (
             <ContactPanel contact={detail.contact} />
+          ) : awaitingPayment ? (
+            <div className="space-y-3">
+              <Alert tone={polls >= MAX_POLLS ? "warning" : "info"}>
+                {polls >= MAX_POLLS ? t("purchaseDelayed") : t("purchaseConfirming")}
+              </Alert>
+              {polls >= MAX_POLLS && (
+                <Button variant="secondary" fullWidth onClick={checkAgain}>
+                  {t("checkAgain")}
+                </Button>
+              )}
+            </div>
           ) : lead.is_closed ? (
             <div className="space-y-1 rounded-card border border-line bg-surface p-6">
               <p className="text-card-title font-semibold text-ink">{t("closedTitle")}</p>
@@ -197,7 +249,7 @@ export function LeadDetailView({ leadId }: { leadId: string }) {
               </p>
             </div>
           ) : (
-            <PurchaseButton detail={detail} />
+            <PurchaseButton detail={detail} onUnlocked={unlockedWithCredit} />
           )}
         </aside>
       </div>

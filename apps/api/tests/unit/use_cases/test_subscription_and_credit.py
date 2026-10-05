@@ -8,6 +8,7 @@ import pytest
 from app.application.ports import PaymentEventType
 from app.domain.exceptions import (
     InsufficientCreditError,
+    PaymentGatewayError,
     ProfessionalAccountNotFoundError,
     SubscriptionAlreadyExistsError,
     SubscriptionRequiredError,
@@ -264,6 +265,44 @@ class TestSubscriptionWebhook:
         with pytest.raises(SubscriptionAlreadyExistsError):
             await world.start_subscription.execute(professional=buyer, email="pro@example.com")
 
+    async def test_does_not_open_a_second_checkout_while_the_webhook_is_pending(
+        self, world: World, carpentry_18: Category
+    ) -> None:
+        # El profesional pago, vuelve de Stripe y el webhook aun no ha llegado: la BD
+        # dice "sin mensualidad". Pulsar "Activar" otra vez no puede cobrarle dos veces.
+        buyer = pro(world, carpentry_18, subscribed=False)
+        customer_id = await self._subscribe(world, buyer)
+        world.payments.live_subscription_customers.add(customer_id)
+        checkouts = len(world.payments.subscription_checkouts)
+
+        with pytest.raises(SubscriptionAlreadyExistsError):
+            await world.start_subscription.execute(professional=buyer, email="pro@example.com")
+
+        assert len(world.payments.subscription_checkouts) == checkouts
+        assert world.accounts.items[buyer.id].subscription_status is SubscriptionStatus.NONE
+
+    async def test_an_abandoned_checkout_can_be_retried(
+        self, world: World, carpentry_18: Category
+    ) -> None:
+        buyer = pro(world, carpentry_18, subscribed=False)
+        await self._subscribe(world, buyer)  # abrio el checkout y no pago
+
+        url = await world.start_subscription.execute(professional=buyer, email="pro@example.com")
+
+        assert url.startswith("https://checkout.test/")
+        assert len(world.payments.subscription_checkouts) == 2
+
+    async def test_no_checkout_if_the_gateway_cannot_say_whether_one_exists(
+        self, world: World, carpentry_18: Category
+    ) -> None:
+        buyer = pro(world, carpentry_18, subscribed=False)
+        await self._subscribe(world, buyer)
+        world.payments.fail_on_live_check = True
+
+        with pytest.raises(PaymentGatewayError):
+            await world.start_subscription.execute(professional=buyer, email="pro@example.com")
+        assert len(world.payments.subscription_checkouts) == 1
+
     async def test_invoice_paid_activates_and_credits_the_topup(
         self, world: World, lead, carpentry_18: Category
     ) -> None:
@@ -287,6 +326,48 @@ class TestSubscriptionWebhook:
         assert account.is_active(world.clock.now())
         assert account.balance == PRICE
         # Y ya puede comprar, con el saldo recien abonado.
+        result = await world.start_purchase.execute(lead_id=lead.id, professional_id=buyer.id)
+        assert result.paid_with_credit
+
+    async def test_activates_when_the_subscription_event_is_delivered_before_the_payment(
+        self, world: World, lead, carpentry_18: Category
+    ) -> None:
+        # Los tres eventos de un pago con tarjeta, en el orden en que llegaron el 4 de
+        # octubre: Stripe emite el cobro un segundo antes, pero no garantiza el orden.
+        buyer = pro(world, carpentry_18, subscribed=False)
+        customer_id = await self._subscribe(world, buyer)
+
+        for event_id, event_type, status, at in (
+            (
+                "evt_sub_created",
+                PaymentEventType.SUBSCRIPTION_UPDATED,
+                SubscriptionStatus.ACTIVE,
+                NOW + timedelta(seconds=1),
+            ),
+            ("evt_inv_1", PaymentEventType.INVOICE_PAID, None, NOW),
+            (
+                "evt_checkout",
+                PaymentEventType.SUBSCRIPTION_CHECKOUT_COMPLETED,
+                None,
+                NOW + timedelta(seconds=2),
+            ),
+        ):
+            await send(
+                world,
+                FakePaymentGateway.subscription_event_payload(
+                    event_id=event_id,
+                    event_type=event_type,
+                    customer_id=customer_id,
+                    invoice_id="in_1" if event_type is PaymentEventType.INVOICE_PAID else None,
+                    amount_cents=1800 if event_type is PaymentEventType.INVOICE_PAID else None,
+                    subscription_status=status,
+                    occurred_at=at,
+                ),
+            )
+
+        account = world.accounts.items[buyer.id]
+        assert account.subscription_status is SubscriptionStatus.ACTIVE
+        assert account.balance == PRICE
         result = await world.start_purchase.execute(lead_id=lead.id, professional_id=buyer.id)
         assert result.paid_with_credit
 

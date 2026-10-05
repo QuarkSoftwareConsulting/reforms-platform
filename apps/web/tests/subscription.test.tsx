@@ -60,6 +60,14 @@ describe("purchasePlan", () => {
   it("goes to checkout with no balance", () => {
     expect(purchasePlan(account(), eur(1800))).toEqual({ kind: "checkout" });
   });
+
+  it("cannot buy while a returned top-up is still owed", () => {
+    // La recarga sigue al dia, pero el banco devolvio una ya gastada: el API rechaza.
+    expect(purchasePlan(account({ debt: eur(1300) }), eur(500))).toEqual({
+      kind: "debt",
+      debt: eur(1300),
+    });
+  });
 });
 
 describe("AccountStatusBanner", () => {
@@ -73,6 +81,13 @@ describe("AccountStatusBanner", () => {
     expect(screen.getByRole("alert").textContent).toContain(messages.subscription.bannerInactive);
     const link = screen.getByRole("link", { name: messages.subscription.bannerCta });
     expect(link.getAttribute("href")).toBe("/es/suscripcion");
+  });
+
+  it("warns an active account with debt that it cannot buy yet", () => {
+    renderWithIntl(<AccountStatusBanner account={account({ debt: eur(1300) })} />);
+    const text = screen.getByRole("alert").textContent ?? "";
+    expect(text).toContain(messages.subscription.bannerDebt.split("{debt}")[0]);
+    expect(text).toContain("13,00");
   });
 
   it("treats a professional without account as inactive", () => {

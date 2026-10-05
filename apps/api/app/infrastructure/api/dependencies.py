@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, Request, status
@@ -27,26 +28,33 @@ from app.application.ports import (
 from app.application.use_cases import (
     AddProfessionalDocument,
     AdjustProfessionalCredit,
+    ApplyChargeback,
     ApplySubscriptionEvent,
     ApproveProfessional,
     ChangeLeadAvailability,
+    ChangeUserRole,
     CreateLead,
     CreditLedgerService,
     GetAdminMetrics,
     GetLeadDetail,
     GetLeadPricing,
+    GetMetricsTimeseries,
     GetProfessionalAccount,
     GetProfessionalProfile,
     GetVerificationDossier,
     HandlePaymentEvent,
     ListAdminLeads,
     ListAdminProfessionals,
+    ListAdminPurchases,
+    ListAdminUsers,
     ListCategories,
     ListLeadPurchasesForAdmin,
     ListLeads,
     ListMyPurchases,
+    ListUserRoleEvents,
     MarkPurchaseForReview,
     OpenBillingPortal,
+    OriginLimit,
     RejectProfessional,
     ReleaseExpiredReservations,
     RemoveProfessionalDocument,
@@ -77,6 +85,7 @@ from app.infrastructure.adapters.db.repositories import (
     SqlAlchemyProfessionalRepository,
     SqlAlchemyPurchaseRepository,
     SqlAlchemyPurchaseReviewRepository,
+    SqlAlchemyRateLimiter,
     SqlAlchemySubscriptionPriceRepository,
     SqlAlchemyUserRepository,
 )
@@ -242,7 +251,16 @@ class RequestContainer:
 
     @property
     def start_phone_verification(self) -> StartPhoneVerification:
-        return StartPhoneVerification(verifier=self.infra.phone_verifier)
+        return StartPhoneVerification(
+            verifier=self.infra.phone_verifier,
+            origin_limit=OriginLimit(
+                limiter=SqlAlchemyRateLimiter(self.session),
+                clock=self.infra.clock,
+                uow=self.uow,
+                limit=self.infra.settings.phone_verification_per_ip_hourly,
+                window=timedelta(hours=1),
+            ),
+        )
 
     @property
     def list_leads(self) -> ListLeads:
@@ -324,6 +342,41 @@ class RequestContainer:
         )
 
     @property
+    def admin_users(self) -> ListAdminUsers:
+        return ListAdminUsers(
+            users=self.users,
+            professionals=self.professionals,
+            accounts=self.accounts,
+            clock=self.infra.clock,
+        )
+
+    @property
+    def change_user_role(self) -> ChangeUserRole:
+        return ChangeUserRole(
+            users=self.users, clock=self.infra.clock, ids=self.infra.ids, uow=self.uow
+        )
+
+    @property
+    def user_role_events(self) -> ListUserRoleEvents:
+        return ListUserRoleEvents(users=self.users)
+
+    @property
+    def admin_purchases(self) -> ListAdminPurchases:
+        return ListAdminPurchases(
+            purchases=self.purchases,
+            leads=self.leads,
+            categories=self.categories,
+            professionals=self.professionals,
+            reviews=self.reviews,
+        )
+
+    @property
+    def metrics_timeseries(self) -> GetMetricsTimeseries:
+        return GetMetricsTimeseries(
+            leads=self.leads, purchases=self.purchases, ledger=self.ledger, clock=self.infra.clock
+        )
+
+    @property
     def mark_purchase_for_review(self) -> MarkPurchaseForReview:
         return MarkPurchaseForReview(
             purchases=self.purchases,
@@ -345,6 +398,12 @@ class RequestContainer:
             credit=self.credit,
             subscriptions=ApplySubscriptionEvent(
                 accounts=self.accounts, credit=self.credit, clock=self.infra.clock
+            ),
+            chargebacks=ApplyChargeback(
+                accounts=self.accounts,
+                ledger=self.ledger,
+                credit=self.credit,
+                clock=self.infra.clock,
             ),
         )
 

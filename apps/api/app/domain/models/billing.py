@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 from uuid import UUID
 
 from app.domain.exceptions import (
+    CreditDebtOutstandingError,
     CurrencyMismatchError,
     InsufficientCreditError,
     RejectionAwaitingPaymentError,
@@ -83,6 +84,12 @@ class ProfessionalAccount:
     Stripe no garantiza el orden de entrega: sin esta marca, un evento antiguo que
     llega tarde podria reactivar una suscripcion cancelada o al reves.
     """
+    debt_cents: int = 0
+    """Lo que el profesional nos debe por una recarga devuelta que ya habia gastado.
+
+    Va aparte del saldo (que nunca es negativo): el saldo "neto" es saldo menos deuda.
+    Cualquier abono salda primero la deuda, y con deuda no se compra.
+    """
 
     @classmethod
     def open(cls, *, professional_id: UUID, currency: str, now: datetime) -> ProfessionalAccount:
@@ -101,9 +108,17 @@ class ProfessionalAccount:
             return True
         return now < self.current_period_end + RENEWAL_GRACE
 
+    @property
+    def debt(self) -> Money:
+        return Money(self.debt_cents, self.currency)
+
     def assert_can_purchase(self, now: datetime) -> None:
         if not self.is_active(now):
             raise SubscriptionRequiredError()
+        # Con la recarga al dia pero una devolucion sin saldar: el saldo que gasto
+        # era dinero que el banco nos retiro.
+        if self.debt_cents > 0:
+            raise CreditDebtOutstandingError()
 
     def assert_can_start_subscription(self) -> None:
         """Evita una segunda suscripcion (y un segundo cobro mensual) en paralelo.
@@ -146,19 +161,28 @@ class ProfessionalAccount:
 
     # ----------------------------- Saldo ---------------------------------
 
-    def balance_after(self, entry: CreditEntry) -> Money:
-        """Saldo resultante de aplicar `entry`, sin aplicarlo. Nunca negativo."""
+    def balance_after(self, entry: CreditEntry) -> tuple[Money, Money]:
+        """(saldo, deuda) resultantes de aplicar `entry`, sin aplicarlo.
+
+        Un abono salda primero la deuda. Un cargo que no cabe en el saldo falla, salvo
+        una devolucion del banco (`CHARGEBACK`): lo que falte pasa a deuda.
+        """
         if entry.professional_id != self.professional_id:
             raise ValidationError("El movimiento pertenece a otra cuenta")
         if entry.amount.currency != self.currency:
             raise CurrencyMismatchError("El movimiento esta en otra divisa que el saldo")
-        new_balance = self.balance.amount_cents + entry.signed_cents
-        if new_balance < 0:
+        net = self.balance.amount_cents - self.debt_cents + entry.signed_cents
+        # Un abono nunca falla, aunque no llegue a saldar toda la deuda.
+        if entry.amount.amount_cents > self.balance.amount_cents and not (
+            entry.kind.is_credit or entry.kind.may_create_debt
+        ):
             raise InsufficientCreditError()
-        return Money(new_balance, self.currency)
+        return Money(max(net, 0), self.currency), Money(max(-net, 0), self.currency)
 
     def apply(self, entry: CreditEntry) -> None:
-        self.balance = self.balance_after(entry)
+        balance, debt = self.balance_after(entry)
+        self.balance = balance
+        self.debt_cents = debt.amount_cents
 
     # ----------------------------- Suscripcion ---------------------------
 
@@ -189,16 +213,34 @@ class ProfessionalAccount:
         self, *, subscription_id: str | None, period_end: datetime | None, at: datetime
     ) -> None:
         """Cobro de la recarga confirmado: la cuenta queda al dia."""
+        if self._is_stale(at):
+            # Ya se aplico un evento posterior. Solo manda si dice algo que este cobro
+            # no resuelve: cancelada, o un cobro fallido despues. Un PENDING es
+            # justo "suscripcion viva sin cobro confirmado" (`sync_subscription` no
+            # activa) y este evento es ese cobro: Stripe no garantiza el orden y el
+            # `subscription.created` suele llegar antes que el `invoice.paid`.
+            # Pero solo si es de ESA suscripcion: un cobro reintentado de una ya
+            # cancelada no paga la nueva (ni le cambia el id o el periodo).
+            if subscription_id is None or subscription_id != self.stripe_subscription_id:
+                return
+            self._extend_period(period_end)
+            if self.subscription_status is SubscriptionStatus.PENDING:
+                # Sin mover `status_synced_at` atras: lo siguiente se compara con el
+                # evento mas reciente.
+                self.subscription_status = SubscriptionStatus.ACTIVE
+            return
         if subscription_id:
             self.stripe_subscription_id = subscription_id
+        self._extend_period(period_end)
+        self.subscription_status = SubscriptionStatus.ACTIVE
+        self._mark_synced(at)
+
+    def _extend_period(self, period_end: datetime | None) -> None:
+        """El periodo pagado solo avanza: un evento reenviado no lo acorta."""
         if period_end is not None and (
             self.current_period_end is None or period_end > self.current_period_end
         ):
             self.current_period_end = period_end
-        if self._is_stale(at):
-            return
-        self.subscription_status = SubscriptionStatus.ACTIVE
-        self._mark_synced(at)
 
     def record_payment_failed(self, *, at: datetime) -> None:
         """Fallo el cobro: sin recarga al dia no se compra."""

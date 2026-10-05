@@ -101,6 +101,32 @@ export const leadFormSchema = leadStepCategorySchema
 
 export type LeadFormValues = z.infer<typeof leadFormSchema>;
 
+/**
+ * Lead que el admin ingresa a mano (captado por un canal externo). Las claves son las
+ * del `<form>` y las del API, no las del formulario publico. Reusa las reglas del
+ * formulario del cliente y añade las del consentimiento, que aqui se registra a mano.
+ */
+export const adminLeadSchema = z.object({
+  category_id: leadStepCategorySchema.shape.categoryId,
+  title: leadStepDetailsSchema.shape.title,
+  description: leadStepDetailsSchema.shape.description,
+  postal_code: coveredPostalCode,
+  client_name: leadStepContactSchema.shape.clientName,
+  client_phone: phoneNumber,
+  client_email: optionalEmail,
+  channel: z.string().trim().min(2, "channelRequired").max(120, "channelTooLong"),
+  policy_version: z.string().trim().min(1, "policyRequired").max(40, "policyTooLong"),
+  campaign_reference: optionalText(200, "campaignTooLong"),
+  // Lo que da un `datetime-local`: hora local sin zona. El backend rechaza el futuro.
+  accepted_at: z
+    .string()
+    .min(1, "acceptedAtRequired")
+    .refine((value) => !Number.isNaN(new Date(value).getTime()), "acceptedAtInvalid")
+    .refine((value) => new Date(value).getTime() <= Date.now(), "acceptedAtFuture"),
+});
+
+export type AdminLeadValues = z.infer<typeof adminLeadSchema>;
+
 export const professionalProfileSchema = z
   .object({
     businessName: z

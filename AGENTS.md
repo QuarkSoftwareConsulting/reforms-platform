@@ -59,18 +59,18 @@ npx -y firebase-tools emulators:start --only auth \
 
 ## 3. Comandos que debes usar
 
-| Objetivo | Comando |
-|---|---|
-| Todo el lint (ruff + mypy strict + eslint + tsc) | `pnpm lint` |
-| Todos los tests (568 back + 113 front) | `pnpm test` |
-| Backend rápido, **sin Docker** (475 tests) | `cd apps/api && uv run pytest -m "not integration"` |
-| Backend completo (requiere `pnpm infra:up`) | `pnpm api:test` |
-| Un solo test de backend | `cd apps/api && uv run pytest tests/unit/domain/test_lead.py -k capping` |
-| Frontend en watch | `pnpm --filter web test:watch` |
-| ¿Modelos y esquema divergen? | `cd apps/api && uv run alembic check` |
-| Flujo de compra end-to-end contra servicios reales | `pnpm verify:flow` |
-| Arreglar lo que `--autogenerate` no hace | `cd apps/api && uv run python -m scripts.fix_migration` |
-| Recrear la BD desde cero | `pnpm infra:reset && pnpm api:migrate && pnpm api:seed` |
+| Objetivo                                           | Comando                                                                  |
+| -------------------------------------------------- | ------------------------------------------------------------------------ |
+| Todo el lint (ruff + mypy strict + eslint + tsc)   | `pnpm lint`                                                              |
+| Todos los tests (669 back + 201 front)             | `pnpm test`                                                              |
+| Backend rápido, **sin Docker** (560 tests)         | `cd apps/api && uv run pytest -m "not integration"`                      |
+| Backend completo (requiere `pnpm infra:up`)        | `pnpm api:test`                                                          |
+| Un solo test de backend                            | `cd apps/api && uv run pytest tests/unit/domain/test_lead.py -k capping` |
+| Frontend en watch                                  | `pnpm --filter web test:watch`                                           |
+| ¿Modelos y esquema divergen?                       | `cd apps/api && uv run alembic check`                                    |
+| Flujo de compra end-to-end contra servicios reales | `pnpm verify:flow`                                                       |
+| Arreglar lo que `--autogenerate` no hace           | `cd apps/api && uv run python -m scripts.fix_migration`                  |
+| Recrear la BD desde cero                           | `pnpm infra:reset && pnpm api:migrate && pnpm api:seed`                  |
 
 **Antes de dar por terminada cualquier tarea: `pnpm lint && pnpm test` en verde.** No
 declares algo hecho si no has ejecutado esto.
@@ -81,14 +81,14 @@ lo que los fakes no pueden ver — ver §7.
 ### Procedimientos documentados
 
 Tres tareas recurrentes tienen su procedimiento escrito paso a paso. En Claude Code son
-*skills* que se invocan solas; con cualquier otra herramienta, **son documentación: ábrela y
+_skills_ que se invocan solas; con cualquier otra herramienta, **son documentación: ábrela y
 síguela**.
 
-| Procedimiento | Cuándo | Archivo |
-|---|---|---|
-| Verificar el flujo de compra | Antes de cerrar un cambio en leads, pagos o auth | `.claude/skills/verificar-flujo-compra/SKILL.md` |
-| Nueva migración | Al cambiar un modelo ORM, o ante `UndefinedColumnError` | `.claude/skills/nueva-migracion/SKILL.md` |
-| Nuevo caso de uso | Al añadir funcionalidad de backend o un endpoint | `.claude/skills/nuevo-caso-de-uso/SKILL.md` |
+| Procedimiento                | Cuándo                                                  | Archivo                                          |
+| ---------------------------- | ------------------------------------------------------- | ------------------------------------------------ |
+| Verificar el flujo de compra | Antes de cerrar un cambio en leads, pagos o auth        | `.claude/skills/verificar-flujo-compra/SKILL.md` |
+| Nueva migración              | Al cambiar un modelo ORM, o ante `UndefinedColumnError` | `.claude/skills/nueva-migracion/SKILL.md`        |
+| Nuevo caso de uso            | Al añadir funcionalidad de backend o un endpoint        | `.claude/skills/nuevo-caso-de-uso/SKILL.md`      |
 
 Los tests marcados `integration` se **omiten solos** si `db-test` no está levantada, con un
 mensaje que indica el comando. Un `skip` no es un `pass`: si tu cambio toca repositorios,
@@ -104,7 +104,7 @@ tuyo las simplifica, el cambio está mal.
 **4.1 · La plaza se reserva ANTES de cobrar.**
 `StartLeadPurchase` bloquea la fila del lead (`SELECT … FOR UPDATE`), cuenta plazas vivas y
 crea la compra en `reserved` con TTL de 30 min, y solo después pide la sesión de checkout.
-*Por qué:* si el cap se validara al confirmar el pago, N profesionales podrían pagar a la
+_Por qué:_ si el cap se validara al confirmar el pago, N profesionales podrían pagar a la
 vez por un lead de 5 plazas y habría que reembolsar a los que sobran.
 → No muevas la validación del cap al webhook. No quites el `FOR UPDATE`.
 
@@ -142,6 +142,9 @@ El dominio rechaza construir un `Lead` con `source=ORGANIC` y `consent=None`.
 `lead_consents` guarda versión de política, IP y user-agent **tomados del servidor**, nunca
 del cuerpo de la petición.
 → No aceptes IP ni user-agent como campos de entrada del API.
+→ La IP sale de `client_ip(request, TRUSTED_PROXY_HOPS)`, contando desde la **derecha** de
+`X-Forwarded-For`: las entradas de la izquierda las escribe el cliente. Si se pone un
+balanceador delante de Cloud Run, sube `TRUSTED_PROXY_HOPS` a 2.
 
 **4.6 · Una compra reembolsada sigue ocupando plaza.**
 El dato personal ya se cedió al profesional. Para retirar un lead problemático se
@@ -156,6 +159,15 @@ de Postgres.
 El backend devuelve `{code, message}`; el frontend traduce **por `code`**, ignorando el
 `message` (que es para desarrolladores). Añadir un código exige tocar tres sitios:
 `app/domain/exceptions/__init__.py`, `apps/web/messages/es.json` y `messages/en.json`.
+→ Una regla que el usuario puede incumplir al rellenar un formulario lleva **su propio código**
+(subclase de `ValidationError`): el `VALIDATION_ERROR` genérico solo dice "revisa el
+formulario" y no sirve para corregir nada. Los límites (`min`/`max`) van en `details` y el
+texto traducido los recibe como `{min}`/`{max}`.
+→ Los value objects (`PhoneNumber`, `Email`, `PostalCode`) lanzan `ValueError`, no
+`DomainError`: conviértelos con `app/application/parsing.py`. Sin eso el usuario recibe un 500.
+→ Los errores de campo del esquema Pydantic llegan en `details.errors` (campo, tipo y límites
+numéricos); `useApiError` los convierte en "Descripción: mínimo 20 caracteres". Un campo
+nuevo en un formulario necesita su etiqueta en `errors.fields` (la ruta con `_` en vez de `.`).
 
 **4.9 · El precio de un contacto lo pone el admin, no la categoría.**
 `Category.suggested_lead_price` es la sugerencia; `Lead.price_override` es la decisión del
@@ -178,9 +190,22 @@ El saldo se gasta dentro del mismo bloqueo que la plaza, con la cuenta en `FOR U
 `processed_payment_events`.
 → Solo `invoice.paid` activa una cuenta. Con SEPA, Stripe marca la suscripción `active`
 mientras el adeudo se procesa: `sync_subscription` no la activa por eso.
+→ Stripe no garantiza el orden: el `customer.subscription.created` (un segundo posterior)
+suele llegar antes que el `invoice.paid`. Un evento "más viejo" se descarta, **salvo** un
+`invoice.paid` sobre una cuenta en `pending`: ese pending es justo "falta el cobro" y el
+evento es el cobro. Sin esa excepción el dinero se abonaba y la cuenta no se activaba.
+→ Antes de abrir otro checkout de la mensualidad se pregunta a Stripe
+(`has_live_subscription`): el webhook puede ir tarde y la BD decir "sin mensualidad" con la
+recarga ya cobrada. Si Stripe no responde, no se abre el checkout.
 → Todo movimiento de saldo pasa por `CreditLedgerService` (compra, caducidad, webhook, job,
 ajuste del admin). Si una reserva con saldo caduca o falla, se devuelve con `SPEND_REVERSAL`.
 → Una compra reembolsada no devuelve saldo sola (§4.6): lo decide el admin con un ajuste.
+→ Una recarga devuelta por el banco (`charge.dispute.*`, adeudo SEPA o disputa) se retira
+con `CHARGEBACK` aunque ya se gastara: lo que falte va a `debt_cents`, nunca a un saldo
+negativo. Con deuda no se compra (`402 CREDIT_DEBT_OUTSTANDING`) y cualquier abono la salda
+primero. Si se gana la disputa, `CHARGEBACK_REVERSAL` devuelve lo retirado. La disputa no
+dice de quién es el cargo: `describe_charge` lo pregunta a Stripe **antes** de abrir la
+transacción. La disputa de una compra de contacto no toca el saldo.
 → El importe lo fija el admin (`PUT /admin/subscription-price`), que crea un precio nuevo en
 Stripe y una fila en `subscription_prices` (append-only; vige la más reciente). Solo afecta
 a las suscripciones nuevas: quien ya paga conserva su importe. Hasta que el admin lo fije,
@@ -202,6 +227,10 @@ genera, caduca y limita los códigos, así que no guardamos ninguno. Con
 → El código se confirma **lo último**, después de validar todo lo demás: se consume al
 confirmarlo y un error en otro campo no debe obligar a pedir otro SMS.
 → `console` escribe el código en el log: `Settings` lo prohíbe fuera de development y test.
+→ Además del límite por teléfono del proveedor, hay un tope por IP y hora
+(`PHONE_VERIFICATION_PER_IP_HOURLY`) contra el "SMS pumping", contado en Postgres
+(`rate_limit_counters`) para que lo compartan todas las instancias. Un número inválido no
+gasta cupo; un fallo del proveedor, sí.
 
 **4.13 · Compra solo quien tiene el alta aprobada; un rechazo reembolsa y cancela.**
 `Professional.verification_status`: `incomplete` → `pending` (el profesional envía el alta)
@@ -228,6 +257,22 @@ firmadas de corta duración en el expediente del admin. El perfil propio no las 
 → Las claves de archivo llevan el id del profesional en el prefijo y se comprueban al
 adjuntarlas: nadie adjunta un archivo subido por otro.
 
+**4.14 · El rol vive en la base de datos; el claim de Firebase solo crea el primer admin.**
+Hay dos roles con cuenta, `professional` y `admin` (`UserRole`). El **cliente no tiene
+cuenta**: publica como invitado (§4.12) y existe solo como `ClientContact` dentro del
+`Lead`; no lo añadas a `UserRole`. El admin da o quita el rol desde el panel
+(`PUT /admin/users/{id}/role`, `ChangeUserRole`) y surte efecto en la siguiente petición,
+sin esperar a que caduque el token. Cada cambio deja un `UserRoleEvent` (append-only, con el
+admin que lo hizo, o `None` si fue la CLI).
+→ `SyncUserFromIdentity` lee el claim `admin` **solo al crear** la fila `users`. Si volviera
+a sincronizarlo en cada petición, un admin degradado recuperaría el acceso con su claim.
+→ Nadie cambia su propio rol (`409 CANNOT_CHANGE_OWN_ROLE`) y no se degrada al último admin
+(`409 LAST_ADMIN`). Para eso, quien degrada a un admin bloquea **todas** las filas de admin
+(`lock_admins`, `FOR UPDATE` en orden de id) antes que la fila objetivo: bloqueando solo la
+objetivo, dos admins degradándose el uno al otro dejarían cero.
+→ `scripts/manage_admin.py` escribe en la BD con las mismas reglas: sirve para el primer
+admin y para recuperar el acceso. No toca Firebase.
+
 ---
 
 ## 5. Fronteras de la arquitectura
@@ -243,7 +288,7 @@ apps/api/app/
   `firebase_admin`, `boto3` ni `pydantic`. Hoy hay 0 imports así; mantenlo en 0.
 - mypy corre en **modo estricto** sobre esos dos paquetes. No añadas `# type: ignore`
   para salir del paso: si el tipo no cuadra, el diseño no cuadra.
-- El único sitio que elige implementaciones concretas es el *composition root*:
+- El único sitio que elige implementaciones concretas es el _composition root_:
   `app/infrastructure/api/dependencies.py`. No instancies adaptadores en otro lado.
 
 Detalle de cómo añadir un caso de uso, un adaptador o un endpoint:
@@ -259,7 +304,7 @@ Detalle de cómo añadir un caso de uso, un adaptador o un endpoint:
 tienen). Las cadenas de cara al usuario viven en `apps/web/messages/*.json` y **sí deben
 llevar acentos correctos** — ver §8.
 
-**Comentarios.** Explican *por qué*, no *qué*. Un comentario que parafrasea la línea
+**Comentarios.** Explican _por qué_, no _qué_. Un comentario que parafrasea la línea
 siguiente es ruido; uno que explica una decisión no obvia evita que alguien la deshaga.
 Imita la densidad del archivo que estés editando.
 
@@ -269,25 +314,22 @@ invoques `python`, `pip` ni `pytest` directamente.
 **TypeScript.** `strict` + `noUncheckedIndexedAccess`. `import type` para lo que solo se
 usa como tipo (eslint lo exige). Alias `@/*` → `src/*`.
 
-**Commits.** Cuerpo explicando el *por qué*, no el listado de archivos. Terminar con:
-```
-Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
-```
-Rama distinta de `main` para cualquier cambio. No hagas `commit` ni `push` sin que te lo
+**Commits.** Cuerpo explicando el _por qué_, no el listado de archivos. Sin línea
+`Co-Authored-By`. Rama distinta de `main` para cualquier cambio. No hagas `commit` ni `push` sin que te lo
 pidan.
 
 ---
 
 ## 7. Tests
 
-| Suite | Qué cubre | Requiere |
-|---|---|---|
-| `tests/unit/domain` | Reglas puras: cap, PII, dinero, transiciones | nada |
-| `tests/unit/use_cases` | Orquestación con fakes in-memory de todos los puertos | nada |
-| `tests/unit/test_stripe_adapter.py` | Adaptador **real** de Stripe (firma HMAC) | nada |
-| `tests/integration` | Repositorios, PostGIS, índices, bloqueo de fila | Docker |
-| `tests/api` | HTTP end-to-end con Firebase/Stripe/S3 falsos | Docker |
-| `apps/web/tests` | Helpers, hooks y componentes (vitest + jsdom) | nada |
+| Suite                               | Qué cubre                                             | Requiere |
+| ----------------------------------- | ----------------------------------------------------- | -------- |
+| `tests/unit/domain`                 | Reglas puras: cap, PII, dinero, transiciones          | nada     |
+| `tests/unit/use_cases`              | Orquestación con fakes in-memory de todos los puertos | nada     |
+| `tests/unit/test_stripe_adapter.py` | Adaptador **real** de Stripe (firma HMAC)             | nada     |
+| `tests/integration`                 | Repositorios, PostGIS, índices, bloqueo de fila       | Docker   |
+| `tests/api`                         | HTTP end-to-end con Firebase/Stripe/S3 falsos         | Docker   |
+| `apps/web/tests`                    | Helpers, hooks y componentes (vitest + jsdom)         | nada     |
 
 Tres reglas aprendidas a golpes:
 
@@ -309,6 +351,7 @@ Tres reglas aprendidas a golpes:
 ## 8. Trampas conocidas
 
 **SQLAlchemy async**
+
 - `session.get(Model, id, options=[selectinload(...)])` devuelve la instancia **ya cacheada
   en la sesión ignorando los `options`**; leer entonces una relación no cargada lanza
   `MissingGreenlet`. Usa `select(...).options(...).execution_options(populate_existing=True)`
@@ -338,7 +381,7 @@ dentro de `pnpm-workspace.yaml`.
 alrededor o el `build` falla al prerenderizar. Ver `publicar/page.tsx`.
 
 **Acentos** — `apps/web/messages/*.json` es texto de cara al usuario y lleva acentos
-correctos (484 claves por idioma). La regla de ASCII puro aplica **solo al código fuente**.
+correctos (631 claves por idioma). La regla de ASCII puro aplica **solo al código fuente**.
 Lo mismo vale para `apps/api/data/categories.csv`, `services.csv`: los nombres de oficio se muestran en la
 landing y en el formulario.
 

@@ -68,15 +68,27 @@ async function buildHeaders(options: RequestOptions, forceRefresh: boolean): Pro
   return headers;
 }
 
+/**
+ * Codigo para una respuesta de error sin el JSON del backend: la escribio un proxy, el
+ * balanceador o Cloud Run, no nuestra API. Se deduce del estado para poder decir algo
+ * util ("vuelve en unos minutos", "archivo demasiado grande") en vez del generico.
+ */
+function codeForStatus(status: number): string {
+  if (status === 413) return "PAYLOAD_TOO_LARGE";
+  if (status === 429) return "TOO_MANY_REQUESTS";
+  if (status >= 500) return "SERVICE_UNAVAILABLE";
+  return "UNEXPECTED_RESPONSE";
+}
+
 async function parseError(response: Response): Promise<ApiError> {
-  let body: ApiErrorBody = { code: "NETWORK_ERROR", message: response.statusText };
+  let body: ApiErrorBody = { code: codeForStatus(response.status), message: response.statusText };
   try {
     const parsed = (await response.json()) as Partial<ApiErrorBody>;
     if (parsed && typeof parsed.code === "string") {
       body = { code: parsed.code, message: parsed.message ?? "", details: parsed.details ?? null };
     }
   } catch {
-    // Respuesta sin JSON (proxy caido, 502...): se queda el error genérico.
+    // Respuesta sin JSON (proxy caido, 502...): se queda el codigo deducido del estado.
   }
   return new ApiError(response.status, body);
 }

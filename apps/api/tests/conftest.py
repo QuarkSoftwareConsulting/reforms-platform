@@ -7,6 +7,7 @@ uso que corren en produccion, sin Postgres, Stripe ni Firebase.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import timedelta
 from uuid import UUID
 
 import pytest
@@ -15,26 +16,33 @@ from app.application.ports import PostalCodeInfo
 from app.application.use_cases import (
     AddProfessionalDocument,
     AdjustProfessionalCredit,
+    ApplyChargeback,
     ApplySubscriptionEvent,
     ApproveProfessional,
     ChangeLeadAvailability,
+    ChangeUserRole,
     CreateLead,
     CreditLedgerService,
     GetAdminMetrics,
     GetLeadDetail,
     GetLeadPricing,
+    GetMetricsTimeseries,
     GetProfessionalAccount,
     GetProfessionalProfile,
     GetVerificationDossier,
     HandlePaymentEvent,
     ListAdminLeads,
     ListAdminProfessionals,
+    ListAdminPurchases,
+    ListAdminUsers,
     ListCategories,
     ListLeadPurchasesForAdmin,
     ListLeads,
     ListMyPurchases,
+    ListUserRoleEvents,
     MarkPurchaseForReview,
     OpenBillingPortal,
+    OriginLimit,
     RejectProfessional,
     ReleaseExpiredReservations,
     RemoveProfessionalDocument,
@@ -77,6 +85,7 @@ from tests.fakes import (
     InMemoryProfessionalRepository,
     InMemoryPurchaseRepository,
     InMemoryPurchaseReviewRepository,
+    InMemoryRateLimiter,
     InMemorySubscriptionPriceRepository,
     InMemoryUnitOfWork,
     InMemoryUserRepository,
@@ -86,6 +95,7 @@ from tests.fakes import (
 WEB_URL = "https://reformahub.test"
 TOPUP = Money(1800, "EUR")
 DEFAULT_TOPUP_PRICE_ID = "price_config_topup"
+SMS_PER_ORIGIN = 3
 
 POSTAL_CODES = [
     PostalCodeInfo(PostalCode("28001"), "Madrid", "Madrid", MADRID),
@@ -118,6 +128,7 @@ class World:
     storage: FakeStorage
     tokens: FakeTokenVerifier
     phone_verifier: FakePhoneVerifier = field(default_factory=FakePhoneVerifier)
+    rate_limiter: InMemoryRateLimiter = field(default_factory=InMemoryRateLimiter)
     private_storage: FakeStorage = field(
         default_factory=lambda: FakeStorage(base_url="https://private.test/reforma-hub")
     )
@@ -161,9 +172,15 @@ class World:
     adjust_credit: AdjustProfessionalCredit = field(init=False)
     pricing: SubscriptionPricing = field(init=False)
     set_subscription_price: SetSubscriptionPrice = field(init=False)
+    change_user_role: ChangeUserRole = field(init=False)
+    list_role_events: ListUserRoleEvents = field(init=False)
+    list_admin_users: ListAdminUsers = field(init=False)
+    list_admin_purchases: ListAdminPurchases = field(init=False)
+    metrics_timeseries: GetMetricsTimeseries = field(init=False)
 
     def __post_init__(self) -> None:
         self.leads.purchase_index = self.purchases
+        self.users.professional_index = self.professionals
         self.credit = CreditLedgerService(accounts=self.accounts, ledger=self.ledger, ids=self.ids)
         self.pricing = SubscriptionPricing(
             prices=self.subscription_prices,
@@ -187,7 +204,16 @@ class World:
             uow=self.uow,
             phone_verifier=self.phone_verifier,
         )
-        self.start_phone_verification = StartPhoneVerification(verifier=self.phone_verifier)
+        self.start_phone_verification = StartPhoneVerification(
+            verifier=self.phone_verifier,
+            origin_limit=OriginLimit(
+                limiter=self.rate_limiter,
+                clock=self.clock,
+                uow=self.uow,
+                limit=SMS_PER_ORIGIN,
+                window=timedelta(hours=1),
+            ),
+        )
         self.list_leads = ListLeads(
             leads=self.leads, categories=self.categories, professionals=self.professionals
         )
@@ -221,6 +247,9 @@ class World:
             credit=self.credit,
             subscriptions=ApplySubscriptionEvent(
                 accounts=self.accounts, credit=self.credit, clock=self.clock
+            ),
+            chargebacks=ApplyChargeback(
+                accounts=self.accounts, ledger=self.ledger, credit=self.credit, clock=self.clock
             ),
         )
         self.my_purchases = ListMyPurchases(
@@ -347,6 +376,27 @@ class World:
             currency="EUR",
         )
 
+        self.change_user_role = ChangeUserRole(
+            users=self.users, clock=self.clock, ids=self.ids, uow=self.uow
+        )
+        self.list_role_events = ListUserRoleEvents(users=self.users)
+        self.list_admin_users = ListAdminUsers(
+            users=self.users,
+            professionals=self.professionals,
+            accounts=self.accounts,
+            clock=self.clock,
+        )
+        self.list_admin_purchases = ListAdminPurchases(
+            purchases=self.purchases,
+            leads=self.leads,
+            categories=self.categories,
+            professionals=self.professionals,
+            reviews=self.reviews,
+        )
+        self.metrics_timeseries = GetMetricsTimeseries(
+            leads=self.leads, purchases=self.purchases, ledger=self.ledger, clock=self.clock
+        )
+
     # ------------------------- atajos de escenario -----------------------
 
     def add_category(self, **kwargs: object) -> Category:
@@ -390,7 +440,7 @@ def world() -> World:
         purchases=InMemoryPurchaseRepository(),
         reviews=InMemoryPurchaseReviewRepository(),
         professionals=InMemoryProfessionalRepository(uow=uow),
-        users=InMemoryUserRepository(),
+        users=InMemoryUserRepository(uow=uow),
         categories=InMemoryCategoryRepository(),
         postal_codes=InMemoryPostalCodeRepository(POSTAL_CODES),
         processed_events=InMemoryProcessedEventRepository(),
