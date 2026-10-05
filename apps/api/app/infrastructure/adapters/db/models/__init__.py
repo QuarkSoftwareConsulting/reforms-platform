@@ -2,6 +2,7 @@ from app.infrastructure.adapters.db.models.base import Base
 from app.infrastructure.adapters.db.models.tables import (
     CategoryRow,
     CreditEntryRow,
+    FeatureFlagRow,
     LeadConsentRow,
     LeadPhotoRow,
     LeadPurchaseRow,
@@ -28,6 +29,7 @@ __all__ = [
     "Base",
     "CategoryRow",
     "CreditEntryRow",
+    "FeatureFlagRow",
     "LeadConsentRow",
     "LeadPhotoRow",
     "LeadPurchaseRow",

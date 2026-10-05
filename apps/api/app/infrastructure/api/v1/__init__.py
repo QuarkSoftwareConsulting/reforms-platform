@@ -2,11 +2,19 @@
 
 from fastapi import APIRouter
 
-from app.infrastructure.api.v1 import admin, catalog, leads, professionals, webhooks
+from app.infrastructure.api.v1 import (
+    admin,
+    catalog,
+    feature_flags,
+    leads,
+    professionals,
+    webhooks,
+)
 
 api_router = APIRouter()
 api_router.include_router(admin.router)
 api_router.include_router(catalog.router)
+api_router.include_router(feature_flags.router)
 api_router.include_router(leads.router)
 api_router.include_router(professionals.router)
 api_router.include_router(webhooks.router)

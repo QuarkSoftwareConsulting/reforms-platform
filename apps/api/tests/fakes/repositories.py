@@ -21,6 +21,7 @@ from app.application.ports import (
     CategoryRepositoryPort,
     CreditLedgerRepositoryPort,
     DailyCount,
+    FeatureFlagRepositoryPort,
     LeadDashboardCounts,
     LeadRepositoryPort,
     LeadSearchFilters,
@@ -44,6 +45,8 @@ from app.domain.models import (
     Category,
     CreditEntry,
     CreditEntryKind,
+    FeatureFlag,
+    FlagEnvironment,
     Lead,
     LeadStatus,
     Professional,
@@ -869,6 +872,20 @@ class InMemorySubscriptionPriceRepository(SubscriptionPriceRepositoryPort):
     async def current(self) -> SubscriptionPrice | None:
         await _round_trip()
         return max(self.items, key=lambda p: p.created_at) if self.items else None
+
+
+class InMemoryFeatureFlagRepository(FeatureFlagRepositoryPort):
+    """Las flags se escriben a mano en la BD: aqui los tests las dejan en `items`."""
+
+    def __init__(self, items: list[FeatureFlag] | None = None) -> None:
+        self.items: list[FeatureFlag] = list(items or [])
+
+    async def list_for(self, environment: FlagEnvironment) -> list[FeatureFlag]:
+        await _round_trip()
+        return sorted(
+            (flag for flag in self.items if flag.environment is environment),
+            key=lambda flag: flag.name,
+        )
 
 
 class InMemoryRateLimiter(RateLimiterPort):

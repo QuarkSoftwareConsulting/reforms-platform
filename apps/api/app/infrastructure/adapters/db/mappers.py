@@ -17,6 +17,7 @@ from app.domain.models import (
     ClientContact,
     ConsentRecord,
     CreditEntry,
+    FeatureFlag,
     Lead,
     LeadLocation,
     LeadPhoto,
@@ -35,6 +36,7 @@ from app.domain.value_objects import Coordinates, Email, Money, PhoneNumber, Pos
 from app.infrastructure.adapters.db.models import (
     CategoryRow,
     CreditEntryRow,
+    FeatureFlagRow,
     LeadPurchaseRow,
     LeadRow,
     PostalCodeRow,
@@ -452,4 +454,14 @@ def subscription_price_to_domain(row: SubscriptionPriceRow) -> SubscriptionPrice
         stripe_price_id=row.stripe_price_id,
         created_at=row.created_at,
         created_by_user_id=row.created_by_user_id,
+    )
+
+
+def feature_flag_to_domain(row: FeatureFlagRow) -> FeatureFlag:
+    return FeatureFlag(
+        name=row.name,
+        version=row.version,
+        environment=row.environment,
+        enabled=row.enabled,
+        description=row.description,
     )

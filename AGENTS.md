@@ -62,8 +62,8 @@ npx -y firebase-tools emulators:start --only auth \
 | Objetivo                                           | Comando                                                                  |
 | -------------------------------------------------- | ------------------------------------------------------------------------ |
 | Todo el lint (ruff + mypy strict + eslint + tsc)   | `pnpm lint`                                                              |
-| Todos los tests (669 back + 201 front)             | `pnpm test`                                                              |
-| Backend rápido, **sin Docker** (560 tests)         | `cd apps/api && uv run pytest -m "not integration"`                      |
+| Todos los tests (681 back + 211 front)             | `pnpm test`                                                              |
+| Backend rápido, **sin Docker** (568 tests)         | `cd apps/api && uv run pytest -m "not integration"`                      |
 | Backend completo (requiere `pnpm infra:up`)        | `pnpm api:test`                                                          |
 | Un solo test de backend                            | `cd apps/api && uv run pytest tests/unit/domain/test_lead.py -k capping` |
 | Frontend en watch                                  | `pnpm --filter web test:watch`                                           |

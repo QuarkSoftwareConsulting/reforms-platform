@@ -37,6 +37,7 @@ from tests.fakes import (
 pytestmark = pytest.mark.integration
 
 TRUNCATE_ORDER = (
+    "feature_flags",
     "processed_payment_events",
     "rate_limit_counters",
     "credit_entries",

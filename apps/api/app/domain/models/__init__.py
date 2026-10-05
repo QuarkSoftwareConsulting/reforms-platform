@@ -22,6 +22,7 @@ from app.domain.models.enums import (
     UserRole,
     VerificationStatus,
 )
+from app.domain.models.feature_flag import FeatureFlag, FlagEnvironment
 from app.domain.models.lead import (
     DEFAULT_MAX_PURCHASES,
     EXPLORER_STATUSES,
@@ -74,6 +75,8 @@ __all__ = [
     "CreditEntry",
     "CreditEntryKind",
     "DocumentKind",
+    "FeatureFlag",
+    "FlagEnvironment",
     "Lead",
     "LeadLocation",
     "LeadPhoto",

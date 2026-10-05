@@ -36,6 +36,7 @@ from app.application.use_cases import (
     ListAdminPurchases,
     ListAdminUsers,
     ListCategories,
+    ListFeatureFlags,
     ListLeadPurchasesForAdmin,
     ListLeads,
     ListMyPurchases,
@@ -59,7 +60,13 @@ from app.application.use_cases import (
     SyncUserFromIdentity,
     UpsertProfessionalProfile,
 )
-from app.domain.models import Category, Professional, ProfessionalAccount, User
+from app.domain.models import (
+    Category,
+    FlagEnvironment,
+    Professional,
+    ProfessionalAccount,
+    User,
+)
 from app.domain.value_objects import Coordinates, Money, PostalCode
 from tests.factories import (
     BARCELONA,
@@ -78,6 +85,7 @@ from tests.fakes import (
     FakeTokenVerifier,
     InMemoryCategoryRepository,
     InMemoryCreditLedgerRepository,
+    InMemoryFeatureFlagRepository,
     InMemoryLeadRepository,
     InMemoryPostalCodeRepository,
     InMemoryProcessedEventRepository,
@@ -128,6 +136,9 @@ class World:
     storage: FakeStorage
     tokens: FakeTokenVerifier
     phone_verifier: FakePhoneVerifier = field(default_factory=FakePhoneVerifier)
+    feature_flags: InMemoryFeatureFlagRepository = field(
+        default_factory=InMemoryFeatureFlagRepository
+    )
     rate_limiter: InMemoryRateLimiter = field(default_factory=InMemoryRateLimiter)
     private_storage: FakeStorage = field(
         default_factory=lambda: FakeStorage(base_url="https://private.test/reforma-hub")
@@ -155,6 +166,7 @@ class World:
     upsert_profile: UpsertProfessionalProfile = field(init=False)
     get_profile: GetProfessionalProfile = field(init=False)
     list_categories: ListCategories = field(init=False)
+    list_feature_flags: ListFeatureFlags = field(init=False)
     request_upload: RequestPhotoUpload = field(init=False)
     lead_pricing: GetLeadPricing = field(init=False)
     set_lead_price: SetLeadPrice = field(init=False)
@@ -308,6 +320,10 @@ class World:
             professionals=self.professionals, categories=self.categories
         )
         self.list_categories = ListCategories(categories=self.categories)
+        # Los tests corren como cualquier despliegue que no es produccion: flags de dev.
+        self.list_feature_flags = ListFeatureFlags(
+            flags=self.feature_flags, environment=FlagEnvironment.DEV
+        )
         self.request_upload = RequestPhotoUpload(storage=self.storage)
         self.lead_pricing = GetLeadPricing(leads=self.leads, categories=self.categories)
         self.set_lead_price = SetLeadPrice(

@@ -8,6 +8,9 @@ from app.infrastructure.adapters.db.repositories.catalog_repository import (
     SqlAlchemyPostalCodeRepository,
     SqlAlchemyProcessedEventRepository,
 )
+from app.infrastructure.adapters.db.repositories.feature_flag_repository import (
+    SqlAlchemyFeatureFlagRepository,
+)
 from app.infrastructure.adapters.db.repositories.lead_repository import SqlAlchemyLeadRepository
 from app.infrastructure.adapters.db.repositories.purchase_repository import (
     SqlAlchemyPurchaseRepository,
@@ -24,6 +27,7 @@ from app.infrastructure.adapters.db.repositories.user_repository import (
 __all__ = [
     "SqlAlchemyCategoryRepository",
     "SqlAlchemyCreditLedgerRepository",
+    "SqlAlchemyFeatureFlagRepository",
     "SqlAlchemyLeadRepository",
     "SqlAlchemyPostalCodeRepository",
     "SqlAlchemyProcessedEventRepository",
