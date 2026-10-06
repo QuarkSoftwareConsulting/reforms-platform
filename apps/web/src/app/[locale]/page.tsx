@@ -41,16 +41,16 @@ const FEATURED_TRADES = [
 ] as const;
 
 const STEPS: { key: "one" | "two" | "three"; icon: LandingIconName }[] = [
-  { key: "one", icon: "document" },
-  { key: "two", icon: "list" },
-  { key: "three", icon: "user" },
+  { key: "one", icon: "review" },
+  { key: "two", icon: "details" },
+  { key: "three", icon: "decide" },
 ];
 
 const ADVANTAGES: { key: "cap" | "price" | "topup" | "privacy"; icon: LandingIconName }[] = [
-  { key: "cap", icon: "group" },
-  { key: "price", icon: "tag" },
-  { key: "topup", icon: "coins" },
-  { key: "privacy", icon: "lock" },
+  { key: "cap", icon: "cap" },
+  { key: "price", icon: "price" },
+  { key: "topup", icon: "topup" },
+  { key: "privacy", icon: "privacy" },
 ];
 
 /** Catalogo cacheado 5 minutos en el servicio: la home se sirve estatica con ISR. */
@@ -199,7 +199,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                   {String(index + 1).padStart(2, "0")}
                 </span>
                 <div>
-                  <LandingIcon name={step.icon} className="size-11" />
+                  <LandingIcon name={step.icon} className="size-14" />
                   <h3 className="mt-3 text-[18px] font-bold leading-[1.3] text-navy">
                     {t(`validation.${step.key}.title`)}
                   </h3>
@@ -224,7 +224,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {ADVANTAGES.map((item) => (
               <li key={item.key} className={cn(SOFT_CARD, "px-5 py-4 lg:px-7")}>
-                <LandingIcon name={item.icon} className="size-14" />
+                <LandingIcon name={item.icon} className="size-16" />
                 <h3 className="mt-3 text-[18px] font-bold leading-[1.3] text-navy">
                   {t(`why.${item.key}.title`)}
                 </h3>
