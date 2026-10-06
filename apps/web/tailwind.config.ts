@@ -22,9 +22,20 @@ export default {
           DEFAULT: "var(--vr-yellow)",
           hover: "var(--vr-yellow-hover)",
           disabled: "var(--vr-yellow-disabled)",
+          soft: "var(--vr-yellow-soft)",
+          strong: "var(--vr-yellow-strong)",
           // Texto sobre el acento deshabilitado. Sobre el acento normal el texto
           // es siempre `ink`: blanco sobre amarillo no cumple AA.
           "on-disabled": "var(--vr-text-on-yellow-disabled)",
+        },
+        cta: {
+          DEFAULT: "var(--vr-orange)",
+          hover: "var(--vr-orange-hover)",
+        },
+        navy: "var(--vr-navy)",
+        sky: {
+          DEFAULT: "var(--vr-sky)",
+          soft: "var(--vr-sky-soft)",
         },
         ink: "var(--vr-ink)",
         page: "var(--vr-bg)",

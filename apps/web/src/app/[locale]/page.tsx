@@ -1,14 +1,15 @@
+import Image from "next/image";
 import Link from "next/link";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { ReactNode } from "react";
 
 import { HomeJsonLd } from "@/components/features/HomeJsonLd";
-import { Container } from "@/components/ui/Container";
-import { LiveDot, Tag } from "@/components/ui/Card";
+import { LandingIcon, type LandingIconName } from "@/components/ui/LandingIcon";
+import { cn } from "@/helpers/cn";
 import { formatMoney } from "@/helpers/currency";
 import { isAppLocale, path, type AppLocale } from "@/i18n/routing";
 import { leadsService } from "@/services/leads.service";
-import type { Category } from "@/types/api";
+import type { CatalogCategory, Money } from "@/types/api";
 
 /** Cap de plazas por solicitud. Lo impone el backend; aqui solo se comunica. */
 const MAX_PROFESSIONALS = 5;
@@ -16,8 +17,41 @@ const MAX_PROFESSIONALS = 5;
 /** Recarga mensual. La cobra el precio de Stripe (`SUBSCRIPTION_TOPUP_CENTS` en el API). */
 const TOPUP_CENTS = 1800;
 
-/** Oficios que caben en el tablero del hero sin alargar la primera pantalla. */
-const BOARD_SIZE = 5;
+/**
+ * Oficios destacados de la landing.
+ *
+ * No son categorias: son servicios del catalogo (`services.csv`) con nombre corto
+ * y foto. El precio es el sugerido de su categoria, que es lo que se cobra. Si el
+ * API no devuelve la categoria o el servicio (retirado), la tarjeta no se pinta:
+ * no anunciamos un oficio que no se puede publicar.
+ */
+const FEATURED_TRADES = [
+  { key: "fullRenovation", image: "01_reforma_integral", category: "reformas", service: "reforma-integral" },
+  { key: "bathrooms", image: "02_banos", category: "reformas", service: "reformas-banos" },
+  { key: "kitchens", image: "03_cocinas", category: "reformas", service: "reformas-cocinas" },
+  { key: "painting", image: "04_pintura", category: "obras-menores", service: "pintores" },
+  { key: "electrical", image: "05_electricidad", category: "instaladores", service: "electricistas" },
+  { key: "plumbing", image: "06_fontaneria", category: "obras-menores", service: "fontaneros" },
+  { key: "carpentry", image: "07_carpinteria", category: "obras-menores", service: "carpinteros" },
+  { key: "locksmith", image: "08_cerrajeria", category: "obras-menores", service: "cerrajeros" },
+  { key: "airConditioning", image: "09_climatizacion", category: "instaladores", service: "aire-acondicionado" },
+  { key: "glazing", image: "10_cristaleria", category: "obras-menores", service: "cristaleros" },
+  { key: "gardening", image: "11_jardineria", category: "mantenimiento", service: "jardineros" },
+  { key: "cleaning", image: "12_limpieza", category: "mantenimiento", service: "limpieza" },
+] as const;
+
+const STEPS: { key: "one" | "two" | "three"; icon: LandingIconName }[] = [
+  { key: "one", icon: "document" },
+  { key: "two", icon: "list" },
+  { key: "three", icon: "user" },
+];
+
+const ADVANTAGES: { key: "cap" | "price" | "topup" | "privacy"; icon: LandingIconName }[] = [
+  { key: "cap", icon: "group" },
+  { key: "price", icon: "tag" },
+  { key: "topup", icon: "coins" },
+  { key: "privacy", icon: "lock" },
+];
 
 /** Catalogo cacheado 5 minutos en el servicio: la home se sirve estatica con ISR. */
 export const revalidate = 300;
@@ -35,14 +69,14 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
   const t = await getTranslations({ locale, namespace: "home" });
 
-  let categories: Category[] = [];
+  let categories: CatalogCategory[] = [];
   try {
     categories = await leadsService.categories(locale);
   } catch {
     // Si el API no responde, la landing sigue siendo util: mostramos el resto.
   }
 
-  const cheapest = categories.reduce<Category | null>(
+  const cheapest = categories.reduce<CatalogCategory | null>(
     (min, category) =>
       min === null ||
       category.suggested_lead_price.amount_cents < min.suggested_lead_price.amount_cents
@@ -52,172 +86,152 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   );
 
   const publishHref = path(locale, "publish");
-  const tradeHref = (category: Category) => `${publishHref}?category=${category.slug}`;
+  const projectsHref = path(locale, "projects");
+
+  const trades = FEATURED_TRADES.flatMap((trade) => {
+    const category = categories.find((c) => c.slug === trade.category);
+    if (!category?.services.some((s) => s.slug === trade.service)) return [];
+    return [
+      {
+        ...trade,
+        price: category.suggested_lead_price,
+        href: `${publishHref}?category=${trade.category}&service=${trade.service}`,
+      },
+    ];
+  });
 
   return (
     <>
       <HomeJsonLd locale={locale} categories={categories} />
 
       {/* ---------------------------------------------------------------- Hero */}
-      <section className="bg-surface">
-        <Container className="grid gap-14 py-14 lg:grid-cols-[1.05fr_1fr] lg:items-center lg:py-16">
-          <div>
-            <p className="mb-4 text-label font-semibold uppercase text-brand">
-              {t("heroEyebrow")}
-            </p>
-            <h1 className="text-[2.5rem] font-extrabold leading-[1.05] tracking-[-1.4px] text-ink sm:text-[3.25rem] lg:text-[3.875rem]">
-              {t.rich("heroTitle", {
-                mark: (chunks) => <span className="vr-highlight">{chunks}</span>,
-              })}
+      <section className="relative overflow-hidden bg-surface">
+        <BleedPhoto src="/images/hero.png" alt={t("heroImageAlt")} priority />
+        <div className={cn(WIDE, "relative py-10 lg:flex lg:min-h-[345px] lg:items-center lg:py-12 lg:pl-[72px]")}>
+          <div className="lg:max-w-[50%]">
+            <h1 className="text-[2.25rem] font-bold leading-[1.15] tracking-[-0.8px] text-navy lg:text-[2.625rem]">
+              {t("heroTitle")}
             </h1>
-            <p className="mt-5 max-w-[480px] text-[19px] leading-[1.6] text-secondary">
+            <p className="mt-3 max-w-[600px] text-[17px] leading-[1.5] text-secondary">
               {t("heroSubtitle")}
             </p>
 
-            <div className="mt-7 flex flex-wrap gap-3">
+            <div className="mt-6 flex flex-wrap gap-4">
               <Link
-                href={path(locale, "register")}
-                className="inline-flex min-h-[56px] items-center rounded-control bg-brand px-8 text-[17px] font-semibold text-surface transition-colors hover:bg-brand-hover"
+                href={projectsHref}
+                className="inline-flex min-h-[50px] items-center rounded-tag bg-brand px-8 text-[16px] font-semibold text-surface transition-colors hover:bg-brand-hover"
               >
                 {t("heroProCta")}
               </Link>
               <Link
                 href={publishHref}
-                className="inline-flex min-h-[56px] items-center rounded-control border-[1.5px] border-line-strong px-8 text-[17px] font-semibold text-ink transition-colors hover:border-brand hover:text-brand"
+                className="inline-flex min-h-[50px] items-center rounded-tag border border-line-strong bg-surface px-8 text-[16px] font-semibold text-navy transition-colors hover:border-brand hover:text-brand"
               >
                 {t("heroClientCta")}
               </Link>
             </div>
-
-            {categories.length > 0 && (
-              <ul className="mt-7 flex flex-wrap gap-2">
-                {categories.slice(0, 6).map((category) => (
-                  <li key={category.id}>
-                    <Link
-                      href={tradeHref(category)}
-                      className="inline-flex rounded-full border border-line px-3.5 py-2 text-sm text-ink transition-colors hover:border-brand hover:text-brand"
-                    >
-                      {category.name}
-                    </Link>
-                  </li>
-                ))}
-                <li>
-                  <Link
-                    href="#oficios"
-                    className="inline-flex rounded-full border border-line px-3.5 py-2 text-sm text-brand"
-                  >
-                    {t("heroMoreTrades")}
-                  </Link>
-                </li>
-              </ul>
-            )}
           </div>
-
-          {/* Tablero: oficios reales del catalogo con su precio real. No hay
-              fichas de ejemplo — el listado de contactos exige sesion. */}
-          {categories.length > 0 && (
-            <aside className="rounded-panel border border-line bg-page p-5">
-              <div className="mb-3.5 flex items-center justify-between gap-3 px-1">
-                <p className="text-sm font-semibold text-ink">{t("board.title")}</p>
-                <LiveDot>{t("board.live")}</LiveDot>
-              </div>
-              <ul className="space-y-2.5">
-                {categories.slice(0, BOARD_SIZE).map((category) => (
-                  <li key={category.id}>
-                    <Link
-                      href={tradeHref(category)}
-                      className="flex items-center justify-between gap-4 rounded-option border border-line bg-surface px-[18px] py-4 transition-colors hover:border-brand"
-                    >
-                      <span className="min-w-0">
-                        <Tag>{category.name}</Tag>
-                      </span>
-                      <span className="shrink-0 text-right">
-                        <span className="block text-[11px] uppercase tracking-[0.7px] text-muted">
-                          {t("board.price")}
-                        </span>
-                        <span className="block text-[19px] font-bold text-brand">
-                          {formatMoney(category.suggested_lead_price, locale)}
-                        </span>
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-              <Link
-                href="#oficios"
-                className="mt-3.5 inline-block px-1 text-sm font-semibold text-brand underline underline-offset-4 hover:text-brand-hover"
-              >
-                {t("board.all", { count: categories.length })}
-              </Link>
-            </aside>
-          )}
-        </Container>
-      </section>
-
-      {/* ------------------------------------------------- Como se valida */}
-      <section id="como-validamos" className="scroll-mt-20 border-t border-line bg-page py-16">
-        <Container>
-          <SectionHeading title={t("validation.title")} subtitle={t("validation.subtitle")} />
-          <ol className="mt-10 grid gap-5 md:grid-cols-3">
-            {(["one", "two", "three"] as const).map((step, index) => (
-              <li
-                key={step}
-                className="rounded-card border border-line bg-surface p-6"
-              >
-                <span className="text-[13px] font-bold tracking-[1.2px] text-brand">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                <h3 className="mt-2 text-card-title font-semibold text-ink">
-                  {t(`validation.${step}.title`)}
-                </h3>
-                <p className="mt-2 text-[14.5px] leading-[1.6] text-secondary">
-                  {t(`validation.${step}.body`)}
-                </p>
-              </li>
-            ))}
-          </ol>
-        </Container>
+        </div>
       </section>
 
       {/* ------------------------------------------------------- Oficios */}
-      {categories.length > 0 && (
-        <section id="oficios" className="scroll-mt-20 bg-surface py-16">
-          <Container>
-            <SectionHeading title={t("trades.title")} subtitle={t("trades.subtitle")} />
-            <ul className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {categories.map((category) => (
-                <li key={category.id}>
+      {trades.length > 0 && (
+        <section id="oficios" className="scroll-mt-20 bg-surface pb-5 pt-7">
+          <div className={WIDE}>
+            <SectionHeading
+              eyebrow={t("trades.eyebrow")}
+              title={t("trades.title")}
+              subtitle={t("trades.subtitle")}
+            />
+            <ul className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+              {trades.map((trade) => (
+                <li key={trade.key}>
                   <Link
-                    href={tradeHref(category)}
-                    className="flex h-full items-center justify-between gap-4 rounded-option border border-line bg-surface px-[18px] py-4 transition-colors hover:border-brand"
+                    href={trade.href}
+                    className={cn(SOFT_CARD, "group block h-full overflow-hidden")}
                   >
-                    <span className="text-[15px] font-semibold text-ink">{category.name}</span>
-                    <span className="shrink-0 text-[17px] font-bold text-brand">
-                      {formatMoney(category.suggested_lead_price, locale)}
+                    <span className="relative block aspect-[8/5] bg-page">
+                      <Image
+                        src={`/images/${trade.image}.webp`}
+                        alt=""
+                        fill
+                        sizes="(min-width: 1024px) 200px, (min-width: 640px) 33vw, 50vw"
+                        className="object-cover"
+                      />
+                    </span>
+                    <span className="block px-3.5 pb-3.5 pt-2.5">
+                      <span className="block text-[15px] font-bold text-navy group-hover:text-brand">
+                        {t(`trades.items.${trade.key}`)}
+                      </span>
+                      <span className="mt-1 block text-[15px] text-ink">
+                        {t("trades.from", { price: formatPrice(trade.price, locale) })}
+                      </span>
                     </span>
                   </Link>
                 </li>
               ))}
             </ul>
-            <p className="mt-5 text-[14.5px] text-muted">{t("trades.note")}</p>
-          </Container>
+            <div className="mt-4 text-center">
+              <Link
+                href={publishHref}
+                className="inline-flex items-center gap-1.5 text-[15px] font-semibold text-brand hover:text-brand-hover"
+              >
+                {t("trades.all")}
+                <span aria-hidden>→</span>
+              </Link>
+            </div>
+          </div>
         </section>
       )}
 
-      {/* ------------------------------------------------- Por que distinto */}
-      <section className="border-t border-line bg-page py-16">
-        <Container>
-          <SectionHeading title={t("why.title")} subtitle={t("why.subtitle")} />
-          <ul className="mt-10 grid gap-5 sm:grid-cols-2">
-            {(["cap", "price", "topup", "privacy"] as const).map((item) => (
-              <li key={item} className="rounded-card border border-line bg-surface p-6">
-                <h3 className="text-card-title font-semibold text-ink">
-                  {t(`why.${item}.title`, { maxProfessionals: MAX_PROFESSIONALS })}
+      {/* ------------------------------------------------- Como se valida */}
+      <section id="como-validamos" className="scroll-mt-20 bg-sky py-6">
+        <div className={WIDE}>
+          <SectionHeading
+            eyebrow={t("validation.eyebrow")}
+            title={t("validation.title")}
+            subtitle={t("validation.subtitle")}
+          />
+          <ol className="mt-6 grid gap-4 md:grid-cols-3">
+            {STEPS.map((step, index) => (
+              <li key={step.key} className={cn(SOFT_CARD, "flex gap-4 p-5 lg:px-6")}>
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[16px] font-bold text-accent-strong">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <div>
+                  <LandingIcon name={step.icon} className="size-11" />
+                  <h3 className="mt-3 text-[18px] font-bold leading-[1.3] text-navy">
+                    {t(`validation.${step.key}.title`)}
+                  </h3>
+                  <p className="mt-1 text-[15.5px] leading-[1.45] text-secondary">
+                    {t(`validation.${step.key}.body`)}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      {/* ------------------------------------------------------- Ventajas */}
+      <section className="bg-sky-soft py-6">
+        <div className={WIDE}>
+          <SectionHeading
+            eyebrow={t("why.eyebrow")}
+            title={t("why.title")}
+            subtitle={t("why.subtitle")}
+          />
+          <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {ADVANTAGES.map((item) => (
+              <li key={item.key} className={cn(SOFT_CARD, "px-5 py-4 lg:px-7")}>
+                <LandingIcon name={item.icon} className="size-14" />
+                <h3 className="mt-3 text-[18px] font-bold leading-[1.3] text-navy">
+                  {t(`why.${item.key}.title`)}
                 </h3>
-                <p className="mt-2 text-[14.5px] leading-[1.6] text-secondary">
-                  {t(`why.${item}.body`, {
+                <p className="mt-1.5 text-[15.5px] leading-[1.45] text-secondary">
+                  {t(`why.${item.key}.body`, {
                     maxProfessionals: MAX_PROFESSIONALS,
-                    amount: formatMoney(
+                    amount: formatPrice(
                       { amount_cents: TOPUP_CENTS, currency: "EUR", formatted: "" },
                       locale,
                     ),
@@ -226,62 +240,113 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               </li>
             ))}
           </ul>
-        </Container>
+        </div>
       </section>
 
       {/* --------------------------------------------------------- Precio */}
-      <section id="precios" className="scroll-mt-20 bg-surface py-16">
-        <Container>
-          <div className="rounded-panel border border-line bg-page p-8 sm:p-10">
-            <p className="text-label font-semibold uppercase text-brand">
-              {t("pricing.eyebrow")}
-            </p>
-            <h2 className="mt-3 max-w-2xl text-h2 font-bold text-ink">
-              {cheapest
+      <section id="precios" className="scroll-mt-20 bg-surface py-6">
+        <div className={WIDE}>
+          <SectionHeading
+            eyebrow={t("pricing.eyebrow")}
+            title={
+              cheapest
                 ? t("pricing.headline", {
-                    price: formatMoney(cheapest.suggested_lead_price, locale),
+                    price: formatPrice(cheapest.suggested_lead_price, locale),
                   })
-                : t("pricing.headlineFallback")}
-            </h2>
-            <p className="mt-4 max-w-2xl text-[15.5px] leading-[1.6] text-secondary">
-              {t("pricing.body")}
-            </p>
+                : t("pricing.headlineFallback")
+            }
+            subtitle={t("pricing.body")}
+          />
+          <div className="mt-5 text-center">
             <Link
-              href={path(locale, "register")}
-              className="mt-7 inline-flex min-h-12 items-center rounded-control border-[1.5px] border-line-strong bg-surface px-[26px] text-base font-semibold text-ink transition-colors hover:border-brand hover:text-brand"
+              href={projectsHref}
+              className="inline-flex min-h-[44px] items-center rounded-tag bg-brand px-7 text-[16px] font-semibold text-surface transition-colors hover:bg-brand-hover"
             >
               {t("pricing.cta")}
             </Link>
           </div>
-        </Container>
+        </div>
       </section>
 
-      {/* ---------------------------------------------------- CTA cliente */}
-      <section className="bg-ink py-14">
-        <Container className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-h2 font-bold text-surface">{t("clientBanner.title")}</h2>
-            <p className="mt-2 max-w-xl text-[15.5px] leading-[1.6] text-line-strong">
+      {/* ---------------------------------------------------- Particulares */}
+      <section className="relative overflow-hidden bg-surface">
+        <BleedPhoto src="/images/bottom.png" alt={t("clientBanner.imageAlt")} />
+        <div className={cn(WIDE, "relative py-8 lg:flex lg:min-h-[232px] lg:items-center")}>
+          <div className="lg:max-w-[44%]">
+            <p className="text-[12px] font-semibold uppercase tracking-[0.6px] text-brand">
+              {t("clientBanner.eyebrow")}
+            </p>
+            <h2 className="mt-1.5 text-[32px] font-bold leading-[1.2] tracking-[-0.5px] text-navy">
+              {t("clientBanner.title")}
+            </h2>
+            <p className="mt-2 text-[16px] leading-[1.45] text-secondary">
               {t("clientBanner.body")}
             </p>
+            <Link
+              href={publishHref}
+              className="mt-4 inline-flex min-h-[42px] items-center rounded-tag bg-cta px-7 text-[17px] font-bold text-surface transition-colors hover:bg-cta-hover"
+            >
+              {t("clientBanner.cta")}
+            </Link>
+            <p className="mt-3 text-[15px] text-secondary">{t("clientBanner.note")}</p>
           </div>
-          <Link
-            href={publishHref}
-            className="inline-flex min-h-[56px] shrink-0 items-center justify-center rounded-control bg-accent px-8 text-[17px] font-semibold text-ink transition-colors hover:bg-accent-hover"
-          >
-            {t("clientBanner.cta")}
-          </Link>
-        </Container>
+        </div>
       </section>
     </>
   );
 }
 
-function SectionHeading({ title, subtitle }: { title: string; subtitle: ReactNode }) {
+/** Ancho de las secciones de la landing: mas ancho que el de la app, como en el diseno. */
+const WIDE = "mx-auto w-full max-w-[1366px] px-5 sm:px-12";
+
+/** Tarjeta de la landing: sin borde y con sombra suave, como en el diseno. */
+const SOFT_CARD = "rounded-tag bg-surface shadow-[0_2px_10px_rgba(21,40,74,0.08)]";
+
+/** Precio sin decimales cuando es redondo: "Desde 5 €" se lee mejor que "5,00 €". */
+function formatPrice(money: Money, locale: AppLocale): string {
+  return formatMoney(money, locale, { trimZeroCents: true });
+}
+
+/**
+ * Foto a sangre en la mitad derecha de la seccion, fundida con el fondo por la
+ * izquierda para que el texto no quede recortado contra el borde de la imagen.
+ * En movil va debajo del texto, sin fundido.
+ */
+function BleedPhoto({ src, alt, priority }: { src: string; alt: string; priority?: boolean }) {
   return (
-    <div className="max-w-2xl">
-      <h2 className="text-h2 font-bold text-ink">{title}</h2>
-      <p className="mt-3 text-[15.5px] leading-[1.6] text-secondary">{subtitle}</p>
+    <div className="relative aspect-[16/10] lg:absolute lg:inset-y-0 lg:right-0 lg:aspect-auto lg:w-[56%]">
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        priority={priority}
+        sizes="(min-width: 1024px) 56vw, 100vw"
+        className="object-cover object-[center_30%]"
+      />
+      <div
+        aria-hidden
+        className="absolute inset-y-0 left-0 -ml-px hidden w-2/5 bg-gradient-to-r from-surface from-10% via-surface/60 to-transparent lg:block"
+      />
+    </div>
+  );
+}
+
+function SectionHeading({
+  eyebrow,
+  title,
+  subtitle,
+}: {
+  eyebrow: string;
+  title: string;
+  subtitle: ReactNode;
+}) {
+  return (
+    <div className="mx-auto max-w-5xl text-center">
+      <p className="text-[12px] font-semibold uppercase tracking-[0.6px] text-brand">{eyebrow}</p>
+      <h2 className="mt-1 text-[28px] font-bold leading-[1.25] tracking-[-0.5px] text-navy">
+        {title}
+      </h2>
+      <p className="mt-1.5 text-[16px] leading-[1.5] text-secondary">{subtitle}</p>
     </div>
   );
 }

@@ -19,13 +19,22 @@ export function toUnits(amountCents: number, currency: string): number {
  * Se usa `Intl` en vez de concatenar el simbolo: en espanol el euro va detras
  * ("5,00 €") y en ingles delante ("€5.00").
  */
-export function formatMoney(money: Money, locale: Locale = "es"): string {
+export function formatMoney(
+  money: Money,
+  locale: Locale = "es",
+  { trimZeroCents = false }: { trimZeroCents?: boolean } = {},
+): string {
   const value = toUnits(money.amount_cents, money.currency);
+  // Solo para textos de marketing ("Desde 5 €"). Un importe que se cobra siempre
+  // lleva sus decimales, para que no parezca redondeado.
+  const noDecimals =
+    ZERO_DECIMAL_CURRENCIES.has(money.currency) || (trimZeroCents && Number.isInteger(value));
   try {
     return new Intl.NumberFormat(LOCALE_TAGS[locale], {
       style: "currency",
       currency: money.currency,
-      minimumFractionDigits: ZERO_DECIMAL_CURRENCIES.has(money.currency) ? 0 : 2,
+      minimumFractionDigits: noDecimals ? 0 : 2,
+      ...(noDecimals && { maximumFractionDigits: 0 }),
     }).format(value);
   } catch {
     // Divisa desconocida por Intl: se cae al formato que ya trae el backend.

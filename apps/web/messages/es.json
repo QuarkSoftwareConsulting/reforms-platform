@@ -30,72 +30,87 @@
     "geonames": "Códigos postales: datos de <source>GeoNames</source>, adaptados, con licencia <license>CC BY 4.0</license>."
   },
   "home": {
-    "title": "Contactos de reforma verificados por teléfono en toda España",
-    "subtitle": "Llamamos a cada cliente antes de publicar su solicitud. Ves el trabajo, la zona y el precio del contacto antes de pagar. Tu mensualidad se convierte en saldo para comprar contactos.",
-    "heroEyebrow": "Contactos verificados · España",
-    "heroTitle": "El trabajo ya está <mark>comprobado</mark>. Solo falta tu llamada.",
-    "heroSubtitle": "Llamamos a cada persona antes de publicar su solicitud. Tú ves el trabajo, la zona y el precio del contacto, y decides si lo compras.",
-    "heroProCta": "Ver contactos de mi gremio",
+    "title": "Clientes verificados para profesionales de reformas en Madrid",
+    "subtitle": "Verificamos cada solicitud antes de publicarla. Ves el trabajo, la zona y el precio del contacto antes de comprarlo. Tu mensualidad se convierte en saldo para comprar contactos.",
+    "heroTitle": "Clientes verificados para profesionales de reformas",
+    "heroSubtitle": "Verificamos cada solicitud antes de publicarla. Tú ves el trabajo, la zona y el precio del contacto antes de decidir si quieres comprarlo.",
+    "heroProCta": "Ver contactos disponibles",
     "heroClientCta": "Necesito una reforma",
-    "heroMoreTrades": "Ver todos los oficios",
-    "board": {
+    "heroImageAlt": "Un profesional muestra una propuesta en una tableta a una pareja junto a muestras de materiales",
+    "trades": {
+      "eyebrow": "Oficios",
       "title": "Oficios y precio del contacto",
-      "live": "catálogo en vivo",
-      "price": "Contacto",
-      "all": "Ver los {count} oficios"
-    },
-    "validation": {
-      "title": "Un contacto no se publica hasta que pasa estos tres pasos",
-      "subtitle": "El mismo proceso para todos los gremios, sin excepciones.",
-      "one": {
-        "title": "Comprobamos la solicitud",
-        "body": "Confirmamos que el trabajo es real y que la persona quiere recibir presupuestos ahora."
-      },
-      "two": {
-        "title": "Anotamos alcance y zona",
-        "body": "Qué hay que hacer y dónde. El código postal define el municipio y la provincia que ves en la ficha."
-      },
-      "three": {
-        "title": "Publicamos con precio cerrado",
-        "body": "El contacto sale al listado con su precio visible. Sabes cuánto cuesta antes de pagarlo."
+      "subtitle": "Consulta el precio de referencia de cada oficio. Después, dentro de cada ficha, podrás ver el precio exacto de cada contacto.",
+      "from": "Desde {price}",
+      "all": "Ver todos los oficios",
+      "contactLabel": "Contacto",
+      "items": {
+        "fullRenovation": "Reforma integral",
+        "bathrooms": "Baños",
+        "kitchens": "Cocinas",
+        "painting": "Pintura",
+        "electrical": "Electricidad",
+        "plumbing": "Fontanería",
+        "carpentry": "Carpintería",
+        "locksmith": "Cerrajería",
+        "airConditioning": "Climatización",
+        "glazing": "Cristalería",
+        "gardening": "Jardinería",
+        "cleaning": "Limpieza"
       }
     },
-    "trades": {
-      "title": "Oficios y precio del contacto",
-      "subtitle": "El precio que ves es el de referencia del oficio. Cada contacto muestra su precio exacto en su ficha.",
-      "note": "Publicar una solicitud es gratis y no necesitas crear cuenta."
+    "validation": {
+      "eyebrow": "Proceso",
+      "title": "Antes de llegar a ti, cada solicitud sigue un proceso claro",
+      "subtitle": "Queremos que tengas la información necesaria para decidir si una oportunidad encaja contigo.",
+      "one": {
+        "title": "Revisamos la solicitud",
+        "body": "Recopilamos la información necesaria sobre el trabajo solicitado."
+      },
+      "two": {
+        "title": "Organizamos los detalles",
+        "body": "Tipo de trabajo, descripción y ubicación para que puedas valorar la oportunidad."
+      },
+      "three": {
+        "title": "Tú decides",
+        "body": "Ves la información disponible y el precio del contacto antes de comprarlo."
+      }
     },
     "why": {
-      "title": "Por qué comprar aquí es distinto",
-      "subtitle": "Cuatro reglas del producto que no dependen de la buena voluntad de nadie: están en el código.",
+      "eyebrow": "Ventajas",
+      "title": "Todo más claro para que puedas decidir mejor",
+      "subtitle": "Consulta la información de cada oportunidad y elige con tranquilidad las que mejor encajan contigo.",
       "cap": {
-        "title": "Como máximo {maxProfessionals} profesionales por solicitud",
-        "body": "Cada solicitud se vende a {maxProfessionals} profesionales y ni uno más. No compites contra una lista interminable."
+        "title": "Menos profesionales por oportunidad",
+        "body": "Cada solicitud puede ser adquirida por un máximo de {maxProfessionals} profesionales."
       },
       "price": {
-        "title": "El precio del contacto se ve antes de pagar",
-        "body": "Cada ficha lleva su importe a la vista. No hay paquetes, ni bonos, ni precios que cambien al llegar al pago."
+        "title": "Sabes el precio antes de comprar",
+        "body": "Puedes consultar el importe del contacto antes de decidir."
       },
       "topup": {
         "title": "Tu mensualidad se convierte en saldo",
-        "body": "Cada mes se cargan {amount} que se suman a tu saldo para comprar los contactos que elijas. Consultar el listado no cuesta nada."
+        "body": "Los {amount} mensuales pasan a tu saldo para utilizarlos en los contactos que elijas."
       },
       "privacy": {
-        "title": "El teléfono del cliente solo lo ve quien compra",
-        "body": "En el listado público únicamente aparecen el trabajo y la zona. El nombre y el teléfono se entregan tras el pago."
+        "title": "Los datos del cliente están protegidos",
+        "body": "El teléfono, el email y el nombre completo solo se muestran después de comprar el contacto."
       }
     },
     "pricing": {
-      "eyebrow": "Precio transparente",
-      "headline": "Desde {price} el contacto",
+      "eyebrow": "Empieza hoy",
+      "headline": "Empieza desde {price} por contacto",
       "headlineFallback": "Pagas por contacto. Nada más.",
-      "body": "Con tu mensualidad al día, cada contacto se paga con tu saldo y el precio está visible en cada ficha. Cada compra queda registrada con el importe que pagaste.",
-      "cta": "Crear cuenta gratis"
+      "body": "Consulta las oportunidades disponibles y utiliza tu saldo únicamente en aquellas que tengan sentido para tu negocio.",
+      "cta": "Ver oportunidades disponibles"
     },
     "clientBanner": {
-      "title": "¿Vas a reformar tu casa?",
-      "body": "Cuéntanos qué necesitas y te ponemos en contacto con profesionales de tu zona. Gratis y sin crear cuenta.",
-      "cta": "Pedir presupuesto"
+      "eyebrow": "Para particulares",
+      "title": "¿Tienes una reforma en mente?",
+      "body": "Cuéntanos qué necesitas y publica tu solicitud para que profesionales de tu zona puedan conocer tu proyecto.",
+      "cta": "Publicar mi reforma",
+      "note": "Gratis y sin necesidad de crear una cuenta.",
+      "imageAlt": "Un profesional revisa con una clienta el proyecto de su reforma"
     }
   },
   "publish": {

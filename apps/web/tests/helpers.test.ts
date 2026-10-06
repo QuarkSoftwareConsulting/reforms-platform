@@ -27,6 +27,17 @@ describe("currency", () => {
     expect(formatMoney(FIVE_EUR, "en")).toBe("€5.00");
   });
 
+  it("drops the cents of a round amount only when asked", () => {
+    expect(formatMoney(FIVE_EUR, "es", { trimZeroCents: true }).replace(/\u00a0/g, " ")).toBe("5 €");
+    expect(formatMoney(FIVE_EUR, "en", { trimZeroCents: true })).toBe("€5");
+    // Un importe con centimos los conserva: recortarlos lo redondearia.
+    expect(
+      formatMoney({ amount_cents: 1250, currency: "EUR", formatted: "" }, "en", {
+        trimZeroCents: true,
+      }),
+    ).toBe("€12.50");
+  });
+
   it("renders unknown but well-formed currency codes as-is", () => {
     // Intl acepta cualquier codigo de tres letras: no hace falta fallback aqui.
     expect(formatMoney({ amount_cents: 500, currency: "XYZ", formatted: "" })).toContain("XYZ");

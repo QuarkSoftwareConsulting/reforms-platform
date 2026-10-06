@@ -15,6 +15,18 @@
   --vr-yellow-disabled: #f6ebc6;
   --vr-ink: #1f2937;
   --vr-white: #ffffff;
+  /* Azul marino de la cabecera y de los titulares de la landing. */
+  --vr-navy: #15284a;
+  /* CTA de particulares, el naranja del diseno. Con texto blanco da 3:1: solo
+     cumple AA como texto grande, por eso el boton lleva 17px en negrita. */
+  --vr-orange: #f96d20;
+  --vr-orange-hover: #e0560c;
+  /* Fondos de las secciones "Proceso" y "Ventajas" de la landing. */
+  --vr-sky: #e2f3fe;
+  --vr-sky-soft: #ebf6fd;
+  /* Circulo numerado de los pasos del proceso. */
+  --vr-yellow-soft: #fef2dc;
+  --vr-yellow-strong: #e08a00;
 
   /* Neutros */
   --vr-bg: #f4f6fa;
