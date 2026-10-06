@@ -62,7 +62,7 @@ export async function HomeJsonLd({
             // El precio anunciado es el del contacto, no el de la reforma.
             price: (category.suggested_lead_price.amount_cents / 100).toFixed(2),
             priceCurrency: category.suggested_lead_price.currency,
-            category: t("board.price"),
+            category: t("trades.contactLabel"),
           },
         },
       })),

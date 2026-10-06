@@ -23,8 +23,11 @@ vi.mock("@/services/leads.service", () => ({
   },
 }));
 
+/** Query string de la URL de entrada; cada test parte de una vacia. */
+let searchParams = new URLSearchParams();
+
 vi.mock("next/navigation", () => ({
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => searchParams,
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
 
@@ -80,6 +83,7 @@ async function pickProjectData(user: ReturnType<typeof userEvent.setup>): Promis
 
 describe("LeadWizard", () => {
   beforeEach(() => {
+    searchParams = new URLSearchParams();
     // Por defecto, como hoy en produccion: el entorno no verifica por SMS.
     startPhoneVerification.mockReset();
     startPhoneVerification.mockResolvedValue({ required: false });
@@ -186,6 +190,39 @@ describe("LeadWizard", () => {
     expect(screen.queryByRole("checkbox", { name: "Puertas" })).toBeNull();
     await user.click(screen.getByRole("radio", { name: /Carpinteria/i }));
     expect(screen.getByRole("checkbox", { name: "Puertas" })).toHaveProperty("checked", false);
+  });
+
+  it("arrives from the landing with the trade and its service already chosen", async () => {
+    searchParams = new URLSearchParams("category=carpinteria&service=puertas");
+    const user = userEvent.setup();
+    renderWithIntl(<LeadWizard categories={CATEGORIES} />);
+
+    expect(await screen.findByRole("radio", { name: /Carpinteria/i })).toHaveProperty(
+      "checked",
+      true,
+    );
+    expect(await screen.findByRole("checkbox", { name: "Puertas" })).toHaveProperty(
+      "checked",
+      true,
+    );
+
+    // Marcado una sola vez: si el usuario lo quita, no vuelve a aparecer.
+    await user.click(screen.getByRole("checkbox", { name: "Puertas" }));
+    expect(screen.getByRole("checkbox", { name: "Puertas" })).toHaveProperty("checked", false);
+  });
+
+  it("ignores a service that does not belong to the preset trade", async () => {
+    searchParams = new URLSearchParams("category=carpinteria&service=no-existe");
+    renderWithIntl(<LeadWizard categories={CATEGORIES} />);
+
+    expect(await screen.findByRole("checkbox", { name: "Puertas" })).toHaveProperty(
+      "checked",
+      false,
+    );
+    expect(screen.getByRole("checkbox", { name: "Armarios a medida" })).toHaveProperty(
+      "checked",
+      false,
+    );
   });
 
   it("blocks submission until the privacy consent is accepted", async () => {

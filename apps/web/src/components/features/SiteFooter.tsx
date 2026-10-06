@@ -30,7 +30,7 @@ export async function SiteFooter() {
   ];
 
   return (
-    <footer className="bg-ink py-10 text-line-strong">
+    <footer className="bg-navy py-10 text-line-strong">
       <Container className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="flex items-center gap-2.5 text-xl font-bold tracking-[-0.4px] text-surface">

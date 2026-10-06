@@ -176,4 +176,7 @@ jobs:
           push: false
           load: true
           cache-from: type=gha,scope=api-ci
-          cache-to: type=gha,mode=max,scope=api-ci
+          # La cache solo acelera: si GitHub no deja guardarla ("failed to reserve
+          # cache", tipico al relanzar o con dos ejecuciones a la vez), la imagen ya se
+          # construyo y el job no debe fallar por eso.
+          cache-to: type=gha,mode=max,scope=api-ci,ignore-error=true

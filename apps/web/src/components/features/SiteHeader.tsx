@@ -26,9 +26,9 @@ function Wordmark({ locale }: { locale: AppLocale }) {
   return (
     <Link
       href={path(locale, "home") || "/"}
-      className="flex items-center gap-2.5 text-xl font-bold tracking-[-0.4px] text-surface"
+      className="flex items-center gap-2.5 text-[26px] font-bold tracking-[-0.4px] text-surface"
     >
-      <Image src={ISOTYPE_PATH} alt="" width={34} height={34} priority className="shrink-0" />
+      <Image src={ISOTYPE_PATH} alt="" width={44} height={44} priority className="shrink-0" />
       <span>
         {lead} <span className="text-accent">{tail}</span>
       </span>
@@ -64,7 +64,7 @@ export function SiteHeader() {
   const links = auth.isAuthenticated ? privateLinks : publicLinks;
 
   return (
-    <header className="sticky top-0 z-20 bg-ink">
+    <header className="sticky top-0 z-20 bg-navy">
       <Container className="flex h-16 items-center justify-between gap-6">
         <div className="flex items-center gap-8">
           <Wordmark locale={locale} />
@@ -96,7 +96,7 @@ export function SiteHeader() {
               </Link>
               <Link
                 href={path(locale, "register")}
-                className="rounded-lg bg-accent px-[18px] py-2.5 text-[14.5px] font-semibold text-ink transition-colors hover:bg-accent-hover"
+                className="rounded-lg bg-accent px-5 py-3 text-[14.5px] font-semibold text-ink transition-colors hover:bg-accent-hover"
               >
                 {t("register")}
               </Link>
@@ -125,7 +125,7 @@ export function SiteHeader() {
       <div
         id="site-menu"
         hidden={!menuOpen}
-        className={cn("border-t border-white/10 bg-ink lg:hidden")}
+        className={cn("border-t border-white/10 bg-navy lg:hidden")}
       >
         <Container className="flex flex-col gap-1 py-3">
           {links.map((link) => (

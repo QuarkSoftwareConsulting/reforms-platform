@@ -69,13 +69,24 @@ export function LeadWizard({ categories }: { categories: CatalogCategory[] }) {
     setPendingFocus(null);
   }, [pendingFocus, form.step]);
 
-  // Permite entrar desde la landing con el oficio ya elegido (?category=slug).
+  // Permite entrar desde la landing con el oficio ya elegido (?category=slug), y
+  // opcionalmente uno de sus servicios (&service=slug).
   const presetSlug = searchParams.get("category");
+  const presetServiceSlug = searchParams.get("service");
+  const presetCategory = categories.find((category) => category.slug === presetSlug);
+  // El servicio se marca una sola vez: si el usuario lo desmarca, no vuelve.
+  const servicePresetApplied = useRef(false);
   useEffect(() => {
-    if (!presetSlug || form.values.categoryId) return;
-    const match = categories.find((category) => category.slug === presetSlug);
-    if (match) form.setCategory(match.id);
-  }, [presetSlug, categories, form]);
+    if (!presetCategory || form.values.categoryId) return;
+    form.setCategory(presetCategory.id);
+  }, [presetCategory, form]);
+  useEffect(() => {
+    if (servicePresetApplied.current || !presetCategory) return;
+    if (form.values.categoryId !== presetCategory.id) return;
+    servicePresetApplied.current = true;
+    const service = presetCategory.services.find((s) => s.slug === presetServiceSlug);
+    if (service) form.setField("serviceIds", [service.id]);
+  }, [presetCategory, presetServiceSlug, form]);
 
   const error = (field: LeadField): string | undefined => form.errors[field];
 

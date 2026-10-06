@@ -30,72 +30,87 @@
     "geonames": "Postcodes: data from <source>GeoNames</source>, adapted, licensed under <license>CC BY 4.0</license>."
   },
   "home": {
-    "title": "Phone-verified renovation contacts across Spain",
-    "subtitle": "We check every client before publishing their request. You see the job, the area and the contact price before paying. Your monthly fee becomes balance to buy contacts.",
-    "heroEyebrow": "Verified contacts · Spain",
-    "heroTitle": "The job is already <mark>checked</mark>. All that's left is your call.",
-    "heroSubtitle": "We check every request before publishing it. You see the job, the area and the contact price, and you decide whether to buy it.",
-    "heroProCta": "See contacts in my trade",
-    "heroClientCta": "I need work done",
-    "heroMoreTrades": "See all trades",
-    "board": {
+    "title": "Verified clients for renovation professionals in Madrid",
+    "subtitle": "We check every request before publishing it. You see the job, the area and the contact price before buying it. Your monthly fee becomes balance to buy contacts.",
+    "heroTitle": "Verified clients for renovation professionals",
+    "heroSubtitle": "We check every request before publishing it. You see the job, the area and the contact price before deciding whether to buy it.",
+    "heroProCta": "See available contacts",
+    "heroClientCta": "I need a renovation",
+    "heroImageAlt": "A professional shows a couple a proposal on a tablet next to material samples",
+    "trades": {
+      "eyebrow": "Trades",
       "title": "Trades and contact price",
-      "live": "live catalogue",
-      "price": "Contact",
-      "all": "See all {count} trades"
-    },
-    "validation": {
-      "title": "A contact isn't published until it passes these three steps",
-      "subtitle": "The same process for every trade, no exceptions.",
-      "one": {
-        "title": "We check the request",
-        "body": "We confirm the job is real and that the client wants quotes right now."
-      },
-      "two": {
-        "title": "We record scope and area",
-        "body": "What needs doing and where. The postal code sets the town and province you see on the card."
-      },
-      "three": {
-        "title": "We publish with a fixed price",
-        "body": "The contact goes live with its price visible. You know what it costs before you pay for it."
+      "subtitle": "Check the reference price of each trade. Then, on each card, you'll see the exact price of each contact.",
+      "from": "From {price}",
+      "all": "See all trades",
+      "contactLabel": "Contact",
+      "items": {
+        "fullRenovation": "Full renovation",
+        "bathrooms": "Bathrooms",
+        "kitchens": "Kitchens",
+        "painting": "Painting",
+        "electrical": "Electrical",
+        "plumbing": "Plumbing",
+        "carpentry": "Carpentry",
+        "locksmith": "Locksmith",
+        "airConditioning": "Air conditioning",
+        "glazing": "Glazing",
+        "gardening": "Gardening",
+        "cleaning": "Cleaning"
       }
     },
-    "trades": {
-      "title": "Trades and contact price",
-      "subtitle": "The price shown is the trade's reference price. Each contact shows its exact price on its own card.",
-      "note": "Posting a request is free and you don't need an account."
+    "validation": {
+      "eyebrow": "Process",
+      "title": "Before it reaches you, every request follows a clear process",
+      "subtitle": "We want you to have what you need to decide whether an opportunity suits you.",
+      "one": {
+        "title": "We review the request",
+        "body": "We gather the information needed about the requested job."
+      },
+      "two": {
+        "title": "We organise the details",
+        "body": "Type of job, description and location so you can weigh up the opportunity."
+      },
+      "three": {
+        "title": "You decide",
+        "body": "You see the available information and the contact price before buying it."
+      }
     },
     "why": {
-      "title": "Why buying here is different",
-      "subtitle": "Four product rules that don't depend on anyone's goodwill: they are in the code.",
+      "eyebrow": "Benefits",
+      "title": "Everything clearer so you can decide better",
+      "subtitle": "Check the details of each opportunity and calmly pick the ones that suit you best.",
       "cap": {
-        "title": "At most {maxProfessionals} professionals per request",
-        "body": "Every request is sold to {maxProfessionals} professionals and no more. You aren't competing against an endless list."
+        "title": "Fewer professionals per opportunity",
+        "body": "Each request can be bought by at most {maxProfessionals} professionals."
       },
       "price": {
-        "title": "The contact price is visible before you pay",
-        "body": "Every card carries its amount in plain sight. No bundles, no credit packs, no prices that change at checkout."
+        "title": "You know the price before buying",
+        "body": "You can check the contact price before deciding."
       },
       "topup": {
         "title": "Your monthly fee becomes balance",
-        "body": "Every month {amount} is charged and added to your balance to buy the contacts you choose. Browsing the listing costs nothing."
+        "body": "Your {amount} monthly fee goes to your balance to spend on the contacts you choose."
       },
       "privacy": {
-        "title": "Only the buyer sees the client's phone",
-        "body": "The public listing shows the job and the area only. The name and phone are handed over after payment."
+        "title": "Client data is protected",
+        "body": "The phone, email and full name are only shown after you buy the contact."
       }
     },
     "pricing": {
-      "eyebrow": "Transparent pricing",
-      "headline": "From {price} per contact",
+      "eyebrow": "Start today",
+      "headline": "Start from {price} per contact",
       "headlineFallback": "You pay per contact. Nothing else.",
-      "body": "With your monthly fee up to date, each contact is paid from your balance and the price is visible on every card. Each purchase keeps the amount you paid.",
-      "cta": "Create a free account"
+      "body": "Browse the available opportunities and spend your balance only on the ones that make sense for your business.",
+      "cta": "See available opportunities"
     },
     "clientBanner": {
-      "title": "Planning a renovation?",
-      "body": "Tell us what you need and we'll put you in touch with professionals in your area. Free, no account needed.",
-      "cta": "Get quotes"
+      "eyebrow": "For homeowners",
+      "title": "Got a renovation in mind?",
+      "body": "Tell us what you need and post your request so professionals in your area can learn about your project.",
+      "cta": "Post my renovation",
+      "note": "Free, no account needed.",
+      "imageAlt": "A professional goes over a renovation project with a client"
     }
   },
   "publish": {
