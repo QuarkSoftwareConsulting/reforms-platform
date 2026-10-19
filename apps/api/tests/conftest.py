@@ -86,6 +86,7 @@ from tests.fakes import (
     InMemoryCategoryRepository,
     InMemoryCreditLedgerRepository,
     InMemoryFeatureFlagRepository,
+    InMemoryInvoiceRepository,
     InMemoryLeadRepository,
     InMemoryPostalCodeRepository,
     InMemoryProcessedEventRepository,
@@ -140,6 +141,7 @@ class World:
         default_factory=InMemoryFeatureFlagRepository
     )
     rate_limiter: InMemoryRateLimiter = field(default_factory=InMemoryRateLimiter)
+    invoices: InMemoryInvoiceRepository = field(default_factory=InMemoryInvoiceRepository)
     private_storage: FakeStorage = field(
         default_factory=lambda: FakeStorage(base_url="https://private.test/reforma-hub")
     )
@@ -258,7 +260,11 @@ class World:
             uow=self.uow,
             credit=self.credit,
             subscriptions=ApplySubscriptionEvent(
-                accounts=self.accounts, credit=self.credit, clock=self.clock
+                accounts=self.accounts,
+                credit=self.credit,
+                invoices=self.invoices,
+                clock=self.clock,
+                ids=self.ids,
             ),
             chargebacks=ApplyChargeback(
                 accounts=self.accounts, ledger=self.ledger, credit=self.credit, clock=self.clock
@@ -284,6 +290,8 @@ class World:
             clock=self.clock,
             ids=self.ids,
             uow=self.uow,
+            accounts=self.accounts,
+            payments=self.payments,
         )
         self.submit_for_review = SubmitForReview(
             professionals=self.professionals, clock=self.clock, ids=self.ids, uow=self.uow

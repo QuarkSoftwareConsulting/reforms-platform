@@ -9,16 +9,19 @@ compras (un `invoice.paid` reenviado no abona el saldo dos veces).
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 
 from app.application.ports import (
     ClockPort,
+    IdGeneratorPort,
+    InvoiceRepositoryPort,
     PaymentEvent,
     PaymentEventType,
     ProfessionalAccountRepositoryPort,
 )
 from app.application.use_cases.credit_ledger import CreditLedgerService
 from app.domain.exceptions import ProfessionalAccountNotFoundError
-from app.domain.models import CreditEntryKind, ProfessionalAccount
+from app.domain.models import CreditEntryKind, Invoice, ProfessionalAccount
 from app.domain.value_objects import Money
 
 
@@ -26,7 +29,9 @@ from app.domain.value_objects import Money
 class ApplySubscriptionEvent:
     accounts: ProfessionalAccountRepositoryPort
     credit: CreditLedgerService
+    invoices: InvoiceRepositoryPort
     clock: ClockPort
+    ids: IdGeneratorPort
 
     async def execute(self, event: PaymentEvent) -> ProfessionalAccount:
         account = await self._load(event)
@@ -49,6 +54,7 @@ class ApplySubscriptionEvent:
                     source_ref=event.invoice_id,
                     now=now,
                 )
+            await self._record_invoice(account, event, now=now)
         elif event.type is PaymentEventType.INVOICE_PAYMENT_FAILED:
             account.record_payment_failed(at=at)
         elif (
@@ -64,6 +70,28 @@ class ApplySubscriptionEvent:
 
         await self.accounts.update(account)
         return account
+
+    async def _record_invoice(
+        self, account: ProfessionalAccount, event: PaymentEvent, *, now: datetime
+    ) -> None:
+        # Tambien con importe 0 (p. ej. un cupon del 100 %): no abona saldo, pero la
+        # factura se emitio igual.
+        if not event.invoice_id or event.amount_cents is None or not event.currency:
+            return
+        await self.invoices.add_if_absent(
+            Invoice(
+                id=self.ids.new_id(),
+                professional_id=account.professional_id,
+                gateway_invoice_id=event.invoice_id,
+                total=Money(event.amount_cents, event.currency),
+                issued_at=event.issued_at or event.occurred_at or now,
+                created_at=now,
+                number=event.invoice_number,
+                tax=Money(event.tax_cents, event.currency) if event.tax_cents is not None else None,
+                hosted_url=event.invoice_url,
+                pdf_url=event.invoice_pdf_url,
+            )
+        )
 
     async def _load(self, event: PaymentEvent) -> ProfessionalAccount:
         account = (

@@ -14,7 +14,7 @@ from enum import StrEnum
 from uuid import UUID
 
 from app.domain.models import SubscriptionStatus
-from app.domain.value_objects import Money
+from app.domain.value_objects import Money, TaxId
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,12 +42,26 @@ class CheckoutRequest:
 
 
 @dataclass(frozen=True, slots=True)
+class BillingDetails:
+    """Datos fiscales del profesional que la pasarela imprime en sus facturas.
+
+    Una factura completa exige nombre, NIF y domicilio del destinatario: la pasarela
+    los copia del cliente al emitir cada factura, asi que deben estar al dia antes.
+    """
+
+    name: str
+    """Razon social o nombre y apellidos; el nombre comercial si aun no lo ha dado."""
+    tax_id: TaxId | None = None
+    address: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class CustomerRequest:
     """Alta del profesional como cliente de la pasarela (necesario para suscribirse)."""
 
     professional_id: UUID
     email: str
-    name: str
+    billing: BillingDetails
 
 
 @dataclass(frozen=True, slots=True)
@@ -116,6 +130,14 @@ class PaymentEvent:
     # Solo en devoluciones: la disputa (idempotencia del libro) y el cargo disputado.
     dispute_id: str | None = None
     charge_id: str | None = None
+    # Solo en facturas: lo que se guarda de ellas (`Invoice`).
+    invoice_number: str | None = None
+    invoice_url: str | None = None
+    invoice_pdf_url: str | None = None
+    tax_cents: int | None = None
+    """Cuota de IVA incluida en `amount_cents`, si la factura la desglosa."""
+    issued_at: datetime | None = None
+    """Cuando se emitio la factura (al numerarla), no cuando se cobro."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,6 +167,14 @@ class PaymentPort(ABC):
     @abstractmethod
     async def create_customer(self, request: CustomerRequest) -> str:
         """Da de alta al profesional en la pasarela y devuelve su identificador."""
+
+    @abstractmethod
+    async def update_customer_billing(self, customer_id: str, billing: BillingDetails) -> None:
+        """Pone al dia los datos fiscales de un cliente ya dado de alta.
+
+        Solo afecta a las facturas que la pasarela emita despues: las ya emitidas
+        conservan los datos con los que se emitieron.
+        """
 
     @abstractmethod
     async def create_subscription_checkout(

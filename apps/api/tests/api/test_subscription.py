@@ -6,6 +6,8 @@ from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.application.ports import PaymentEventType
 from app.domain.models import Category
@@ -73,7 +75,11 @@ class TestWithoutSubscription:
 
 class TestWithSubscription:
     async def test_topup_is_credited_once_and_listed(
-        self, api: AsyncClient, carpentry_category: Category, pro_auth: dict[str, str]
+        self,
+        api: AsyncClient,
+        api_engine: AsyncEngine,
+        carpentry_category: Category,
+        pro_auth: dict[str, str],
     ) -> None:
         await create_profile(api, carpentry_category, pro_auth, subscribed=False)
         started = await api.post("/me/subscription/checkout", headers=pro_auth)
@@ -85,6 +91,8 @@ class TestWithSubscription:
             customer_id=customer_id,
             invoice_id="in_dup",
             amount_cents=1800,
+            invoice_number="VAR-0001",
+            tax_cents=312,
         )
         for _ in range(2):
             response = await api.post(
@@ -97,6 +105,10 @@ class TestWithSubscription:
         assert state["is_active"] is True
         assert state["balance"]["amount_cents"] == 1800
         assert [entry["kind"] for entry in state["entries"]] == ["topup"]
+        async with api_engine.connect() as conn:
+            query = text("SELECT gateway_invoice_id, number, tax_cents FROM invoices")
+            invoices = (await conn.execute(query)).all()
+        assert [tuple(row) for row in invoices] == [("in_dup", "VAR-0001", 312)]
 
     async def test_second_subscription_is_refused(
         self, api: AsyncClient, carpentry_category: Category, pro_auth: dict[str, str]

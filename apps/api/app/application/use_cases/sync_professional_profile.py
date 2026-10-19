@@ -8,6 +8,7 @@ solo lo propone al crear la cuenta.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -18,23 +19,29 @@ from app.application.ports import (
     CategoryRepositoryPort,
     ClockPort,
     IdGeneratorPort,
+    PaymentPort,
     PostalCodeRepositoryPort,
+    ProfessionalAccountRepositoryPort,
     ProfessionalRepositoryPort,
     UnitOfWork,
     UserRepositoryPort,
 )
 from app.application.use_cases.phone_verification import parse_mobile
 from app.application.use_cases.professional_files import assert_own_key, media_prefix
+from app.application.use_cases.subscription import billing_details
 from app.domain.exceptions import (
     CategoryNotFoundError,
     InvalidServiceError,
     InvalidTaxIdError,
+    PaymentGatewayError,
     ProfessionalNotFoundError,
     UnknownPostalCodeError,
     ValidationError,
 )
 from app.domain.models import MADRID, Professional, ServiceArea, User, UserRole
 from app.domain.value_objects import Email, TaxId
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -96,6 +103,8 @@ class UpsertProfessionalProfile:
     clock: ClockPort
     ids: IdGeneratorPort
     uow: UnitOfWork
+    accounts: ProfessionalAccountRepositoryPort
+    payments: PaymentPort
     service_area: ServiceArea = MADRID
 
     async def execute(self, *, user_id: UUID, data: UpsertProfessionalInput) -> Professional:
@@ -117,6 +126,7 @@ class UpsertProfessionalProfile:
                 # incluido. Sin el bloqueo, guardar el perfil mientras el admin aprueba
                 # o rechaza devolveria el alta al estado leido.
                 existing = await self.professionals.get_for_update(existing.id)
+            billing_before = billing_details(existing) if existing is not None else None
             professional = existing or Professional(
                 id=self.ids.new_id(),
                 user_id=user_id,
@@ -152,7 +162,28 @@ class UpsertProfessionalProfile:
 
             if existing is None:
                 return await self.professionals.add(professional)
-            return await self.professionals.update(professional)
+            saved = await self.professionals.update(professional)
+
+        if billing_before is not None and billing_details(saved) != billing_before:
+            await self._sync_billing(saved)
+        return saved
+
+    async def _sync_billing(self, professional: Professional) -> None:
+        """Lleva a la pasarela el nuevo nombre fiscal, NIF o domicilio.
+
+        Despues del commit y sin bloquear el guardado: el perfil ya es correcto y un
+        fallo de la pasarela no debe obligar a repetirlo. Lo que quede sin sincronizar
+        se envia de nuevo al guardar otra vez el perfil o al iniciar la mensualidad.
+        """
+        account = await self.accounts.get(professional.id)
+        if account is None or account.stripe_customer_id is None:
+            return
+        try:
+            await self.payments.update_customer_billing(
+                account.stripe_customer_id, billing_details(professional)
+            )
+        except PaymentGatewayError:
+            logger.warning("datos_fiscales_sin_sincronizar: professional=%s", professional.id)
 
     @staticmethod
     def _parse_tax_id(raw: str | None) -> TaxId | None:

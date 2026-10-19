@@ -17,6 +17,7 @@ from app.domain.models import (
     CreditEntryKind,
     FeatureFlag,
     FlagEnvironment,
+    Invoice,
     Lead,
     LeadSource,
     LeadStatus,
@@ -449,6 +450,17 @@ class CreditLedgerRepositoryPort(ABC):
     @abstractmethod
     async def daily_topups(self, *, start: datetime, end: datetime, tz: str) -> list[DailyCount]:
         """Recargas cobradas por dia en `[start, end)`, con su importe."""
+
+
+class InvoiceRepositoryPort(ABC):
+    """Facturas emitidas por la pasarela. Append-only."""
+
+    @abstractmethod
+    async def add_if_absent(self, invoice: Invoice) -> bool:
+        """Guarda la factura y devuelve True si no estaba ya guardada.
+
+        La identifica `gateway_invoice_id`: un webhook repetido no la duplica.
+        """
 
 
 class FeatureFlagRepositoryPort(ABC):

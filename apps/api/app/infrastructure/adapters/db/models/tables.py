@@ -617,6 +617,37 @@ class CreditEntryRow(Base, UUIDPrimaryKeyMixin):
     )
 
 
+class InvoiceRow(Base, UUIDPrimaryKeyMixin):
+    """Factura emitida por la pasarela al cobrar una recarga. Append-only."""
+
+    __tablename__ = "invoices"
+
+    professional_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("professional_accounts.professional_id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    # Cerrojo de idempotencia: el webhook repetido no duplica la factura.
+    gateway_invoice_id: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    number: Mapped[str | None] = mapped_column(String(64))
+    total_cents: Mapped[int] = mapped_column(Integer, nullable=False)
+    tax_cents: Mapped[int | None] = mapped_column(Integer)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    hosted_url: Mapped[str | None] = mapped_column(Text)
+    pdf_url: Mapped[str | None] = mapped_column(Text)
+    issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        Index("ix_invoices_professional", "professional_id", text("issued_at DESC")),
+        CheckConstraint("total_cents >= 0", name="total_not_negative"),
+        CheckConstraint(
+            "tax_cents IS NULL OR (tax_cents >= 0 AND tax_cents <= total_cents)",
+            name="tax_within_total",
+        ),
+    )
+
+
 class FeatureFlagRow(Base, TimestampMixin):
     """Feature flags por entorno. No hay interfaz: se cambian con SQL a mano.
 
@@ -675,6 +706,7 @@ __all__ = [
     "CategoryRow",
     "CreditEntryRow",
     "FeatureFlagRow",
+    "InvoiceRow",
     "LeadConsentRow",
     "LeadPhotoRow",
     "LeadPurchaseRow",

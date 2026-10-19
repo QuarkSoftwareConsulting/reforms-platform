@@ -321,6 +321,12 @@ Pendiente:
 - Correo al cliente con los profesionales que compraron: al llegar a 5 compras o a las
   24 h con los que haya.
 - Botón de WhatsApp tras la compra y "generar factura".
+- Hecho por adelantado (2026-10-18), por si las facturas se quedan en Stripe: las de la
+  mensualidad llevan razón social, NIF y domicilio del profesional (se sincronizan con el
+  perfil), desglosan el IVA (21 % incluido; la app crea el tipo en Stripe) y se guardan en
+  `invoices` (número, importes, IVA, enlaces). Falta lo que decida la gestoría
+  ([`preguntas-cliente.md`](./preguntas-cliente.md), pregunta 2): sistema Verifactu,
+  facturas de los contactos pagados con tarjeta, rectificativas y mostrarlas en la app.
 - Header: fondo blanco con logotipo azul y amarillo. Navegación pública: Soy profesional |
   Acceder | Publicar solicitud. Privada: Contactos | Mis contactos | Mi perfil | Salir.
 

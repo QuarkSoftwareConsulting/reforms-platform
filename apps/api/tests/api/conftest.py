@@ -40,6 +40,7 @@ TRUNCATE_ORDER = (
     "feature_flags",
     "processed_payment_events",
     "rate_limit_counters",
+    "invoices",
     "credit_entries",
     "professional_accounts",
     "subscription_prices",

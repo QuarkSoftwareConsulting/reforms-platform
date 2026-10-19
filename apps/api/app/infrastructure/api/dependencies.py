@@ -80,6 +80,7 @@ from app.infrastructure.adapters.db.repositories import (
     SqlAlchemyCategoryRepository,
     SqlAlchemyCreditLedgerRepository,
     SqlAlchemyFeatureFlagRepository,
+    SqlAlchemyInvoiceRepository,
     SqlAlchemyLeadRepository,
     SqlAlchemyPostalCodeRepository,
     SqlAlchemyProcessedEventRepository,
@@ -202,6 +203,7 @@ class RequestContainer:
     accounts: SqlAlchemyProfessionalAccountRepository
     ledger: SqlAlchemyCreditLedgerRepository
     subscription_prices: SqlAlchemySubscriptionPriceRepository
+    invoices: SqlAlchemyInvoiceRepository
     feature_flags: SqlAlchemyFeatureFlagRepository
 
     @classmethod
@@ -221,6 +223,7 @@ class RequestContainer:
             accounts=SqlAlchemyProfessionalAccountRepository(session),
             ledger=SqlAlchemyCreditLedgerRepository(session),
             subscription_prices=SqlAlchemySubscriptionPriceRepository(session),
+            invoices=SqlAlchemyInvoiceRepository(session),
             feature_flags=SqlAlchemyFeatureFlagRepository(session),
         )
 
@@ -401,7 +404,11 @@ class RequestContainer:
             uow=self.uow,
             credit=self.credit,
             subscriptions=ApplySubscriptionEvent(
-                accounts=self.accounts, credit=self.credit, clock=self.infra.clock
+                accounts=self.accounts,
+                credit=self.credit,
+                invoices=self.invoices,
+                clock=self.infra.clock,
+                ids=self.infra.ids,
             ),
             chargebacks=ApplyChargeback(
                 accounts=self.accounts,
@@ -495,6 +502,8 @@ class RequestContainer:
             clock=self.infra.clock,
             ids=self.infra.ids,
             uow=self.uow,
+            accounts=self.accounts,
+            payments=self.infra.payments,
             service_area=ServiceArea.from_prefixes(self.infra.settings.covered_postal_prefixes),
         )
 

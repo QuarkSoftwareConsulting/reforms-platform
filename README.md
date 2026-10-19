@@ -208,6 +208,15 @@ contactos y, si no alcanza, el resto se cobra con Checkout. Si el banco devuelve
 recarga (adeudo SEPA devuelto o disputa), se retira el saldo y lo ya gastado queda como deuda:
 no se compra hasta que la siguiente recarga la salde.
 
+**Facturas de la mensualidad.** Las emite Stripe en cada cobro. Para que sean factura
+completa, el cliente de Stripe lleva la razón social, el NIF (tipo `es_cif`, que acepta NIF,
+NIE y CIF) y el domicilio del perfil; se actualizan al guardar el perfil y al iniciar la
+mensualidad. Desglosan el IVA (21 % incluido, `VAT_RATE_PERCENT`): la app busca en Stripe
+su tipo impositivo y lo crea la primera vez, sin configuración; solo afecta a las
+suscripciones nuevas. Al llegar `invoice.paid` se guarda en `invoices` su
+número, importes, IVA y los enlaces a la factura y al PDF. Que estas facturas basten
+legalmente (Verifactu) está pendiente de la gestoría: `docs/preguntas-cliente.md`, pregunta 2.
+
 ---
 
 ### Feature flags

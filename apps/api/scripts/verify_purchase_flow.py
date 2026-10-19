@@ -1334,7 +1334,7 @@ async def cleanup(
         # Sus `user_role_events` caen en cascada.
         await db.execute("DELETE FROM users WHERE id = $1", user_id)
     run_professionals = "SELECT id FROM professionals WHERE business_name LIKE $1"
-    for table in ("credit_entries", "professional_accounts"):
+    for table in ("invoices", "credit_entries", "professional_accounts"):
         await db.execute(
             f"DELETE FROM {table} WHERE professional_id IN ({run_professionals})",
             f"%Verify {run_id}%",

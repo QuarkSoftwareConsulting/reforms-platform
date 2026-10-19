@@ -15,6 +15,7 @@ from uuid import UUID
 
 from app.application.dto import AccountSummary, SubscriptionPriceInfo
 from app.application.ports import (
+    BillingDetails,
     ClockPort,
     CreditLedgerRepositoryPort,
     CustomerRequest,
@@ -46,6 +47,15 @@ from app.domain.value_objects import Money
 
 RECENT_ENTRIES = 20
 PRODUCT_NAME = "Mensualidad Voy a Reformar"
+
+
+def billing_details(professional: Professional) -> BillingDetails:
+    """Datos con los que la pasarela factura al profesional."""
+    return BillingDetails(
+        name=professional.legal_name or professional.business_name,
+        tax_id=professional.tax_id,
+        address=professional.address,
+    )
 
 
 @dataclass(slots=True)
@@ -136,13 +146,17 @@ class StartSubscription:
             # viene en camino (o se perdio). Otro checkout seria un segundo cobro. Si la
             # pasarela no responde, el error sube: sin saberlo, no se abre el checkout.
             raise SubscriptionAlreadyExistsError()
-        if customer_id is None:
+        if customer_id is not None:
+            # El cliente pudo crearse antes de que el perfil tuviera NIF y domicilio, y
+            # la primera factura se emite nada mas pagar el checkout con lo que tenga.
+            await self.payments.update_customer_billing(customer_id, billing_details(professional))
+        else:
             # Llamada de red fuera de la transaccion, como en la compra de leads.
             customer_id = await self.payments.create_customer(
                 CustomerRequest(
                     professional_id=professional.id,
                     email=email,
-                    name=professional.business_name,
+                    billing=billing_details(professional),
                 )
             )
             async with self.uow:

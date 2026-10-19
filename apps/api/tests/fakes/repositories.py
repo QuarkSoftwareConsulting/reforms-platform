@@ -22,6 +22,7 @@ from app.application.ports import (
     CreditLedgerRepositoryPort,
     DailyCount,
     FeatureFlagRepositoryPort,
+    InvoiceRepositoryPort,
     LeadDashboardCounts,
     LeadRepositoryPort,
     LeadSearchFilters,
@@ -47,6 +48,7 @@ from app.domain.models import (
     CreditEntryKind,
     FeatureFlag,
     FlagEnvironment,
+    Invoice,
     Lead,
     LeadStatus,
     Professional,
@@ -872,6 +874,18 @@ class InMemorySubscriptionPriceRepository(SubscriptionPriceRepositoryPort):
     async def current(self) -> SubscriptionPrice | None:
         await _round_trip()
         return max(self.items, key=lambda p: p.created_at) if self.items else None
+
+
+class InMemoryInvoiceRepository(InvoiceRepositoryPort):
+    def __init__(self) -> None:
+        self.items: list[Invoice] = []
+
+    async def add_if_absent(self, invoice: Invoice) -> bool:
+        await _round_trip()
+        if any(i.gateway_invoice_id == invoice.gateway_invoice_id for i in self.items):
+            return False
+        self.items.append(invoice)
+        return True
 
 
 class InMemoryFeatureFlagRepository(FeatureFlagRepositoryPort):
