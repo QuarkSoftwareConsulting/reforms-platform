@@ -341,6 +341,10 @@ class CategoryRepositoryPort(ABC):
     async def list_active(self) -> list[Category]: ...
 
     @abstractmethod
+    async def list_all(self) -> list[Category]:
+        """Todo el catalogo, tambien lo desactivado: lo que gestiona el admin."""
+
+    @abstractmethod
     async def get(self, category_id: UUID) -> Category | None: ...
 
     @abstractmethod
@@ -350,8 +354,31 @@ class CategoryRepositoryPort(ABC):
     async def get_many(self, category_ids: set[UUID]) -> list[Category]: ...
 
     @abstractmethod
+    async def add(self, category: Category) -> Category: ...
+
+    @abstractmethod
     async def update(self, category: Category) -> Category:
-        """Persiste cambios del catalogo (hoy solo el precio sugerido del oficio)."""
+        """Persiste la categoria y sus servicios: crea los nuevos y actualiza los demas.
+
+        Los servicios que ya no estan en la categoria no se borran aqui: borrar es
+        `delete_service`, solo para lo que nada usa.
+        """
+
+    @abstractmethod
+    async def delete(self, category_id: UUID) -> None:
+        """Borra la categoria y sus servicios. Solo si `is_in_use` es False."""
+
+    @abstractmethod
+    async def delete_service(self, service_id: UUID) -> None:
+        """Borra un servicio. Solo si `is_service_in_use` es False."""
+
+    @abstractmethod
+    async def is_in_use(self, category_id: UUID) -> bool:
+        """Si algun lead o profesional usa la categoria o alguno de sus servicios."""
+
+    @abstractmethod
+    async def is_service_in_use(self, service_id: UUID) -> bool:
+        """Si algun lead o profesional usa el servicio."""
 
 
 class PostalCodeRepositoryPort(ABC):

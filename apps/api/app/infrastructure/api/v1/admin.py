@@ -27,6 +27,7 @@ from app.domain.value_objects import Money
 from app.infrastructure.api import serializers
 from app.infrastructure.api.dependencies import AdminDep, ContainerDep, LocaleDep
 from app.infrastructure.api.schemas.admin import (
+    AdminCategoryOut,
     AdminCreateLeadIn,
     AdminLeadListOut,
     AdminLeadStatusOut,
@@ -36,6 +37,8 @@ from app.infrastructure.api.schemas.admin import (
     AdminPurchaseOut,
     AdminUserListOut,
     AdminUserOut,
+    CreateCategoryIn,
+    CreateServiceIn,
     LeadPricingOut,
     MetricsTimeseriesOut,
     PurchaseReviewIn,
@@ -45,6 +48,8 @@ from app.infrastructure.api.schemas.admin import (
     SetCategoryPriceIn,
     SetLeadPriceIn,
     SetUserRoleIn,
+    UpdateCategoryIn,
+    UpdateServiceIn,
     UserRoleEventOut,
     VerificationDossierOut,
 )
@@ -452,6 +457,118 @@ async def set_lead_price(
     )
     pricing = await container.set_lead_price.execute(lead_id=lead_id, price=price)
     return serializers.lead_pricing_out(pricing, locale)
+
+
+# ------------------------------- Catalogo --------------------------------
+# Lo usado se desactiva (`active: false`); borrar solo vale para lo que nada usa.
+# Los nombres se renombran sin cambiar el slug: lo usan las URL publicas.
+
+
+@router.get(
+    "/catalog",
+    response_model=list[AdminCategoryOut],
+    summary="Catalogo completo, tambien lo desactivado",
+)
+async def list_catalog(container: ContainerDep, _: AdminDep) -> list[AdminCategoryOut]:
+    categories = await container.list_catalog.execute()
+    return [serializers.admin_category_out(category) for category in categories]
+
+
+@router.post(
+    "/categories",
+    response_model=AdminCategoryOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Crear una categoria de oficio",
+)
+async def create_category(
+    payload: CreateCategoryIn, container: ContainerDep, _: AdminDep
+) -> AdminCategoryOut:
+    category = await container.create_category.execute(
+        name_es=payload.name_es,
+        name_en=payload.name_en,
+        suggested_lead_price=Money(
+            payload.suggested_price_cents, container.infra.settings.default_currency
+        ),
+        sort_order=payload.sort_order,
+    )
+    return serializers.admin_category_out(category)
+
+
+@router.put(
+    "/categories/{category_id}",
+    response_model=AdminCategoryOut,
+    summary="Editar una categoria: nombres, orden, precio sugerido y si esta activa",
+)
+async def update_category(
+    category_id: UUID, payload: UpdateCategoryIn, container: ContainerDep, _: AdminDep
+) -> AdminCategoryOut:
+    category = await container.update_category.execute(
+        category_id=category_id,
+        name_es=payload.name_es,
+        name_en=payload.name_en,
+        suggested_price_cents=payload.suggested_price_cents,
+        sort_order=payload.sort_order,
+        active=payload.active,
+    )
+    return serializers.admin_category_out(category)
+
+
+@router.delete(
+    "/categories/{category_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Borrar una categoria que nada usa (si se usa, desactivala)",
+)
+async def delete_category(category_id: UUID, container: ContainerDep, _: AdminDep) -> None:
+    await container.delete_category.execute(category_id=category_id)
+
+
+@router.post(
+    "/categories/{category_id}/services",
+    response_model=AdminCategoryOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Anadir un servicio a una categoria",
+)
+async def create_service(
+    category_id: UUID, payload: CreateServiceIn, container: ContainerDep, _: AdminDep
+) -> AdminCategoryOut:
+    category = await container.create_service.execute(
+        category_id=category_id, name_es=payload.name_es, name_en=payload.name_en
+    )
+    return serializers.admin_category_out(category)
+
+
+@router.put(
+    "/categories/{category_id}/services/{service_id}",
+    response_model=AdminCategoryOut,
+    summary="Editar un servicio: nombres, orden y si esta activo",
+)
+async def update_service(
+    category_id: UUID,
+    service_id: UUID,
+    payload: UpdateServiceIn,
+    container: ContainerDep,
+    _: AdminDep,
+) -> AdminCategoryOut:
+    category = await container.update_service.execute(
+        category_id=category_id,
+        service_id=service_id,
+        name_es=payload.name_es,
+        name_en=payload.name_en,
+        sort_order=payload.sort_order,
+        active=payload.active,
+    )
+    return serializers.admin_category_out(category)
+
+
+@router.delete(
+    "/categories/{category_id}/services/{service_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Borrar un servicio que nada usa (si se usa, desactivalo)",
+)
+async def delete_service(
+    category_id: UUID, service_id: UUID, container: ContainerDep, _: AdminDep
+) -> None:
+    await container.delete_service.execute(category_id=category_id, service_id=service_id)
 
 
 @router.put(

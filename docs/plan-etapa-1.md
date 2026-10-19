@@ -327,6 +327,10 @@ Pendiente:
   `invoices` (número, importes, IVA, enlaces). Falta lo que decida la gestoría
   ([`preguntas-cliente.md`](./preguntas-cliente.md), pregunta 2): sistema Verifactu,
   facturas de los contactos pagados con tarjeta, rectificativas y mostrarlas en la app.
+- Hecho por adelantado (2026-10-18): el admin gestiona el catálogo desde el panel
+  (`/admin/catalogo`): crear, renombrar, reordenar, cambiar el precio sugerido y desactivar
+  categorías y servicios; borrar solo lo que ningún lead ni profesional usa. El slug no
+  cambia al renombrar. La semilla pasa a ser solo carga inicial.
 - Header: fondo blanco con logotipo azul y amarillo. Navegación pública: Soy profesional |
   Acceder | Publicar solicitud. Privada: Contactos | Mis contactos | Mi perfil | Salir.
 

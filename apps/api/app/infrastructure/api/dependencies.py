@@ -33,8 +33,12 @@ from app.application.use_cases import (
     ApproveProfessional,
     ChangeLeadAvailability,
     ChangeUserRole,
+    CreateCategory,
     CreateLead,
+    CreateService,
     CreditLedgerService,
+    DeleteCategory,
+    DeleteService,
     GetAdminMetrics,
     GetLeadDetail,
     GetLeadPricing,
@@ -47,6 +51,7 @@ from app.application.use_cases import (
     ListAdminProfessionals,
     ListAdminPurchases,
     ListAdminUsers,
+    ListCatalogForAdmin,
     ListCategories,
     ListFeatureFlags,
     ListLeadPurchasesForAdmin,
@@ -70,6 +75,8 @@ from app.application.use_cases import (
     SubmitForReview,
     SubscriptionPricing,
     SyncUserFromIdentity,
+    UpdateCategory,
+    UpdateService,
     UpsertProfessionalProfile,
 )
 from app.config import Settings, get_settings
@@ -313,6 +320,34 @@ class RequestContainer:
     @property
     def set_category_price(self) -> SetCategorySuggestedPrice:
         return SetCategorySuggestedPrice(categories=self.categories, uow=self.uow)
+
+    @property
+    def list_catalog(self) -> ListCatalogForAdmin:
+        return ListCatalogForAdmin(categories=self.categories)
+
+    @property
+    def create_category(self) -> CreateCategory:
+        return CreateCategory(categories=self.categories, ids=self.infra.ids, uow=self.uow)
+
+    @property
+    def update_category(self) -> UpdateCategory:
+        return UpdateCategory(categories=self.categories, uow=self.uow)
+
+    @property
+    def delete_category(self) -> DeleteCategory:
+        return DeleteCategory(categories=self.categories, uow=self.uow)
+
+    @property
+    def create_service(self) -> CreateService:
+        return CreateService(categories=self.categories, ids=self.infra.ids, uow=self.uow)
+
+    @property
+    def update_service(self) -> UpdateService:
+        return UpdateService(categories=self.categories, uow=self.uow)
+
+    @property
+    def delete_service(self) -> DeleteService:
+        return DeleteService(categories=self.categories, uow=self.uow)
 
     @property
     def admin_leads(self) -> ListAdminLeads:

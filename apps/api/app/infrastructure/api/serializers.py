@@ -45,6 +45,7 @@ from app.domain.models import (
 )
 from app.domain.value_objects import Money
 from app.infrastructure.api.schemas.admin import (
+    AdminCategoryOut,
     AdminLeadListOut,
     AdminLeadOut,
     AdminMetricsOut,
@@ -53,6 +54,7 @@ from app.infrastructure.api.schemas.admin import (
     AdminPurchaseLeadOut,
     AdminPurchaseListOut,
     AdminPurchaseOut,
+    AdminServiceOut,
     AdminUserListOut,
     AdminUserOut,
     DailyMetricsOut,
@@ -115,6 +117,29 @@ def category_out(category: Category, locale: str) -> CategoryOut:
 
 def service_out(service: Service, locale: str) -> ServiceOut:
     return ServiceOut(id=service.id, slug=service.slug, name=service.name(locale))
+
+
+def admin_category_out(category: Category) -> AdminCategoryOut:
+    return AdminCategoryOut(
+        id=category.id,
+        slug=category.slug,
+        name_es=category.name_es,
+        name_en=category.name_en,
+        suggested_lead_price=money_out(category.suggested_lead_price),
+        sort_order=category.sort_order,
+        active=category.active,
+        services=[
+            AdminServiceOut(
+                id=s.id,
+                slug=s.slug,
+                name_es=s.name_es,
+                name_en=s.name_en,
+                sort_order=s.sort_order,
+                active=s.active,
+            )
+            for s in sorted(category.services, key=lambda s: s.sort_order)
+        ],
+    )
 
 
 def catalog_category_out(category: Category, locale: str) -> CatalogCategoryOut:

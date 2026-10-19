@@ -640,7 +640,45 @@
       "leads": "Requests",
       "purchases": "Purchases",
       "pricing": "Pricing",
-      "pending": "{count, plural, one {pending sign-up} other {pending sign-ups}}"
+      "pending": "{count, plural, one {pending sign-up} other {pending sign-ups}}",
+      "catalog": "Catalog"
+    },
+    "catalog": {
+      "intro": "Create, rename, reorder or deactivate categories and services. Anything already used by requests or professionals can only be deactivated; deleting is for items created by mistake. Changes can take up to 5 minutes to show on the public site.",
+      "newCategory": "New category",
+      "nameEs": "Name in Spanish",
+      "nameEn": "Name in English",
+      "price": "Suggested price per contact (€)",
+      "priceHint": "Charged for contacts in this category that have no price of their own.",
+      "sortOrder": "Order",
+      "sortOrderHint": "Lower numbers come first.",
+      "categoryActive": "Active: offered when posting a request and in the professional's profile",
+      "serviceActive": "Active: offered when posting a request and in the professional's profile",
+      "create": "Create category",
+      "edit": "Edit",
+      "editNamed": "Edit “{name}”",
+      "save": "Save changes",
+      "delete": "Delete",
+      "statusActive": "Active",
+      "statusInactive": "Deactivated",
+      "serviceStatusInactive": "Deactivated",
+      "slug": "URL: {slug}",
+      "suggested": "Suggested price: {amount}",
+      "order": "Order {order}",
+      "services": "{count, plural, =0 {Services} one {1 service} other {# services}}",
+      "noServices": "This category has no services yet.",
+      "newServiceIn": "Add a service to “{name}”",
+      "newServiceEs": "New service (Spanish)",
+      "newServiceEn": "New service (English)",
+      "addService": "Add service",
+      "empty": "The catalog is empty.",
+      "created": "Category created.",
+      "serviceAdded": "Service added.",
+      "saved": "Changes saved.",
+      "deleted": "Deleted.",
+      "confirmTitle": "Delete “{name}”?",
+      "confirmBody": "It is deleted for good and cannot be undone. If any request or professional uses it, it cannot be deleted: deactivate it instead.",
+      "confirm": "Yes, delete"
     }
   },
   "errors": {
@@ -727,7 +765,11 @@
       "consent_policy_version": "Policy version",
       "consent_accepted_at": "Acceptance date",
       "consent_channel": "Capture channel",
-      "consent_campaign_reference": "Campaign reference"
+      "consent_campaign_reference": "Campaign reference",
+      "name_es": "Name in Spanish",
+      "name_en": "Name in English",
+      "suggested_price_cents": "Suggested price",
+      "sort_order": "Order"
     },
     "fieldError": {
       "intro": "Check the form: {details}.",
@@ -739,7 +781,11 @@
       "tooLong": "at most {max} characters",
       "invalid": "invalid value"
     },
-    "summary": "Check {count, plural, one {# field} other {# fields}} to continue"
+    "summary": "Check {count, plural, one {# field} other {# fields}} to continue",
+    "CATALOG_NAME_INVALID": "The name is required, must contain letters or numbers and be at most {max} characters long.",
+    "CATALOG_SLUG_TAKEN": "A category or service with that name already exists (deactivated ones included).",
+    "CATALOG_ITEM_IN_USE": "It cannot be deleted because requests or professionals use it. Deactivate it instead.",
+    "SERVICE_NOT_FOUND": "That service no longer exists. Reload the page."
   },
   "validation": {
     "categoryRequired": "Pick a trade.",
@@ -787,6 +833,10 @@
     "campaignTooLong": "The campaign reference cannot exceed 200 characters.",
     "acceptedAtRequired": "Enter the date and time the client accepted.",
     "acceptedAtInvalid": "The acceptance date is not valid.",
-    "acceptedAtFuture": "The acceptance date cannot be later than now."
+    "acceptedAtFuture": "The acceptance date cannot be later than now.",
+    "catalogNameRequired": "Enter the name (with letters or numbers).",
+    "catalogNameTooLong": "{max} characters at most.",
+    "catalogPrice": "Enter a price between €0.01 and €1,000.",
+    "catalogSortOrder": "Enter a whole number between 0 and 10,000."
   }
 }

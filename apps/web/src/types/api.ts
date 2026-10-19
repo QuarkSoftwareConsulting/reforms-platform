@@ -36,6 +36,30 @@ export interface Service {
   name: string;
 }
 
+/** Servicio tal como lo edita el admin: los dos idiomas y si se ofrece. */
+export interface AdminCatalogService {
+  id: string;
+  /** Sale del nombre al crearlo y no cambia al renombrar. */
+  slug: string;
+  name_es: string;
+  name_en: string;
+  sort_order: number;
+  active: boolean;
+}
+
+/** Categoria tal como la edita el admin, con todos sus servicios (tambien desactivados). */
+export interface AdminCatalogCategory {
+  id: string;
+  /** Sale del nombre al crearla y no cambia al renombrar: lo usan las URL. */
+  slug: string;
+  name_es: string;
+  name_en: string;
+  suggested_lead_price: Money;
+  sort_order: number;
+  active: boolean;
+  services: AdminCatalogService[];
+}
+
 /** Categoria del catalogo con los servicios que hoy se ofrecen en el formulario. */
 export interface CatalogCategory extends Category {
   services: Service[];

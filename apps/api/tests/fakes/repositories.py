@@ -647,11 +647,51 @@ class InMemoryProfessionalRepository(ProfessionalRepositoryPort):
 class InMemoryCategoryRepository(CategoryRepositoryPort):
     def __init__(self, categories: list[Category] | None = None) -> None:
         self.items: dict[UUID, Category] = {c.id: c for c in (categories or [])}
+        # Como las claves foraneas en Postgres: saber si algo usa la categoria exige
+        # mirar leads y profesionales. Los cablea el `World` de los tests.
+        self.lead_index: InMemoryLeadRepository | None = None
+        self.professional_index: InMemoryProfessionalRepository | None = None
 
     async def list_active(self) -> list[Category]:
         await _round_trip()
         return sorted(
             (c for c in self.items.values() if c.active), key=lambda c: (c.sort_order, c.name_es)
+        )
+
+    async def list_all(self) -> list[Category]:
+        await _round_trip()
+        return sorted(self.items.values(), key=lambda c: (c.sort_order, c.name_es))
+
+    async def add(self, category: Category) -> Category:
+        await _round_trip()
+        self.items[category.id] = category
+        return category
+
+    async def delete(self, category_id: UUID) -> None:
+        await _round_trip()
+        self.items.pop(category_id, None)
+
+    async def delete_service(self, service_id: UUID) -> None:
+        await _round_trip()
+        for category in self.items.values():
+            category.services = [s for s in category.services if s.id != service_id]
+
+    async def is_in_use(self, category_id: UUID) -> bool:
+        await _round_trip()
+        category = self.items.get(category_id)
+        service_ids = {s.id for s in category.services} if category is not None else set()
+        leads = self.lead_index.items.values() if self.lead_index is not None else []
+        pros = self.professional_index.items.values() if self.professional_index else []
+        return any(
+            lead.category_id == category_id or service_ids & set(lead.service_ids) for lead in leads
+        ) or any(category_id in p.category_ids or service_ids & p.service_ids for p in pros)
+
+    async def is_service_in_use(self, service_id: UUID) -> bool:
+        await _round_trip()
+        leads = self.lead_index.items.values() if self.lead_index is not None else []
+        pros = self.professional_index.items.values() if self.professional_index else []
+        return any(service_id in lead.service_ids for lead in leads) or any(
+            service_id in p.service_ids for p in pros
         )
 
     async def get(self, category_id: UUID) -> Category | None:

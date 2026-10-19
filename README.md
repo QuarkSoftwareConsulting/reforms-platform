@@ -309,10 +309,12 @@ publicar, el cliente confirma su móvil con un SMS (`PhoneVerificationPort`). Mi
 haya proveedor, `PHONE_VERIFICATION_BACKEND=disabled` publica sin código; en local,
 `console` escribe el código en el log del API.
 
-**El catálogo tiene dos niveles.** Categoría (`categories.csv`) → servicios
-(`services.csv`), en el orden del documento del cliente. `pnpm api:seed` es idempotente:
-desactiva, sin borrarlo, lo que sale del catálogo (los leads antiguos lo siguen nombrando)
-y no pisa el precio sugerido que haya cambiado el admin.
+**El catálogo tiene dos niveles** —categoría → servicios— y lo gestiona el admin desde el
+panel (`/admin/catalogo`): crear, renombrar, reordenar, cambiar el precio sugerido y
+desactivar. El slug sale del nombre al crear y no cambia al renombrar (lo usan las URL).
+Lo que usa algún lead o profesional solo se desactiva; borrar solo vale para lo que nada
+usa. `categories.csv` y `services.csv` son la carga inicial: `pnpm api:seed` crea lo que
+falta y no pisa lo que el admin cambió.
 
 **El consentimiento RGPD es un registro auditable.** `lead_consents` guarda versión de
 política, IP y user-agent tomados del servidor (nunca del cuerpo de la petición), y el

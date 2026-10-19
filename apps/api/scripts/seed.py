@@ -1,6 +1,9 @@
 """Carga las semillas: categorias, servicios y catalogo de codigos postales.
 
-Es idempotente (UPSERT), asi que se puede ejecutar tantas veces como haga falta.
+Es idempotente, asi que se puede ejecutar tantas veces como haga falta. El catalogo
+(categorias y servicios) es solo carga inicial: crea lo que falta y no toca lo que ya
+existe, porque lo gestiona el admin desde el panel. Volver a sembrar no deshace sus
+renombres, precios ni desactivaciones, ni retira lo que el admin creo.
 
     uv run python -m scripts.seed
     uv run python -m scripts.seed --postal-codes ruta/al/dataset-completo.csv
@@ -15,7 +18,7 @@ import sys
 from pathlib import Path
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -51,28 +54,10 @@ async def seed_categories(session_factory: async_sessionmaker[AsyncSession], pat
                     sort_order=int(row.get("sort_order") or 0),
                     active=True,
                 )
-                # Nombres y orden se actualizan; el id se conserva para no romper las
-                # referencias de leads ya publicados. El precio sugerido solo se fija
-                # al crear el oficio: despues lo decide el admin (AGENTS.md 4.9) y
-                # volver a sembrar no debe deshacer su cambio.
-                .on_conflict_do_update(
-                    index_elements=[CategoryRow.slug],
-                    set_={
-                        "name_es": row["name_es"],
-                        "name_en": row["name_en"],
-                        "sort_order": int(row.get("sort_order") or 0),
-                        "active": True,
-                    },
-                )
+                # Lo que ya existe es del admin (nombre, orden, precio, si esta activo).
+                .on_conflict_do_nothing(index_elements=[CategoryRow.slug])
             )
             await session.execute(stmt)
-        # Un oficio que sale del catalogo se desactiva, no se borra: los leads y los
-        # profesionales que lo referencian siguen existiendo.
-        await session.execute(
-            update(CategoryRow)
-            .where(CategoryRow.slug.not_in([row["slug"] for row in rows]))
-            .values(active=False)
-        )
         await session.commit()
     return len(rows)
 
@@ -86,30 +71,24 @@ async def seed_services(session_factory: async_sessionmaker[AsyncSession], path:
         categories: dict[str, UUID] = dict(
             (await session.execute(select(CategoryRow.slug, CategoryRow.id))).tuples().all()
         )
-        kept: list[tuple[str, str]] = []
         for index, row in enumerate(rows):
             category_id = categories.get(row["category_slug"])
             if category_id is None:
                 raise SystemExit(f"services.csv: categoria desconocida {row['category_slug']!r}")
-            values = {
-                "name_es": row["name_es"],
-                "name_en": row["name_en"],
-                "sort_order": index,
-                "active": True,
-            }
             stmt = (
                 insert(ServiceRow)
-                .values(category_id=category_id, slug=row["slug"], **values)
-                .on_conflict_do_update(constraint="uq_services_category_slug", set_=values)
+                .values(
+                    category_id=category_id,
+                    slug=row["slug"],
+                    name_es=row["name_es"],
+                    name_en=row["name_en"],
+                    sort_order=index,
+                    active=True,
+                )
+                # Igual que con las categorias: lo que ya existe lo gestiona el admin.
+                .on_conflict_do_nothing(constraint="uq_services_category_slug")
             )
             await session.execute(stmt)
-            kept.append((row["category_slug"], row["slug"]))
-
-        # Igual que con los oficios: lo que sale del catalogo se desactiva.
-        by_id = {category_id: slug for slug, category_id in categories.items()}
-        for service in (await session.execute(select(ServiceRow))).scalars():
-            if (by_id[service.category_id], service.slug) not in kept:
-                service.active = False
         await session.commit()
     return len(rows)
 

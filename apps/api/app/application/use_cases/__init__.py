@@ -1,3 +1,12 @@
+from app.application.use_cases.admin_catalog import (
+    CreateCategory,
+    CreateService,
+    DeleteCategory,
+    DeleteService,
+    ListCatalogForAdmin,
+    UpdateCategory,
+    UpdateService,
+)
 from app.application.use_cases.admin_operations import (
     ChangeLeadAvailability,
     GetAdminMetrics,
@@ -73,8 +82,12 @@ __all__ = [
     "ApproveProfessional",
     "ChangeLeadAvailability",
     "ChangeUserRole",
+    "CreateCategory",
     "CreateLead",
+    "CreateService",
     "CreditLedgerService",
+    "DeleteCategory",
+    "DeleteService",
     "GetAdminMetrics",
     "GetLeadDetail",
     "GetLeadPricing",
@@ -87,6 +100,7 @@ __all__ = [
     "ListAdminProfessionals",
     "ListAdminPurchases",
     "ListAdminUsers",
+    "ListCatalogForAdmin",
     "ListCategories",
     "ListFeatureFlags",
     "ListLeadPurchasesForAdmin",
@@ -112,6 +126,8 @@ __all__ = [
     "SubmitForReview",
     "SubscriptionPricing",
     "SyncUserFromIdentity",
+    "UpdateCategory",
+    "UpdateService",
     "UploadPurpose",
     "UpsertProfessionalProfile",
 ]

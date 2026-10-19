@@ -155,6 +155,33 @@ class CategoryNotFoundError(NotFoundError):
     code = "CATEGORY_NOT_FOUND"
 
 
+class ServiceNotFoundError(NotFoundError):
+    """El servicio no existe en esa categoria."""
+
+    code = "SERVICE_NOT_FOUND"
+
+
+class CatalogNameInvalidError(ValidationError):
+    """El nombre es obligatorio, debe tener letras o numeros y no puede ser tan largo."""
+
+    # `min`/`max` viajan en `details`: el frontend los pone en el texto traducido.
+    code = "CATALOG_NAME_INVALID"
+
+
+class CatalogSlugTakenError(DomainError):
+    """Ya existe una categoria o un servicio con ese nombre."""
+
+    code = "CATALOG_SLUG_TAKEN"
+    status = 409
+
+
+class CatalogItemInUseError(DomainError):
+    """Hay solicitudes o profesionales que lo usan: desactivalo en vez de borrarlo."""
+
+    code = "CATALOG_ITEM_IN_USE"
+    status = 409
+
+
 class UnknownPostalCodeError(ValidationError):
     """No reconocemos ese codigo postal."""
 
@@ -346,6 +373,9 @@ class LastAdminError(DomainError):
 __all__ = [
     "AuthenticationError",
     "CannotChangeOwnRoleError",
+    "CatalogItemInUseError",
+    "CatalogNameInvalidError",
+    "CatalogSlugTakenError",
     "CategoryMismatchError",
     "CategoryNotFoundError",
     "ClientNameRequiredError",
@@ -383,6 +413,7 @@ __all__ = [
     "PurchaseNotFoundError",
     "PurchaseNotPayableError",
     "RejectionAwaitingPaymentError",
+    "ServiceNotFoundError",
     "SubscriptionAlreadyExistsError",
     "SubscriptionRequiredError",
     "TitleLengthError",

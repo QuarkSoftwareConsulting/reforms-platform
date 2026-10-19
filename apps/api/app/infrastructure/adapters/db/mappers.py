@@ -107,7 +107,7 @@ def apply_category(row: CategoryRow, category: Category) -> CategoryRow:
     row.currency = category.suggested_lead_price.currency
     row.active = category.active
     row.sort_order = category.sort_order
-    # Los servicios no se tocan aqui: el catalogo lo mantiene la semilla.
+    # Los servicios los sincroniza el repositorio: crear uno exige su propia fila.
     return row
 
 

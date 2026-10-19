@@ -21,8 +21,12 @@ from app.application.use_cases import (
     ApproveProfessional,
     ChangeLeadAvailability,
     ChangeUserRole,
+    CreateCategory,
     CreateLead,
+    CreateService,
     CreditLedgerService,
+    DeleteCategory,
+    DeleteService,
     GetAdminMetrics,
     GetLeadDetail,
     GetLeadPricing,
@@ -35,6 +39,7 @@ from app.application.use_cases import (
     ListAdminProfessionals,
     ListAdminPurchases,
     ListAdminUsers,
+    ListCatalogForAdmin,
     ListCategories,
     ListFeatureFlags,
     ListLeadPurchasesForAdmin,
@@ -58,6 +63,8 @@ from app.application.use_cases import (
     SubmitForReview,
     SubscriptionPricing,
     SyncUserFromIdentity,
+    UpdateCategory,
+    UpdateService,
     UpsertProfessionalProfile,
 )
 from app.domain.models import (
@@ -173,6 +180,13 @@ class World:
     lead_pricing: GetLeadPricing = field(init=False)
     set_lead_price: SetLeadPrice = field(init=False)
     set_category_price: SetCategorySuggestedPrice = field(init=False)
+    list_catalog: ListCatalogForAdmin = field(init=False)
+    create_category: CreateCategory = field(init=False)
+    update_category: UpdateCategory = field(init=False)
+    delete_category: DeleteCategory = field(init=False)
+    create_service: CreateService = field(init=False)
+    update_service: UpdateService = field(init=False)
+    delete_service: DeleteService = field(init=False)
     list_admin_leads: ListAdminLeads = field(init=False)
     change_lead_availability: ChangeLeadAvailability = field(init=False)
     admin_metrics: GetAdminMetrics = field(init=False)
@@ -195,6 +209,8 @@ class World:
     def __post_init__(self) -> None:
         self.leads.purchase_index = self.purchases
         self.users.professional_index = self.professionals
+        self.categories.lead_index = self.leads
+        self.categories.professional_index = self.professionals
         self.credit = CreditLedgerService(accounts=self.accounts, ledger=self.ledger, ids=self.ids)
         self.pricing = SubscriptionPricing(
             prices=self.subscription_prices,
@@ -340,6 +356,15 @@ class World:
         self.set_category_price = SetCategorySuggestedPrice(
             categories=self.categories, uow=self.uow
         )
+        self.list_catalog = ListCatalogForAdmin(categories=self.categories)
+        self.create_category = CreateCategory(
+            categories=self.categories, ids=self.ids, uow=self.uow
+        )
+        self.update_category = UpdateCategory(categories=self.categories, uow=self.uow)
+        self.delete_category = DeleteCategory(categories=self.categories, uow=self.uow)
+        self.create_service = CreateService(categories=self.categories, ids=self.ids, uow=self.uow)
+        self.update_service = UpdateService(categories=self.categories, uow=self.uow)
+        self.delete_service = DeleteService(categories=self.categories, uow=self.uow)
         self.list_admin_leads = ListAdminLeads(leads=self.leads, categories=self.categories)
         self.change_lead_availability = ChangeLeadAvailability(leads=self.leads, uow=self.uow)
         self.admin_metrics = GetAdminMetrics(
