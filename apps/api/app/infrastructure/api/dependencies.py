@@ -66,7 +66,6 @@ from app.application.use_cases import (
     RemoveProfessionalDocument,
     RequestPhotoUpload,
     RequestProfessionalUpload,
-    SetCategorySuggestedPrice,
     SetLeadPrice,
     SetSubscriptionPrice,
     StartLeadPurchase,
@@ -316,10 +315,6 @@ class RequestContainer:
     @property
     def set_lead_price(self) -> SetLeadPrice:
         return SetLeadPrice(leads=self.leads, categories=self.categories, uow=self.uow)
-
-    @property
-    def set_category_price(self) -> SetCategorySuggestedPrice:
-        return SetCategorySuggestedPrice(categories=self.categories, uow=self.uow)
 
     @property
     def list_catalog(self) -> ListCatalogForAdmin:

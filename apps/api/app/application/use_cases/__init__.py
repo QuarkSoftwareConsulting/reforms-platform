@@ -19,7 +19,6 @@ from app.application.use_cases.admin_operations import (
 )
 from app.application.use_cases.admin_pricing import (
     GetLeadPricing,
-    SetCategorySuggestedPrice,
     SetLeadPrice,
 )
 from app.application.use_cases.apply_chargeback import ApplyChargeback
@@ -117,7 +116,6 @@ __all__ = [
     "RemoveProfessionalDocument",
     "RequestPhotoUpload",
     "RequestProfessionalUpload",
-    "SetCategorySuggestedPrice",
     "SetLeadPrice",
     "SetSubscriptionPrice",
     "StartLeadPurchase",

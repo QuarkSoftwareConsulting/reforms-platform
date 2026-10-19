@@ -45,7 +45,6 @@ from app.infrastructure.api.schemas.admin import (
     PurchaseReviewOut,
     RejectionOut,
     RejectProfessionalIn,
-    SetCategoryPriceIn,
     SetLeadPriceIn,
     SetUserRoleIn,
     UpdateCategoryIn,
@@ -59,7 +58,7 @@ from app.infrastructure.api.schemas.billing import (
     SetSubscriptionPriceIn,
     SubscriptionPriceOut,
 )
-from app.infrastructure.api.schemas.leads import CategoryOut, CreateLeadOut
+from app.infrastructure.api.schemas.leads import CreateLeadOut
 from app.infrastructure.api.schemas.professionals import ProfessionalOut
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -569,29 +568,3 @@ async def delete_service(
     category_id: UUID, service_id: UUID, container: ContainerDep, _: AdminDep
 ) -> None:
     await container.delete_service.execute(category_id=category_id, service_id=service_id)
-
-
-@router.put(
-    "/categories/{category_id}/suggested-price",
-    response_model=CategoryOut,
-    summary="Fijar el precio sugerido de un oficio",
-)
-async def set_category_suggested_price(
-    category_id: UUID,
-    payload: SetCategoryPriceIn,
-    container: ContainerDep,
-    locale: LocaleDep,
-    _: AdminDep,
-) -> CategoryOut:
-    """Cambia la referencia del oficio.
-
-    Los leads con precio propio no se ven afectados: el admin ya decidio sobre
-    ellos y una edicion del catalogo no debe deshacer esa decision.
-    """
-    category = await container.set_category_price.execute(
-        category_id=category_id,
-        price=Money(
-            payload.amount_cents, payload.currency or container.infra.settings.default_currency
-        ),
-    )
-    return serializers.category_out(category, locale)

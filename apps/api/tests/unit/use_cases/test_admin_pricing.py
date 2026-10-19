@@ -105,11 +105,23 @@ class TestPurchaseUsesTheAdminPrice:
         assert detail.price == Money(1200, "EUR")
 
 
-class TestSetCategorySuggestedPrice:
+async def change_suggested_price(world: World, category: Category, cents: int) -> None:
+    """El precio sugerido se cambia editando la categoria en el catalogo."""
+    await world.update_category.execute(
+        category_id=category.id,
+        name_es=category.name_es,
+        name_en=category.name_en,
+        suggested_price_cents=cents,
+        sort_order=category.sort_order,
+        active=category.active,
+    )
+
+
+class TestCategorySuggestedPrice:
     async def test_changes_the_price_of_future_leads_without_override(
         self, world: World, lead, carpentry: Category
     ) -> None:
-        await world.set_category_price.execute(category_id=carpentry.id, price=Money(800, "EUR"))
+        await change_suggested_price(world, carpentry, 800)
 
         pricing = await world.lead_pricing.execute(lead_id=lead.id)
         assert pricing.suggested_price == Money(800, "EUR")
@@ -120,7 +132,7 @@ class TestSetCategorySuggestedPrice:
         self, world: World, lead, carpentry: Category
     ) -> None:
         await world.set_lead_price.execute(lead_id=lead.id, price=Money(1500, "EUR"))
-        await world.set_category_price.execute(category_id=carpentry.id, price=Money(800, "EUR"))
+        await change_suggested_price(world, carpentry, 800)
 
         pricing = await world.lead_pricing.execute(lead_id=lead.id)
         assert pricing.suggested_price == Money(800, "EUR")
@@ -128,5 +140,5 @@ class TestSetCategorySuggestedPrice:
 
     async def test_zero_price_rejected(self, world: World, carpentry: Category) -> None:
         with pytest.raises(InvalidSalePriceError):
-            await world.set_category_price.execute(category_id=carpentry.id, price=Money(0, "EUR"))
+            await change_suggested_price(world, carpentry, 0)
         assert world.categories.items[carpentry.id].suggested_lead_price == Money(500, "EUR")

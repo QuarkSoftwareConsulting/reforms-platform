@@ -54,7 +54,6 @@ from app.application.use_cases import (
     RemoveProfessionalDocument,
     RequestPhotoUpload,
     RequestProfessionalUpload,
-    SetCategorySuggestedPrice,
     SetLeadPrice,
     SetSubscriptionPrice,
     StartLeadPurchase,
@@ -179,7 +178,6 @@ class World:
     request_upload: RequestPhotoUpload = field(init=False)
     lead_pricing: GetLeadPricing = field(init=False)
     set_lead_price: SetLeadPrice = field(init=False)
-    set_category_price: SetCategorySuggestedPrice = field(init=False)
     list_catalog: ListCatalogForAdmin = field(init=False)
     create_category: CreateCategory = field(init=False)
     update_category: UpdateCategory = field(init=False)
@@ -352,9 +350,6 @@ class World:
         self.lead_pricing = GetLeadPricing(leads=self.leads, categories=self.categories)
         self.set_lead_price = SetLeadPrice(
             leads=self.leads, categories=self.categories, uow=self.uow
-        )
-        self.set_category_price = SetCategorySuggestedPrice(
-            categories=self.categories, uow=self.uow
         )
         self.list_catalog = ListCatalogForAdmin(categories=self.categories)
         self.create_category = CreateCategory(

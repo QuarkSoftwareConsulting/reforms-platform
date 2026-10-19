@@ -44,11 +44,6 @@ class SetLeadPriceIn(ApiModel):
     )
 
 
-class SetCategoryPriceIn(ApiModel):
-    amount_cents: int = Field(gt=0, le=MAX_SALE_PRICE_CENTS)
-    currency: str | None = Field(default=None, min_length=3, max_length=3)
-
-
 # --- Catalogo. Los nombres los valida el dominio (CATALOG_NAME_INVALID, con su limite
 # exacto); el `max_length` de aqui solo frena cuerpos absurdos.
 CATALOG_NAME_GUARD = 500
@@ -350,7 +345,6 @@ __all__ = [
     "MetricsTimeseriesOut",
     "PurchaseReviewIn",
     "PurchaseReviewOut",
-    "SetCategoryPriceIn",
     "SetLeadPriceIn",
     "SetUserRoleIn",
     "UserRoleEventOut",
