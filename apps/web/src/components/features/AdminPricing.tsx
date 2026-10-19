@@ -1,31 +1,29 @@
 "use client";
 
+import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { SelectField, TextField } from "@/components/ui/Field";
+import { TextField } from "@/components/ui/Field";
 import { formatMoney } from "@/helpers/currency";
 import { useApiError } from "@/hooks/useApiError";
-import { type AppLocale } from "@/i18n/routing";
+import { path, type AppLocale } from "@/i18n/routing";
 import { adminService } from "@/services/admin.service";
-import { leadsService } from "@/services/leads.service";
-import type { Category, SubscriptionPrice } from "@/types/api";
+import type { SubscriptionPrice } from "@/types/api";
 
 /**
- * Precios que fija el admin: el sugerido de cada oficio y la mensualidad. El precio de
- * un contacto concreto se decide en su tarjeta, en `AdminLeads`.
+ * Precios que fija el admin: la mensualidad. El sugerido de cada oficio se edita con el
+ * resto de la categoria en `AdminCatalog`, y el de un contacto concreto en su tarjeta,
+ * en `AdminLeads`.
  */
 export function AdminPricing() {
   const locale = useLocale() as AppLocale;
   const t = useTranslations("admin");
   const tCommon = useTranslations("common");
   const translateError = useApiError();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [categoryId, setCategoryId] = useState("");
-  const [categoryPrice, setCategoryPrice] = useState("");
   const [subscriptionPrice, setSubscriptionPrice] = useState<SubscriptionPrice | null>(null);
   const [subscriptionDraft, setSubscriptionDraft] = useState("");
   const [loading, setLoading] = useState(true);
@@ -37,12 +35,7 @@ export function AdminPricing() {
     setLoading(true);
     setError(null);
     try {
-      const [nextCategories, nextSubscription] = await Promise.all([
-        leadsService.categories(locale),
-        adminService.subscriptionPrice(locale),
-      ]);
-      setCategories(nextCategories);
-      setSubscriptionPrice(nextSubscription);
+      setSubscriptionPrice(await adminService.subscriptionPrice(locale));
     } catch (caught) {
       setError(translateError(caught));
     } finally {
@@ -76,39 +69,15 @@ export function AdminPricing() {
       {loading && <p className="text-help text-muted">{tCommon("loading")}</p>}
 
       <section className="grid gap-6 lg:grid-cols-2">
-        <Card className="space-y-4">
+        <Card className="space-y-3">
           <h2 className="text-card-title font-bold text-ink">{t("categoryPricing.title")}</h2>
-          <SelectField
-            label={t("categoryPricing.category")}
-            value={categoryId}
-            onChange={(event) => setCategoryId(event.target.value)}
+          <p className="text-sm text-secondary">{t("categoryPricing.body")}</p>
+          <Link
+            href={path(locale, "admin", "/catalogo")}
+            className="inline-block text-sm font-semibold text-brand underline underline-offset-4 hover:text-brand-hover"
           >
-            <option value="">{t("categoryPricing.placeholder")}</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </SelectField>
-          <TextField
-            label={t("categoryPricing.amount")}
-            value={categoryPrice}
-            onChange={(event) => setCategoryPrice(event.target.value)}
-            inputMode="numeric"
-            type="number"
-            min="1"
-          />
-          <Button
-            loading={saving}
-            disabled={!categoryId || Number(categoryPrice) < 1}
-            onClick={() =>
-              void run(() =>
-                adminService.setCategoryPrice(categoryId, Number(categoryPrice), locale),
-              )
-            }
-          >
-            {t("categoryPricing.submit")}
-          </Button>
+            {t("categoryPricing.link")}
+          </Link>
         </Card>
 
         <Card className="space-y-4">

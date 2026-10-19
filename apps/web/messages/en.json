@@ -476,11 +476,9 @@
       "submit": "Publish manual lead"
     },
     "categoryPricing": {
-      "title": "Suggested category price",
-      "category": "Trade",
-      "placeholder": "Select a trade",
-      "amount": "Amount in cents",
-      "submit": "Save suggested price"
+      "title": "Suggested price per category",
+      "body": "It is edited with the rest of the category, in the catalog: open “Edit” on the category and change its suggested price. The price of a specific contact is set on its card, in Requests.",
+      "link": "Go to the catalog"
     },
     "leads": {
       "title": "Lead inventory",

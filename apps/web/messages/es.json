@@ -477,10 +477,8 @@
     },
     "categoryPricing": {
       "title": "Precio sugerido por categoría",
-      "category": "Oficio",
-      "placeholder": "Selecciona un oficio",
-      "amount": "Importe en céntimos",
-      "submit": "Guardar precio sugerido"
+      "body": "Se edita junto al resto de la categoría, en el catálogo: abre «Editar» en la categoría y cambia su precio sugerido. El precio de un contacto concreto se fija en su tarjeta, en Solicitudes.",
+      "link": "Ir al catálogo"
     },
     "leads": {
       "title": "Inventario de leads",

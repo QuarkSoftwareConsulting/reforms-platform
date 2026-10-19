@@ -56,7 +56,6 @@ vi.mock("@/services/admin.service", () => ({
     disableLead: vi.fn(),
     republishLead: vi.fn(),
     setLeadPrice: vi.fn(),
-    setCategoryPrice: vi.fn(),
     purchases: vi.fn(),
     reviewPurchase: vi.fn(),
   },

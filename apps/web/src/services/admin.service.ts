@@ -12,7 +12,6 @@ import type {
   AdminPurchaseList,
   AdminUser,
   AdminUserList,
-  Category,
   CreatedLead,
   Locale,
   MetricsTimeseries,
@@ -207,14 +206,6 @@ export const adminService = {
 
   setLeadPrice(leadId: string, amountCents: number | null, locale: Locale): Promise<void> {
     return request<void>(`/admin/leads/${leadId}/price`, {
-      method: "PUT",
-      body: { amount_cents: amountCents },
-      locale,
-    });
-  },
-
-  setCategoryPrice(categoryId: string, amountCents: number, locale: Locale): Promise<Category> {
-    return request<Category>(`/admin/categories/${categoryId}/suggested-price`, {
       method: "PUT",
       body: { amount_cents: amountCents },
       locale,
