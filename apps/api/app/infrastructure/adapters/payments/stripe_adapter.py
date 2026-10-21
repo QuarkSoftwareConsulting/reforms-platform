@@ -247,6 +247,7 @@ class StripePaymentGateway(PaymentPort):
             invoice_number=obj.get("number") if is_invoice else None,
             invoice_url=obj.get("hosted_invoice_url") if is_invoice else None,
             invoice_pdf_url=obj.get("invoice_pdf") if is_invoice else None,
+            invoice_total_cents=_as_cents(obj.get("total")) if is_invoice else None,
             tax_cents=_invoice_tax(obj) if is_invoice else None,
             issued_at=_invoice_issued_at(obj) if is_invoice else None,
         )
@@ -534,6 +535,10 @@ def _billing_params(billing: BillingDetails) -> dict[str, Any]:
     return params
 
 
+def _as_cents(value: Any) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
 def _invoice_tax(obj: dict[str, Any]) -> int | None:
     """Cuota de impuestos de la factura.
 
@@ -545,8 +550,7 @@ def _invoice_tax(obj: dict[str, Any]) -> int | None:
         amounts = [t.get("amount") for t in taxes if isinstance(t, dict)]
         valid = [a for a in amounts if isinstance(a, int) and not isinstance(a, bool)]
         return sum(valid) if valid else None
-    legacy = obj.get("tax")
-    return legacy if isinstance(legacy, int) and not isinstance(legacy, bool) else None
+    return _as_cents(obj.get("tax"))
 
 
 def _invoice_issued_at(obj: dict[str, Any]) -> datetime | None:

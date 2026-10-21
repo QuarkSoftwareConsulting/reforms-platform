@@ -667,6 +667,13 @@ class InMemoryCategoryRepository(CategoryRepositoryPort):
         self.items[category.id] = category
         return category
 
+    async def get_by_service(self, service_id: UUID) -> Category | None:
+        await _round_trip()
+        return next(
+            (c for c in self.items.values() if any(s.id == service_id for s in c.services)),
+            None,
+        )
+
     async def delete(self, category_id: UUID) -> None:
         await _round_trip()
         self.items.pop(category_id, None)

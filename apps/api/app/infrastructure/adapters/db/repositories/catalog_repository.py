@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import delete, exists, or_, select
+from sqlalchemy import Delete, delete, exists, or_, select
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.ports import (
@@ -14,7 +15,11 @@ from app.application.ports import (
     PostalCodeRepositoryPort,
     ProcessedEventRepositoryPort,
 )
-from app.domain.exceptions import CategoryNotFoundError
+from app.domain.exceptions import (
+    CatalogItemInUseError,
+    CatalogSlugTakenError,
+    CategoryNotFoundError,
+)
 from app.domain.models import Category, Service
 from app.domain.value_objects import PostalCode
 from app.infrastructure.adapters.db.mappers import (
@@ -32,6 +37,24 @@ from app.infrastructure.adapters.db.models import (
     ProfessionalServiceRow,
     ServiceRow,
 )
+
+FOREIGN_KEY_VIOLATION = "23503"
+SLUG_CONSTRAINTS = frozenset({"uq_categories_slug", "uq_services_category_slug"})
+
+
+def _driver_error(exc: IntegrityError) -> object:
+    # asyncpg llega envuelto en el adaptador DBAPI de SQLAlchemy; su error va en la causa.
+    return getattr(exc.orig, "__cause__", None) or exc.orig
+
+
+def _sqlstate(exc: IntegrityError) -> str | None:
+    value = getattr(_driver_error(exc), "sqlstate", None)
+    return value if isinstance(value, str) else None
+
+
+def _constraint_name(exc: IntegrityError) -> str | None:
+    value = getattr(_driver_error(exc), "constraint_name", None)
+    return value if isinstance(value, str) else None
 
 
 class SqlAlchemyCategoryRepository(CategoryRepositoryPort):
@@ -62,6 +85,11 @@ class SqlAlchemyCategoryRepository(CategoryRepositoryPort):
         row = (await self._session.execute(stmt)).scalar_one_or_none()
         return category_to_domain(row) if row is not None else None
 
+    async def get_by_service(self, service_id: UUID) -> Category | None:
+        stmt = select(CategoryRow).join(ServiceRow).where(ServiceRow.id == service_id)
+        row = (await self._session.execute(stmt)).scalar_one_or_none()
+        return category_to_domain(row) if row is not None else None
+
     async def get_many(self, category_ids: set[UUID]) -> list[Category]:
         if not category_ids:
             return []
@@ -73,7 +101,7 @@ class SqlAlchemyCategoryRepository(CategoryRepositoryPort):
         row = CategoryRow(id=category.id, services=[])
         apply_category(row, category)
         self._session.add(row)
-        await self._session.flush()
+        await self._flush()
         await self._sync_services(row, category.services)
         return category
 
@@ -87,13 +115,29 @@ class SqlAlchemyCategoryRepository(CategoryRepositoryPort):
 
     async def delete(self, category_id: UUID) -> None:
         # Los servicios primero: su clave foranea es RESTRICT.
-        await self._session.execute(delete(ServiceRow).where(ServiceRow.category_id == category_id))
-        await self._session.execute(delete(CategoryRow).where(CategoryRow.id == category_id))
-        # Sin esto, la sesion seguiria devolviendo la fila borrada desde su cache.
-        self._session.expire_all()
+        await self._delete_restricted(
+            delete(ServiceRow).where(ServiceRow.category_id == category_id),
+            delete(CategoryRow).where(CategoryRow.id == category_id),
+        )
 
     async def delete_service(self, service_id: UUID) -> None:
-        await self._session.execute(delete(ServiceRow).where(ServiceRow.id == service_id))
+        await self._delete_restricted(delete(ServiceRow).where(ServiceRow.id == service_id))
+
+    async def _delete_restricted(self, *statements: Delete) -> None:
+        """Borra lo que el caso de uso comprobo que nadie usa.
+
+        Un lead o un perfil que lo empiece a usar entre la comprobacion y el borrado
+        no bloquea nada antes: lo para la clave foranea RESTRICT, y se responde lo
+        mismo que si la comprobacion lo hubiera visto.
+        """
+        try:
+            for statement in statements:
+                await self._session.execute(statement)
+        except IntegrityError as exc:
+            if _sqlstate(exc) == FOREIGN_KEY_VIOLATION:
+                raise CatalogItemInUseError() from exc
+            raise
+        # Sin esto, la sesion seguiria devolviendo la fila borrada desde su cache.
         self._session.expire_all()
 
     async def is_in_use(self, category_id: UUID) -> bool:
@@ -142,7 +186,20 @@ class SqlAlchemyCategoryRepository(CategoryRepositoryPort):
             service_row.image_key = service.image_key
             service_row.landing_name_es = service.landing_name_es
             service_row.landing_name_en = service.landing_name_en
-        await self._session.flush()
+        await self._flush()
+
+    async def _flush(self) -> None:
+        """Escribe ya, para que un slug repetido llegue como su error y no como un 500.
+
+        El caso de uso compara el slug con lo que leyo; dos altas simultaneas con el
+        mismo nombre pasan las dos esa comprobacion y solo la restriccion unica las ve.
+        """
+        try:
+            await self._session.flush()
+        except IntegrityError as exc:
+            if _constraint_name(exc) in SLUG_CONSTRAINTS:
+                raise CatalogSlugTakenError() from exc
+            raise
 
 
 class SqlAlchemyPostalCodeRepository(PostalCodeRepositoryPort):

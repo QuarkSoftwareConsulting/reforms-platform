@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domain.exceptions import CatalogItemInUseError, CatalogSlugTakenError
 from app.domain.models import Category
 from app.infrastructure.adapters.db.models import CategoryRow, ServiceRow
 from app.infrastructure.adapters.db.repositories import SqlAlchemyCategoryRepository
@@ -189,3 +191,72 @@ async def test_featured_flag_and_image_are_persisted(
     assert reloaded is not None
     assert reloaded.service(service.id).featured
     assert reloaded.service(service.id).image_key == key
+
+
+async def test_deleting_a_service_a_lead_just_took_is_reported_as_in_use(
+    session: AsyncSession, carpentry: Category
+) -> None:
+    # La carrera: el caso de uso comprobo que nadie lo usaba y un lead lo eligio justo
+    # despues. Sin traducir la clave foranea, el admin veria un 500.
+    from app.infrastructure.adapters.db.repositories import SqlAlchemyLeadRepository
+    from tests.factories import make_lead
+
+    service = carpentry.services[0]
+    await SqlAlchemyLeadRepository(session).add(
+        make_lead(category_id=carpentry.id, service_ids=[service.id])
+    )
+    await session.commit()
+
+    with pytest.raises(CatalogItemInUseError):
+        await SqlAlchemyCategoryRepository(session).delete_service(service.id)
+    await session.rollback()
+
+
+async def test_a_category_slug_taken_meanwhile_is_reported_as_taken(
+    session: AsyncSession, carpentry: Category
+) -> None:
+    from app.domain.value_objects import Money
+
+    twin = Category.create(
+        id=uuid4(),
+        name_es="Carpintería",
+        name_en="Carpentry",
+        suggested_lead_price=Money(700, "EUR"),
+        sort_order=2,
+    )
+
+    with pytest.raises(CatalogSlugTakenError):
+        await SqlAlchemyCategoryRepository(session).add(twin)
+    await session.rollback()
+
+
+async def test_a_service_slug_taken_meanwhile_is_reported_as_taken(
+    session: AsyncSession, carpentry: Category
+) -> None:
+    # Dos admins anaden el mismo servicio a la vez: cada uno partio de su lectura.
+    repo = SqlAlchemyCategoryRepository(session)
+    first = await repo.get(carpentry.id)
+    second = await repo.get(carpentry.id)
+    assert first is not None
+    assert second is not None
+    first.add_service(id=uuid4(), name_es="Tarimas", name_en="Floors")
+    second.add_service(id=uuid4(), name_es="Tarimas", name_en="Floors")
+    await repo.update(first)
+    await session.commit()
+
+    with pytest.raises(CatalogSlugTakenError):
+        await repo.update(second)
+    await session.rollback()
+
+
+async def test_a_category_is_found_by_one_of_its_services(
+    session: AsyncSession, carpentry: Category
+) -> None:
+    repo = SqlAlchemyCategoryRepository(session)
+
+    found = await repo.get_by_service(carpentry.services[1].id)
+
+    assert found is not None
+    assert found.id == carpentry.id
+    assert [s.id for s in found.services] == [s.id for s in carpentry.services]
+    assert await repo.get_by_service(uuid4()) is None

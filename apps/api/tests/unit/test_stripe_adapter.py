@@ -251,6 +251,20 @@ class TestSubscriptionEvents:
         assert event.tax_cents is None
         assert event.issued_at == datetime.fromtimestamp(1_779_000_000, tz=UTC)
 
+    def test_invoice_total_is_kept_apart_from_what_was_charged(
+        self, gateway: StripePaymentGateway
+    ) -> None:
+        # Saldo a favor del cliente en Stripe: la factura es de 18 EUR, se cobran 2.
+        payload = signed_event(
+            "invoice.paid",
+            invoice(total=1800, amount_paid=200, total_taxes=[{"amount": 312}]),
+        )
+        event = gateway.parse_webhook_event(payload.encode(), sign(payload))
+
+        assert event.invoice_total_cents == 1800
+        assert event.amount_cents == 200, "se abona lo cobrado"
+        assert event.tax_cents == 312
+
     def test_legacy_invoice_tax_field_is_also_read(self, gateway: StripePaymentGateway) -> None:
         payload = signed_event("invoice.paid", invoice(tax=312))
         event = gateway.parse_webhook_event(payload.encode(), sign(payload))

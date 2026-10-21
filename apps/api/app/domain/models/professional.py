@@ -158,6 +158,8 @@ class Professional:
     tax_id: TaxId | None = None
     address: str | None = None
     """Direccion de la empresa o domicilio."""
+    billing_sync_pending: bool = False
+    """Hay datos fiscales (nombre, NIF, domicilio) que la pasarela aun no tiene."""
     profile_photo_key: str | None = None
     logo_key: str | None = None
     work_photo_keys: list[str] = field(default_factory=list)

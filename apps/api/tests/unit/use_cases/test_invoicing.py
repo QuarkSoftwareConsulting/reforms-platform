@@ -117,6 +117,26 @@ class TestInvoiceIsStored:
         assert [i.total for i in world.invoices.items] == [Money(0, "EUR")]
         assert world.accounts.items[professional.id].balance == Money(0, "EUR")
 
+    async def test_customer_balance_does_not_shrink_the_invoice(
+        self, world: World, carpentry: Category
+    ) -> None:
+        # Stripe aplico saldo a favor: lo cobrado (2 EUR) queda por debajo del IVA. Si la
+        # factura se guardara con lo cobrado, el IVA superaria el total y el webhook
+        # entero fallaria: ni saldo ni cuenta activada, reintento tras reintento.
+        professional = billed_pro(world, carpentry)
+        customer_id = await subscribe(world, professional)
+
+        await invoice_paid(
+            world, customer_id, amount_cents=200, invoice_total_cents=1800, tax_cents=312
+        )
+
+        [invoice] = world.invoices.items
+        assert invoice.total == Money(1800, "EUR")
+        assert invoice.tax == Money(312, "EUR")
+        account = world.accounts.items[professional.id]
+        assert account.balance == Money(200, "EUR"), "se abona lo cobrado"
+        assert account.is_active(NOW)
+
     async def test_without_vat_breakdown_the_tax_is_unknown(
         self, world: World, carpentry: Category
     ) -> None:
@@ -259,3 +279,32 @@ class TestBillingDetailsOnProfileSave:
         # Sin datos personales en el log.
         assert ADDRESS not in caplog.text
         assert "Gran Via" not in caplog.text
+
+    async def test_a_failed_sync_is_retried_on_the_next_save(
+        self, world: World, carpentry: Category
+    ) -> None:
+        # Sin el reintento, el segundo guardado no ve diferencia con lo guardado y las
+        # facturas de cada renovacion seguirian saliendo con el domicilio viejo.
+        professional, customer_id = await self._customer(world, carpentry)
+        new_address = profile_input(carpentry, address="Gran Via 2, 28013 Madrid")
+        world.payments.fail_on_billing_update = True
+        await world.upsert_profile.execute(user_id=professional.user_id, data=new_address)
+        assert world.professionals.items[professional.id].billing_sync_pending
+
+        world.payments.fail_on_billing_update = False
+        await world.upsert_profile.execute(user_id=professional.user_id, data=new_address)
+
+        assert world.payments.billing_updates[customer_id].address == "Gran Via 2, 28013 Madrid"
+        assert not world.professionals.items[professional.id].billing_sync_pending
+
+    async def test_once_synced_an_identical_save_does_not_call_the_gateway(
+        self, world: World, carpentry: Category
+    ) -> None:
+        professional, _ = await self._customer(world, carpentry)
+        new_address = profile_input(carpentry, address="Gran Via 2, 28013 Madrid")
+        await world.upsert_profile.execute(user_id=professional.user_id, data=new_address)
+        world.payments.billing_updates.clear()
+
+        await world.upsert_profile.execute(user_id=professional.user_id, data=new_address)
+
+        assert world.payments.billing_updates == {}

@@ -367,10 +367,16 @@ class World:
             categories=self.categories, ids=self.ids, uow=self.uow
         )
         self.update_category = UpdateCategory(categories=self.categories, uow=self.uow)
-        self.delete_category = DeleteCategory(categories=self.categories, uow=self.uow)
+        self.delete_category = DeleteCategory(
+            categories=self.categories, storage=self.storage, uow=self.uow
+        )
         self.create_service = CreateService(categories=self.categories, ids=self.ids, uow=self.uow)
-        self.update_service = UpdateService(categories=self.categories, uow=self.uow)
-        self.delete_service = DeleteService(categories=self.categories, uow=self.uow)
+        self.update_service = UpdateService(
+            categories=self.categories, storage=self.storage, uow=self.uow
+        )
+        self.delete_service = DeleteService(
+            categories=self.categories, storage=self.storage, uow=self.uow
+        )
         self.request_catalog_image_upload = RequestCatalogImageUpload(
             categories=self.categories, storage=self.storage
         )

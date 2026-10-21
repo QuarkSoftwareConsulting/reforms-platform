@@ -351,6 +351,10 @@ class CategoryRepositoryPort(ABC):
     async def get_by_slug(self, slug: str) -> Category | None: ...
 
     @abstractmethod
+    async def get_by_service(self, service_id: UUID) -> Category | None:
+        """La categoria a la que pertenece el servicio, con todos sus servicios."""
+
+    @abstractmethod
     async def get_many(self, category_ids: set[UUID]) -> list[Category]: ...
 
     @abstractmethod

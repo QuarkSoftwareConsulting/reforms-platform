@@ -15,8 +15,9 @@ from uuid import UUID
 from fastapi import APIRouter, Query, status
 
 from app.application.dto import AdminPurchaseQuery, ConsentInput, CreateLeadInput
-from app.application.ports import AdminLeadFilters, AdminUserFilters
+from app.application.ports import AdminLeadFilters, AdminUserFilters, StoragePort
 from app.domain.models import (
+    Category,
     LeadSource,
     LeadStatus,
     PurchaseStatus,
@@ -463,6 +464,11 @@ async def set_lead_price(
 # Los nombres se renombran sin cambiar el slug: lo usan las URL publicas.
 
 
+async def _admin_category_out(category: Category, storage: StoragePort) -> AdminCategoryOut:
+    # Con GCS cada URL de imagen se firma por red (signBlob): fuera del event loop.
+    return await asyncio.to_thread(serializers.admin_category_out, category, storage)
+
+
 @router.get(
     "/catalog",
     response_model=list[AdminCategoryOut],
@@ -470,9 +476,12 @@ async def set_lead_price(
 )
 async def list_catalog(container: ContainerDep, _: AdminDep) -> list[AdminCategoryOut]:
     categories = await container.list_catalog.execute()
-    return [
-        serializers.admin_category_out(category, container.infra.storage) for category in categories
-    ]
+    return await asyncio.to_thread(
+        lambda: [
+            serializers.admin_category_out(category, container.infra.storage)
+            for category in categories
+        ]
+    )
 
 
 @router.post(
@@ -492,7 +501,7 @@ async def create_category(
         ),
         sort_order=payload.sort_order,
     )
-    return serializers.admin_category_out(category, container.infra.storage)
+    return await _admin_category_out(category, container.infra.storage)
 
 
 @router.put(
@@ -511,7 +520,7 @@ async def update_category(
         sort_order=payload.sort_order,
         active=payload.active,
     )
-    return serializers.admin_category_out(category, container.infra.storage)
+    return await _admin_category_out(category, container.infra.storage)
 
 
 @router.delete(
@@ -535,7 +544,7 @@ async def create_service(
     category = await container.create_service.execute(
         category_id=category_id, name_es=payload.name_es, name_en=payload.name_en
     )
-    return serializers.admin_category_out(category, container.infra.storage)
+    return await _admin_category_out(category, container.infra.storage)
 
 
 @router.put(
@@ -562,7 +571,7 @@ async def update_service(
         landing_name_es=payload.landing_name_es,
         landing_name_en=payload.landing_name_en,
     )
-    return serializers.admin_category_out(category, container.infra.storage)
+    return await _admin_category_out(category, container.infra.storage)
 
 
 @router.post(

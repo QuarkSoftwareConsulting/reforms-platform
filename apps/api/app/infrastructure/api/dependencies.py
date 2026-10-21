@@ -326,7 +326,7 @@ class RequestContainer:
 
     @property
     def delete_category(self) -> DeleteCategory:
-        return DeleteCategory(categories=self.categories, uow=self.uow)
+        return DeleteCategory(categories=self.categories, storage=self.infra.storage, uow=self.uow)
 
     @property
     def create_service(self) -> CreateService:
@@ -334,11 +334,11 @@ class RequestContainer:
 
     @property
     def update_service(self) -> UpdateService:
-        return UpdateService(categories=self.categories, uow=self.uow)
+        return UpdateService(categories=self.categories, storage=self.infra.storage, uow=self.uow)
 
     @property
     def delete_service(self) -> DeleteService:
-        return DeleteService(categories=self.categories, uow=self.uow)
+        return DeleteService(categories=self.categories, storage=self.infra.storage, uow=self.uow)
 
     @property
     def admin_leads(self) -> ListAdminLeads:

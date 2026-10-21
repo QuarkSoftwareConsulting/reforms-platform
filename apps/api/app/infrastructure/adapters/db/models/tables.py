@@ -228,6 +228,9 @@ class ProfessionalRow(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     legal_name: Mapped[str | None] = mapped_column(String(200))
     tax_id: Mapped[str | None] = mapped_column(String(20))
     address: Mapped[str | None] = mapped_column(String(300))
+    billing_sync_pending: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
     profile_photo_key: Mapped[str | None] = mapped_column(String(500))
     logo_key: Mapped[str | None] = mapped_column(String(500))
 

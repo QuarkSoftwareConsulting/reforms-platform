@@ -96,6 +96,7 @@ class FakePaymentGateway(PaymentPort):
             invoice_number=data.get("invoice_number"),
             invoice_url=data.get("invoice_url"),
             invoice_pdf_url=data.get("invoice_pdf_url"),
+            invoice_total_cents=data.get("invoice_total_cents"),
             tax_cents=data.get("tax_cents"),
             issued_at=(
                 datetime.fromisoformat(data["issued_at"]) if data.get("issued_at") else None
@@ -226,6 +227,7 @@ class FakePaymentGateway(PaymentPort):
         period_end: datetime | None = None,
         occurred_at: datetime | None = None,
         invoice_number: str | None = None,
+        invoice_total_cents: int | None = None,
         tax_cents: int | None = None,
         issued_at: datetime | None = None,
     ) -> bytes:
@@ -245,6 +247,7 @@ class FakePaymentGateway(PaymentPort):
                 "invoice_number": invoice_number,
                 "invoice_url": f"https://invoice.test/{invoice_id}" if invoice_id else None,
                 "invoice_pdf_url": f"https://invoice.test/{invoice_id}.pdf" if invoice_id else None,
+                "invoice_total_cents": invoice_total_cents,
                 "tax_cents": tax_cents,
                 "issued_at": issued_at.isoformat() if issued_at else None,
             }

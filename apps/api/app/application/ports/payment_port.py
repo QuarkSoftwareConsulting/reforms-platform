@@ -134,8 +134,11 @@ class PaymentEvent:
     invoice_number: str | None = None
     invoice_url: str | None = None
     invoice_pdf_url: str | None = None
+    invoice_total_cents: int | None = None
+    """Total de la factura. Puede superar `amount_cents` (lo cobrado, lo que se abona)
+    si la pasarela aplico saldo a favor del cliente."""
     tax_cents: int | None = None
-    """Cuota de IVA incluida en `amount_cents`, si la factura la desglosa."""
+    """Cuota de IVA incluida en `invoice_total_cents`, si la factura la desglosa."""
     issued_at: datetime | None = None
     """Cuando se emitio la factura (al numerarla), no cuando se cobro."""
 

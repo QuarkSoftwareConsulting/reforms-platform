@@ -83,7 +83,14 @@ class ApplySubscriptionEvent:
                 id=self.ids.new_id(),
                 professional_id=account.professional_id,
                 gateway_invoice_id=event.invoice_id,
-                total=Money(event.amount_cents, event.currency),
+                # El total de la factura, no lo cobrado: con saldo a favor del cliente
+                # en la pasarela lo cobrado es menor y puede quedar por debajo del IVA.
+                total=Money(
+                    event.invoice_total_cents
+                    if event.invoice_total_cents is not None
+                    else event.amount_cents,
+                    event.currency,
+                ),
                 issued_at=event.issued_at or event.occurred_at or now,
                 created_at=now,
                 number=event.invoice_number,

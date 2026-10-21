@@ -159,12 +159,17 @@ class UpsertProfessionalProfile:
             )
             # Revalida los invariantes tras la mutacion (radio, nombre, fotos, CIF).
             professional.__post_init__()
+            # Se marca en la misma transaccion que el cambio: si la pasarela falla (o el
+            # proceso muere antes de llamarla), el siguiente guardado lo reintenta aunque
+            # ya no haya diferencia con lo guardado.
+            if billing_before is not None and billing_details(professional) != billing_before:
+                professional.billing_sync_pending = True
 
             if existing is None:
                 return await self.professionals.add(professional)
             saved = await self.professionals.update(professional)
 
-        if billing_before is not None and billing_details(saved) != billing_before:
+        if saved.billing_sync_pending:
             await self._sync_billing(saved)
         return saved
 
@@ -172,18 +177,26 @@ class UpsertProfessionalProfile:
         """Lleva a la pasarela el nuevo nombre fiscal, NIF o domicilio.
 
         Despues del commit y sin bloquear el guardado: el perfil ya es correcto y un
-        fallo de la pasarela no debe obligar a repetirlo. Lo que quede sin sincronizar
-        se envia de nuevo al guardar otra vez el perfil o al iniciar la mensualidad.
+        fallo de la pasarela no debe obligar a repetirlo. Queda pendiente y se envia de
+        nuevo en el siguiente guardado del perfil.
         """
+        sent = billing_details(professional)
         account = await self.accounts.get(professional.id)
-        if account is None or account.stripe_customer_id is None:
-            return
-        try:
-            await self.payments.update_customer_billing(
-                account.stripe_customer_id, billing_details(professional)
-            )
-        except PaymentGatewayError:
-            logger.warning("datos_fiscales_sin_sincronizar: professional=%s", professional.id)
+        if account is not None and account.stripe_customer_id is not None:
+            try:
+                await self.payments.update_customer_billing(account.stripe_customer_id, sent)
+            except PaymentGatewayError:
+                logger.warning("datos_fiscales_sin_sincronizar: professional=%s", professional.id)
+                return
+        # Sin cliente en la pasarela no hay nada que llevar: `StartSubscription` le
+        # enviara los datos vigentes al crearlo.
+        async with self.uow:
+            current = await self.professionals.get_for_update(professional.id)
+            # Si otro guardado cambio los datos entretanto, lo enviado ya no es lo
+            # vigente: sigue pendiente y lo lleva ese guardado o el siguiente.
+            if current is not None and billing_details(current) == sent:
+                current.billing_sync_pending = False
+                await self.professionals.update(current)
 
     @staticmethod
     def _parse_tax_id(raw: str | None) -> TaxId | None:

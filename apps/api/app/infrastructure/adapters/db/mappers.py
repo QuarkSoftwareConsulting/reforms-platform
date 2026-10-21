@@ -159,6 +159,7 @@ def professional_to_domain(row: ProfessionalRow) -> Professional:
         legal_name=row.legal_name,
         tax_id=TaxId(row.tax_id) if row.tax_id else None,
         address=row.address,
+        billing_sync_pending=row.billing_sync_pending,
         profile_photo_key=row.profile_photo_key,
         logo_key=row.logo_key,
         work_photo_keys=[
@@ -195,6 +196,7 @@ def apply_professional(row: ProfessionalRow, professional: Professional) -> Prof
     row.legal_name = professional.legal_name
     row.tax_id = professional.tax_id.value if professional.tax_id else None
     row.address = professional.address
+    row.billing_sync_pending = professional.billing_sync_pending
     row.profile_photo_key = professional.profile_photo_key
     row.logo_key = professional.logo_key
     row.verification_status = professional.verification_status

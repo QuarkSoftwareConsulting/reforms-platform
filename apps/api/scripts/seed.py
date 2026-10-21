@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import csv
 import sys
 import urllib.request
@@ -157,35 +158,44 @@ async def seed_featured_services(
                 await session.execute(select(ServiceRow, CategoryRow.slug).join(CategoryRow))
             ).tuples()
         }
-        featured = 0
-        for row in rows:
-            service = services.get((row["category_slug"], row["service_slug"]))
-            if service is None:
-                print(
-                    f"featured_services.csv: no existe {row['category_slug']}/{row['service_slug']}"
+        uploaded: list[str] = []
+        try:
+            for row in rows:
+                service = services.get((row["category_slug"], row["service_slug"]))
+                if service is None:
+                    print(
+                        "featured_services.csv: no existe "
+                        f"{row['category_slug']}/{row['service_slug']}"
+                    )
+                    continue
+                image = path.parent / "featured" / row["image"]
+                upload = await storage.create_presigned_upload(
+                    key_prefix=catalog_image_prefix(service.id),
+                    filename=row["image"],
+                    content_type="image/webp",
                 )
-                continue
-            image = path.parent / "featured" / row["image"]
-            upload = await storage.create_presigned_upload(
-                key_prefix=catalog_image_prefix(service.id),
-                filename=row["image"],
-                content_type="image/webp",
-            )
-            # La misma subida firmada que usa el navegador: no hace falta otra via al bucket.
-            request = urllib.request.Request(
-                upload.upload_url,
-                data=image.read_bytes(),
-                method=upload.method,
-                headers=upload.headers,
-            )
-            await asyncio.to_thread(urllib.request.urlopen, request, timeout=30)
-            service.image_key = upload.storage_key
-            service.featured = True
-            service.landing_name_es = row.get("landing_name_es") or None
-            service.landing_name_en = row.get("landing_name_en") or None
-            featured += 1
-        await session.commit()
-    return featured
+                # La misma subida firmada que usa el navegador: no hace falta otra via.
+                request = urllib.request.Request(
+                    upload.upload_url,
+                    data=image.read_bytes(),
+                    method=upload.method,
+                    headers=upload.headers,
+                )
+                await asyncio.to_thread(urllib.request.urlopen, request, timeout=30)
+                uploaded.append(upload.storage_key)
+                service.image_key = upload.storage_key
+                service.featured = True
+                service.landing_name_es = row.get("landing_name_es") or None
+                service.landing_name_en = row.get("landing_name_en") or None
+            await session.commit()
+        except BaseException:
+            # Sin commit nada enlaza lo ya subido, y el siguiente intento lo subira de
+            # nuevo con otra clave: se borra para no dejar huerfanos en el bucket.
+            for key in uploaded:
+                with contextlib.suppress(Exception):
+                    await storage.delete(key)
+            raise
+    return len(uploaded)
 
 
 async def main() -> int:

@@ -1,5 +1,8 @@
 """El admin gestiona el catalogo; lo usado se desactiva, solo lo no usado se borra."""
 
+import logging
+from uuid import uuid4
+
 import pytest
 
 from app.domain.exceptions import (
@@ -281,6 +284,60 @@ class TestFeaturedServices:
         assert not updated.service(service.id).on_landing
 
 
+class TestDiscardedImages:
+    """Lo que el catalogo deja de enlazar se borra del bucket publico."""
+
+    async def test_a_replaced_photo_is_deleted(self, world: World) -> None:
+        category = world.add_category(slug="jardineria")
+        service = with_service(world, category)
+        await feature(world, category, service)
+
+        await feature(world, category, service, image_key=f"catalog/services/{service.id}/2/b.webp")
+
+        assert world.storage.deleted == [f"catalog/services/{service.id}/0001/podas.webp"]
+
+    async def test_saving_without_changing_the_photo_keeps_it(self, world: World) -> None:
+        category = world.add_category(slug="jardineria")
+        service = with_service(world, category)
+        await feature(world, category, service)
+
+        await feature(world, category, service, landing_name_es="Podas")
+
+        assert world.storage.deleted == []
+
+    async def test_a_deleted_service_takes_its_photo_with_it(self, world: World) -> None:
+        category = world.add_category(slug="jardineria")
+        service = with_service(world, category)
+        await feature(world, category, service, featured=False)
+
+        await world.delete_service.execute(category_id=category.id, service_id=service.id)
+
+        assert world.storage.deleted == [f"catalog/services/{service.id}/0001/podas.webp"]
+
+    async def test_a_deleted_category_takes_the_photos_of_its_services(self, world: World) -> None:
+        category = world.add_category(slug="jardineria")
+        service = with_service(world, category)
+        await feature(world, category, service, featured=False)
+
+        await world.delete_category.execute(category_id=category.id)
+
+        assert world.storage.deleted == [f"catalog/services/{service.id}/0001/podas.webp"]
+
+    async def test_a_bucket_failure_does_not_undo_the_change(
+        self, world: World, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        category = world.add_category(slug="jardineria")
+        service = with_service(world, category)
+        await feature(world, category, service, featured=False)
+        world.storage.fail_on_delete = True
+
+        with caplog.at_level(logging.WARNING):
+            await world.delete_service.execute(category_id=category.id, service_id=service.id)
+
+        assert world.categories.items[category.id].services == []
+        assert "foto_de_catalogo_sin_borrar" in caplog.text
+
+
 class TestCatalogImageUpload:
     async def test_the_key_carries_the_service_id(self, world: World) -> None:
         category = world.add_category(slug="jardineria")
@@ -348,6 +405,10 @@ class TestLandingServiceImage:
         for service in (plain, hidden):
             with pytest.raises(ServiceNotFoundError):
                 await world.landing_service_image.execute(service_id=service.id)
+
+    async def test_an_unknown_service_has_no_image(self, world: World) -> None:
+        with pytest.raises(ServiceNotFoundError):
+            await world.landing_service_image.execute(service_id=uuid4())
 
     async def test_a_deactivated_category_takes_its_services_off_the_landing(
         self, world: World
