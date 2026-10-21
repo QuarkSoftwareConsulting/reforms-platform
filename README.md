@@ -246,8 +246,10 @@ VALUES ('new-checkout', '1.4.0', 'Checkout en una sola página', 'dev'),
 UPDATE feature_flags SET enabled = true WHERE name = 'new-checkout' AND environment = 'dev';
 ```
 
-La web tarda **hasta 60 s** en ver el cambio: el layout las lee en el servidor y las cachea
-un minuto, para que las páginas sigan siendo estáticas y no haya parpadeo. Si el API no
+La web tarda **hasta 5 minutos** en ver el cambio: el layout las lee en el servidor y las
+cachea ese tiempo, para que las páginas sigan siendo estáticas y no haya parpadeo. Como el
+layout está en todas las páginas, ese plazo marca cada cuánto se regeneran: bajarlo
+multiplica las regeneraciones y su coste en el hosting. Si el API no
 responde, todas cuentan como apagadas. En el frontend:
 
 ```tsx

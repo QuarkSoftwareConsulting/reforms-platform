@@ -7,8 +7,12 @@ export type FeatureFlags = Readonly<Record<string, boolean>>;
 /**
  * Lo que tarda como maximo en verse un cambio de flag en la web. Igual que el
  * `Cache-Control` del endpoint.
+ *
+ * El layout las pide en todas las paginas, y Next regenera cada pagina con la
+ * revalidacion mas corta de lo que pide: este valor marca cada cuanto se regeneran
+ * todas. Bajarlo multiplica las regeneraciones (y su coste en el hosting).
  */
-export const FEATURE_FLAGS_REVALIDATE_SECONDS = 60;
+export const FEATURE_FLAGS_REVALIDATE_SECONDS = 300;
 
 export const featureFlagsService = {
   /**

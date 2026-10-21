@@ -116,7 +116,7 @@ solo `lib/firebase.ts` y ese hook.
 ## Feature flags
 
 `FeatureFlagsProvider` (en el layout de idioma) recibe las flags que el servidor leyó con
-`featureFlagsService.list()`, cacheadas 60 s. En cliente: `useFeatureFlag("nombre")` o
+`featureFlagsService.list()`, cacheadas 5 min. En cliente: `useFeatureFlag("nombre")` o
 `<Feature name="nombre" fallback={…}>`. En un Server Component, llama a
 `featureFlagsService.list()` directamente (Next deduplica la petición).
 

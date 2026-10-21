@@ -3,7 +3,7 @@
 /**
  * Feature flags en el cliente.
  *
- * El layout las lee en el servidor al renderizar (cacheadas 60 s) y las entrega aqui:
+ * El layout las lee en el servidor al renderizar (cacheadas 5 min) y las entrega aqui:
  * la seccion marcada sale ya con la pagina, sin parpadeo ni otra peticion al API.
  */
 

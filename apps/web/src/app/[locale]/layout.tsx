@@ -84,8 +84,8 @@ export default async function LocaleLayout({
   }
   // Habilita el renderizado estatico de las paginas de este segmento.
   setRequestLocale(locale);
-  // Cacheadas 60 s (ISR): las paginas siguen siendo estaticas para el SEO y un cambio
-  // en la tabla se ve, como mucho, un minuto despues.
+  // Cacheadas 5 min (ISR): las paginas siguen siendo estaticas para el SEO y un cambio
+  // en la tabla se ve, como mucho, cinco minutos despues.
   const [messages, flags] = await Promise.all([getMessages(), featureFlagsService.list()]);
 
   return (
