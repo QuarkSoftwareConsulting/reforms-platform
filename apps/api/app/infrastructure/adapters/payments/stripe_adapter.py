@@ -282,10 +282,13 @@ class StripePaymentGateway(PaymentPort):
     async def update_customer_billing(self, customer_id: str, billing: BillingDetails) -> None:
         client = self._require_client()
         try:
+            params = _billing_params(billing)
+            if "address" not in params:
+                # Stripe conserva lo que no se le envia: borrar el domicilio exige
+                # pedirlo con un valor vacio, o las facturas seguirian con el viejo.
+                params["address"] = ""
             await asyncio.to_thread(
-                client.v1.customers.update,
-                customer_id,
-                params=cast(Any, _billing_params(billing)),
+                client.v1.customers.update, customer_id, params=cast(Any, params)
             )
             await self._sync_tax_id(client, customer_id, billing)
         except stripe.StripeError as exc:
@@ -297,25 +300,25 @@ class StripePaymentGateway(PaymentPort):
     ) -> None:
         """Deja en el cliente solo el NIF vigente.
 
-        Stripe no edita un identificador fiscal: se borra el viejo y se crea el nuevo.
-        Las facturas ya emitidas conservan el que tenian al emitirse.
+        Stripe no edita un identificador fiscal: se crea el nuevo y se borra el viejo.
+        En ese orden: si falla la creacion, el cliente conserva el viejo en vez de
+        quedarse sin ninguno para la proxima renovacion. Las facturas ya emitidas
+        conservan el que tenian al emitirse.
         """
         wanted = str(billing.tax_id) if billing.tax_id is not None else None
         current = await asyncio.to_thread(
             client.v1.customers.tax_ids.list, customer_id, params={"limit": 100}
         )
-        present = False
-        for tax_id in current.data:
-            if tax_id.type == SPAIN_TAX_ID_TYPE and tax_id.value == wanted:
-                present = True
-            elif tax_id.type == SPAIN_TAX_ID_TYPE:
-                await asyncio.to_thread(client.v1.customers.tax_ids.delete, customer_id, tax_id.id)
-        if wanted is not None and not present:
+        spanish = [t for t in current.data if t.type == SPAIN_TAX_ID_TYPE]
+        if wanted is not None and not any(t.value == wanted for t in spanish):
             await asyncio.to_thread(
                 client.v1.customers.tax_ids.create,
                 customer_id,
                 params={"type": SPAIN_TAX_ID_TYPE, "value": wanted},
             )
+        for tax_id in spanish:
+            if tax_id.value != wanted:
+                await asyncio.to_thread(client.v1.customers.tax_ids.delete, customer_id, tax_id.id)
 
     async def create_subscription_checkout(
         self, request: SubscriptionCheckoutRequest

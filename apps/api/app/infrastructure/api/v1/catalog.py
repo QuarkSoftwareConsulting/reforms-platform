@@ -38,8 +38,9 @@ async def public_subscription_price(container: ContainerDep) -> PublicSubscripti
 
 
 # Menos que lo que dura una URL firmada de GCS (15 min): la redireccion cacheada nunca
-# apunta a una URL ya caducada.
-SERVICE_IMAGE_CACHE_SECONDS = 300
+# apunta a una URL ya caducada. Y corta porque al reemplazar la foto la anterior se
+# borra del bucket: quien tenga la redireccion vieja la vera rota hasta que caduque.
+SERVICE_IMAGE_CACHE_SECONDS = 60
 
 
 @router.get(

@@ -24,6 +24,8 @@ from app.application.ports import (
     UnitOfWork,
 )
 from app.domain.exceptions import (
+    CatalogImageTooLargeError,
+    CatalogImageTypeNotAllowedError,
     CatalogItemInUseError,
     CatalogSlugTakenError,
     CategoryNotFoundError,
@@ -122,7 +124,7 @@ class UpdateCategory:
         active: bool,
     ) -> Category:
         async with self.uow:
-            category = await _load(self.categories, category_id)
+            category = await _load(self.categories, category_id, for_update=True)
             category.edit(name_es=name_es, name_en=name_en, sort_order=sort_order, active=active)
             category.change_suggested_lead_price(
                 Money(suggested_price_cents, category.suggested_lead_price.currency)
@@ -138,7 +140,7 @@ class DeleteCategory:
 
     async def execute(self, *, category_id: UUID) -> None:
         async with self.uow:
-            category = await _load(self.categories, category_id)
+            category = await _load(self.categories, category_id, for_update=True)
             if await self.categories.is_in_use(category_id):
                 raise CatalogItemInUseError()
             await self.categories.delete(category_id)
@@ -153,7 +155,7 @@ class CreateService:
 
     async def execute(self, *, category_id: UUID, name_es: str, name_en: str) -> Category:
         async with self.uow:
-            category = await _load(self.categories, category_id)
+            category = await _load(self.categories, category_id, for_update=True)
             category.add_service(id=self.ids.new_id(), name_es=name_es, name_en=name_en)
             return await self.categories.update(category)
 
@@ -183,7 +185,7 @@ class UpdateService:
         ):
             raise ValidationError("La foto no pertenece a este servicio")
         async with self.uow:
-            category = await _load(self.categories, category_id)
+            category = await _load(self.categories, category_id, for_update=True)
             previous_image = category.service(service_id).image_key
             category.edit_service(
                 service_id,
@@ -210,7 +212,7 @@ class DeleteService:
 
     async def execute(self, *, category_id: UUID, service_id: UUID) -> Service:
         async with self.uow:
-            category = await _load(self.categories, category_id)
+            category = await _load(self.categories, category_id, for_update=True)
             category.service(service_id)  # que sea de esta categoria
             if await self.categories.is_service_in_use(service_id):
                 raise CatalogItemInUseError()
@@ -238,9 +240,9 @@ class RequestCatalogImageUpload:
     ) -> PresignedUpload:
         normalized = content_type.split(";")[0].strip().lower()
         if normalized not in CATALOG_IMAGE_TYPES:
-            raise ValidationError(f"Tipo de imagen no permitido: {content_type}")
+            raise CatalogImageTypeNotAllowedError(f"Tipo de imagen no permitido: {content_type}")
         if size_bytes is not None and size_bytes > CATALOG_IMAGE_MAX_BYTES:
-            raise ValidationError("La foto supera el maximo de 5 MB")
+            raise CatalogImageTooLargeError(max=CATALOG_IMAGE_MAX_BYTES // (1024 * 1024))
         category = await _load(self.categories, category_id)
         category.service(service_id)
         return await self.storage.create_presigned_upload(
@@ -272,8 +274,12 @@ class GetLandingServiceImage:
         return await asyncio.to_thread(self.storage.public_url, service.image_key)
 
 
-async def _load(categories: CategoryRepositoryPort, category_id: UUID) -> Category:
-    category = await categories.get(category_id)
+async def _load(
+    categories: CategoryRepositoryPort, category_id: UUID, *, for_update: bool = False
+) -> Category:
+    category = await (
+        categories.get_for_update(category_id) if for_update else categories.get(category_id)
+    )
     if category is None:
         raise CategoryNotFoundError()
     return category

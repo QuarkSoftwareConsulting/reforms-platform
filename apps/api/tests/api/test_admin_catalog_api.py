@@ -191,7 +191,7 @@ class TestCatalogApi:
         image = await api.get(f"/catalog/services/{service.id}/image", follow_redirects=False)
         assert image.status_code == 302
         assert image.headers["location"].endswith(key)
-        assert image.headers["cache-control"] == "public, max-age=300"
+        assert image.headers["cache-control"] == "public, max-age=60"
 
         other = carpentry_category.services[1]
         missing = await api.get(f"/catalog/services/{other.id}/image", follow_redirects=False)

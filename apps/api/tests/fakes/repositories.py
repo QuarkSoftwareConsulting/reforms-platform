@@ -705,6 +705,11 @@ class InMemoryCategoryRepository(CategoryRepositoryPort):
         await _round_trip()
         return self.items.get(category_id)
 
+    async def get_for_update(self, category_id: UUID) -> Category | None:
+        # El bloqueo se prueba contra Postgres (tests/integration).
+        await _round_trip()
+        return self.items.get(category_id)
+
     async def get_by_slug(self, slug: str) -> Category | None:
         await _round_trip()
         return next((c for c in self.items.values() if c.slug == slug), None)

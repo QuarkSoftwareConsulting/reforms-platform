@@ -476,11 +476,10 @@ async def _admin_category_out(category: Category, storage: StoragePort) -> Admin
 )
 async def list_catalog(container: ContainerDep, _: AdminDep) -> list[AdminCategoryOut]:
     categories = await container.list_catalog.execute()
-    return await asyncio.to_thread(
-        lambda: [
-            serializers.admin_category_out(category, container.infra.storage)
-            for category in categories
-        ]
+    return list(
+        await asyncio.gather(
+            *(_admin_category_out(category, container.infra.storage) for category in categories)
+        )
     )
 
 

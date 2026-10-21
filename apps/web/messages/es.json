@@ -780,6 +780,8 @@
     "summary": "Revisa {count, plural, one {# campo} other {# campos}} para continuar",
     "CATALOG_NAME_INVALID": "El nombre es obligatorio, debe tener letras o números y como máximo {max} caracteres.",
     "CATALOG_SLUG_TAKEN": "Ya existe una categoría o un servicio con ese nombre (también entre los desactivados).",
+    "CATALOG_IMAGE_TYPE_NOT_ALLOWED": "La foto debe ser JPG, PNG o WebP.",
+    "CATALOG_IMAGE_TOO_LARGE": "La foto no puede superar {max} MB.",
     "CATALOG_ITEM_IN_USE": "No se puede borrar porque lo usan solicitudes o profesionales. Desactívalo en su lugar.",
     "SERVICE_NOT_FOUND": "Ese servicio ya no existe. Recarga la página.",
     "SUBSCRIPTION_NOT_AVAILABLE": "La mensualidad todavía no está disponible. Inténtalo más tarde.",

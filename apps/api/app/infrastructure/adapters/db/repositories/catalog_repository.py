@@ -85,6 +85,16 @@ class SqlAlchemyCategoryRepository(CategoryRepositoryPort):
         row = (await self._session.execute(stmt)).scalar_one_or_none()
         return category_to_domain(row) if row is not None else None
 
+    async def get_for_update(self, category_id: UUID) -> Category | None:
+        # Bloqueo en una consulta propia y recarga despues, como con los perfiles: la
+        # fila se lee ya con lo que confirmo quien tenia el bloqueo.
+        locked = await self._session.execute(
+            select(CategoryRow.id).where(CategoryRow.id == category_id).with_for_update()
+        )
+        if locked.scalar_one_or_none() is None:
+            return None
+        return await self.get(category_id)
+
     async def get_by_service(self, service_id: UUID) -> Category | None:
         stmt = select(CategoryRow).join(ServiceRow).where(ServiceRow.id == service_id)
         row = (await self._session.execute(stmt)).scalar_one_or_none()
@@ -126,9 +136,11 @@ class SqlAlchemyCategoryRepository(CategoryRepositoryPort):
     async def _delete_restricted(self, *statements: Delete) -> None:
         """Borra lo que el caso de uso comprobo que nadie usa.
 
-        Un lead o un perfil que lo empiece a usar entre la comprobacion y el borrado
-        no bloquea nada antes: lo para la clave foranea RESTRICT, y se responde lo
-        mismo que si la comprobacion lo hubiera visto.
+        Un lead que elige un servicio entre la comprobacion y el borrado no bloquea la
+        categoria: lo para la clave foranea RESTRICT de `lead_services` y se responde
+        lo mismo que si la comprobacion lo hubiera visto. Los oficios de un perfil
+        (`professional_categories`) son CASCADE: a esos los cubre el bloqueo de
+        `get_for_update`, que espera a que se confirme el perfil antes de comprobar.
         """
         try:
             for statement in statements:

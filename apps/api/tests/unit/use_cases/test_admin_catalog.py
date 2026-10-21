@@ -6,6 +6,8 @@ from uuid import uuid4
 import pytest
 
 from app.domain.exceptions import (
+    CatalogImageTooLargeError,
+    CatalogImageTypeNotAllowedError,
     CatalogItemInUseError,
     CatalogNameInvalidError,
     CatalogSlugTakenError,
@@ -353,24 +355,35 @@ class TestCatalogImageUpload:
 
         assert upload.storage_key.startswith(f"catalog/services/{service.id}/")
 
-    @pytest.mark.parametrize(
-        ("content_type", "size"),
-        [("image/heic", 1000), ("application/pdf", 1000), ("image/png", 6_000_000)],
-    )
-    async def test_unsuitable_files_are_rejected(
-        self, world: World, content_type: str, size: int
+    @pytest.mark.parametrize("content_type", ["image/heic", "application/pdf"])
+    async def test_other_formats_are_rejected_with_their_code(
+        self, world: World, content_type: str
     ) -> None:
         category = world.add_category(slug="jardineria")
         service = with_service(world, category)
 
-        with pytest.raises(ValidationError):
+        with pytest.raises(CatalogImageTypeNotAllowedError):
             await world.request_catalog_image_upload.execute(
                 category_id=category.id,
                 service_id=service.id,
                 filename="x",
                 content_type=content_type,
-                size_bytes=size,
+                size_bytes=1000,
             )
+
+    async def test_a_photo_too_large_says_the_limit(self, world: World) -> None:
+        category = world.add_category(slug="jardineria")
+        service = with_service(world, category)
+
+        with pytest.raises(CatalogImageTooLargeError) as exc:
+            await world.request_catalog_image_upload.execute(
+                category_id=category.id,
+                service_id=service.id,
+                filename="x",
+                content_type="image/png",
+                size_bytes=6_000_000,
+            )
+        assert exc.value.details == {"max": 5}
 
     async def test_a_service_of_another_category_cannot_get_an_upload(self, world: World) -> None:
         service = with_service(world, world.add_category(slug="jardineria"))

@@ -881,8 +881,42 @@ class TestCustomerBillingDetails:
         assert form(http.bodies[("POST", "/v1/customers/cus_1")])["address[line1]"] == [
             "Calle Mayor 1, 28013 Madrid"
         ]
-        assert ("DELETE", "/v1/customers/cus_1/tax_ids/txi_0") in http.calls
         assert form(http.bodies[("POST", "/v1/customers/cus_1/tax_ids")])["value"] == ["12345678Z"]
+        assert http.calls.index(("POST", "/v1/customers/cus_1/tax_ids")) < http.calls.index(
+            ("DELETE", "/v1/customers/cus_1/tax_ids/txi_0")
+        ), "el nuevo antes de borrar el viejo"
+
+    async def test_if_the_new_tax_id_is_rejected_the_old_one_stays(self) -> None:
+        from app.domain.exceptions import PaymentGatewayError
+
+        http = ScriptedHttpClient(
+            {
+                ("POST", "/v1/customers/cus_1"): (200, CUSTOMER),
+                ("GET", "/v1/customers/cus_1/tax_ids"): (200, tax_id_list("X1234567L")),
+                ("POST", "/v1/customers/cus_1/tax_ids"): (
+                    400,
+                    {"error": {"type": "invalid_request_error", "code": "tax_id_invalid"}},
+                ),
+            }
+        )
+        with pytest.raises(PaymentGatewayError):
+            await gateway_with(http).update_customer_billing("cus_1", billing())
+
+        assert ("DELETE", "/v1/customers/cus_1/tax_ids/txi_0") not in http.calls
+
+    async def test_update_without_address_clears_the_old_one(self) -> None:
+        from urllib.parse import parse_qs
+
+        http = ScriptedHttpClient(
+            {
+                ("POST", "/v1/customers/cus_1"): (200, CUSTOMER),
+                ("GET", "/v1/customers/cus_1/tax_ids"): (200, tax_id_list("12345678Z")),
+            }
+        )
+        await gateway_with(http).update_customer_billing("cus_1", billing(address=None))
+
+        sent = parse_qs(http.bodies[("POST", "/v1/customers/cus_1")], keep_blank_values=True)
+        assert sent["address"] == [""]
 
     async def test_update_keeps_a_tax_id_that_did_not_change(self) -> None:
         http = ScriptedHttpClient(

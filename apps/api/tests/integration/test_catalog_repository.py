@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-from uuid import uuid4
+import asyncio
+from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.domain.exceptions import CatalogItemInUseError, CatalogSlugTakenError
-from app.domain.models import Category
-from app.infrastructure.adapters.db.models import CategoryRow, ServiceRow
+from app.domain.models import Category, Professional
+from app.infrastructure.adapters.db.models import CategoryRow, ProfessionalCategoryRow, ServiceRow
 from app.infrastructure.adapters.db.repositories import SqlAlchemyCategoryRepository
 
 
@@ -260,3 +261,87 @@ async def test_a_category_is_found_by_one_of_its_services(
     assert found.id == carpentry.id
     assert [s.id for s in found.services] == [s.id for s in carpentry.services]
     assert await repo.get_by_service(uuid4()) is None
+
+
+async def test_concurrent_edits_of_one_category_do_not_undo_each_other(
+    engine: AsyncEngine, session: AsyncSession, carpentry: Category
+) -> None:
+    """`update` reescribe todos los servicios: sin bloqueo, la segunda edicion
+    devolveria al primer servicio lo que leyo antes de que la primera confirmara."""
+    first_service, second_service = carpentry.services[0].id, carpentry.services[1].id
+    factory = async_sessionmaker(engine, expire_on_commit=False, autoflush=False)
+
+    async def rename(service_id: UUID, name: str, *, delay: float, hold: float) -> None:
+        await asyncio.sleep(delay)
+        async with factory() as s:
+            repo = SqlAlchemyCategoryRepository(s)
+            category = await repo.get_for_update(carpentry.id)
+            assert category is not None
+            await asyncio.sleep(hold)
+            service = category.service(service_id)
+            category.edit_service(
+                service_id,
+                name_es=name,
+                name_en=service.name_en,
+                sort_order=service.sort_order,
+                active=service.active,
+            )
+            await repo.update(category)
+            await s.commit()
+
+    await asyncio.wait_for(
+        asyncio.gather(
+            rename(first_service, "Puertas nuevas", delay=0, hold=0.3),
+            rename(second_service, "Armarios nuevos", delay=0.05, hold=0),
+        ),
+        timeout=10,
+    )
+
+    session.expunge_all()
+    reloaded = await SqlAlchemyCategoryRepository(session).get(carpentry.id)
+    assert reloaded is not None
+    assert reloaded.service(first_service).name_es == "Puertas nuevas"
+    assert reloaded.service(second_service).name_es == "Armarios nuevos"
+
+
+async def test_a_category_being_added_to_a_profile_is_seen_before_deleting_it(
+    engine: AsyncEngine, session: AsyncSession, madrid_carpenter: Professional
+) -> None:
+    """`professional_categories` es CASCADE: si el borrado no esperara al perfil que
+    la esta eligiendo, se la quitaria en silencio en vez de responder que esta en uso."""
+    from app.domain.value_objects import Money
+
+    gardening = Category.create(
+        id=uuid4(),
+        name_es="Jardineria",
+        name_en="Gardening",
+        suggested_lead_price=Money(700, "EUR"),
+        sort_order=2,
+    )
+    await SqlAlchemyCategoryRepository(session).add(gardening)
+    await session.commit()
+    factory = async_sessionmaker(engine, expire_on_commit=False, autoflush=False)
+    seen_in_use: list[bool] = []
+
+    async def pick_it_in_the_profile() -> None:
+        async with factory() as s:
+            s.add(
+                ProfessionalCategoryRow(
+                    professional_id=madrid_carpenter.id, category_id=gardening.id
+                )
+            )
+            await s.flush()
+            await asyncio.sleep(0.3)
+            await s.commit()
+
+    async def try_to_delete_it() -> None:
+        await asyncio.sleep(0.05)  # el perfil ya inserto, sin confirmar
+        async with factory() as s:
+            repo = SqlAlchemyCategoryRepository(s)
+            assert await repo.get_for_update(gardening.id) is not None
+            seen_in_use.append(await repo.is_in_use(gardening.id))
+            await s.rollback()
+
+    await asyncio.wait_for(asyncio.gather(pick_it_in_the_profile(), try_to_delete_it()), 10)
+
+    assert seen_in_use == [True]

@@ -174,6 +174,19 @@ class FeaturedServiceNeedsImageError(ValidationError):
     code = "FEATURED_SERVICE_NEEDS_IMAGE"
 
 
+class CatalogImageTypeNotAllowedError(ValidationError):
+    """La foto de un servicio debe ser JPG, PNG o WebP."""
+
+    code = "CATALOG_IMAGE_TYPE_NOT_ALLOWED"
+
+
+class CatalogImageTooLargeError(ValidationError):
+    """La foto de un servicio supera el tamano maximo."""
+
+    # `max` (en MB) viaja en `details`: el frontend lo pone en el texto traducido.
+    code = "CATALOG_IMAGE_TOO_LARGE"
+
+
 class CatalogSlugTakenError(DomainError):
     """Ya existe una categoria o un servicio con ese nombre."""
 
@@ -386,6 +399,8 @@ class LastAdminError(DomainError):
 __all__ = [
     "AuthenticationError",
     "CannotChangeOwnRoleError",
+    "CatalogImageTooLargeError",
+    "CatalogImageTypeNotAllowedError",
     "CatalogItemInUseError",
     "CatalogNameInvalidError",
     "CatalogSlugTakenError",

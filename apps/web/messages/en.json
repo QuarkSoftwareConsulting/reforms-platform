@@ -780,6 +780,8 @@
     "summary": "Check {count, plural, one {# field} other {# fields}} to continue",
     "CATALOG_NAME_INVALID": "The name is required, must contain letters or numbers and be at most {max} characters long.",
     "CATALOG_SLUG_TAKEN": "A category or service with that name already exists (deactivated ones included).",
+    "CATALOG_IMAGE_TYPE_NOT_ALLOWED": "The photo must be a JPG, PNG or WebP file.",
+    "CATALOG_IMAGE_TOO_LARGE": "The photo cannot be larger than {max} MB.",
     "CATALOG_ITEM_IN_USE": "It cannot be deleted because requests or professionals use it. Deactivate it instead.",
     "SERVICE_NOT_FOUND": "That service no longer exists. Reload the page.",
     "SUBSCRIPTION_NOT_AVAILABLE": "The monthly plan is not available yet. Please try again later.",

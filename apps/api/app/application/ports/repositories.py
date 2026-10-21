@@ -351,6 +351,15 @@ class CategoryRepositoryPort(ABC):
     async def get_by_slug(self, slug: str) -> Category | None: ...
 
     @abstractmethod
+    async def get_for_update(self, category_id: UUID) -> Category | None:
+        """Bloquea la categoria hasta el final de la transaccion.
+
+        `update` reescribe todos sus servicios: sin el bloqueo, dos ediciones de la
+        misma categoria a la vez se pisarian. Tambien hace esperar a quien la anade a
+        un perfil, para que `is_in_use` lo vea antes de borrarla.
+        """
+
+    @abstractmethod
     async def get_by_service(self, service_id: UUID) -> Category | None:
         """La categoria a la que pertenece el servicio, con todos sus servicios."""
 
