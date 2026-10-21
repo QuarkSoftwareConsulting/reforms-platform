@@ -168,6 +168,12 @@ class CatalogNameInvalidError(ValidationError):
     code = "CATALOG_NAME_INVALID"
 
 
+class FeaturedServiceNeedsImageError(ValidationError):
+    """Un servicio destacado en la landing necesita su foto."""
+
+    code = "FEATURED_SERVICE_NEEDS_IMAGE"
+
+
 class CatalogSlugTakenError(DomainError):
     """Ya existe una categoria o un servicio con ese nombre."""
 
@@ -268,6 +274,13 @@ class ConsentDateInFutureError(ValidationError):
 
 
 # --------------------------- Recarga y saldo -----------------------------
+
+
+class SubscriptionNotAvailableError(DomainError):
+    """La mensualidad todavia no esta disponible: el admin no ha fijado su importe."""
+
+    code = "SUBSCRIPTION_NOT_AVAILABLE"
+    status = 409
 
 
 class SubscriptionRequiredError(DomainError):
@@ -386,6 +399,7 @@ __all__ = [
     "CurrencyMismatchError",
     "DescriptionLengthError",
     "DomainError",
+    "FeaturedServiceNeedsImageError",
     "InsufficientCreditError",
     "InvalidEmailError",
     "InvalidPhoneError",
@@ -415,6 +429,7 @@ __all__ = [
     "RejectionAwaitingPaymentError",
     "ServiceNotFoundError",
     "SubscriptionAlreadyExistsError",
+    "SubscriptionNotAvailableError",
     "SubscriptionRequiredError",
     "TitleLengthError",
     "TooManyVerificationAttemptsError",

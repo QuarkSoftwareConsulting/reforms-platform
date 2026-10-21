@@ -247,7 +247,7 @@ class TestAdminSubscriptionPrice:
         fake_gateway: FakePaymentGateway,
     ) -> None:
         initial = (await api.get("/admin/subscription-price", headers=admin_auth)).json()
-        assert initial["is_default"] is True
+        assert initial["configured"] is True
         assert initial["amount"]["amount_cents"] == 1800
 
         forbidden = await api.put(
@@ -260,7 +260,6 @@ class TestAdminSubscriptionPrice:
         )
         assert changed.status_code == 200, changed.text
         assert changed.json()["amount"]["amount_cents"] == 2500
-        assert changed.json()["is_default"] is False
 
         await create_profile(api, carpentry_category, pro_auth, subscribed=False)
         me = (await api.get("/me", headers=pro_auth)).json()
@@ -344,3 +343,36 @@ class TestReturnedTopUp:
         purchase = await api.post(f"/leads/{created['id']}/purchase", headers=pro_auth)
         assert purchase.status_code == 402, purchase.text
         assert purchase.json()["code"] == "CREDIT_DEBT_OUTSTANDING"
+
+    async def test_without_a_price_set_by_the_admin_nobody_can_subscribe(
+        self,
+        api: AsyncClient,
+        api_engine: AsyncEngine,
+        carpentry_category: Category,
+        pro_auth: dict[str, str],
+        admin_auth: dict[str, str],
+    ) -> None:
+        async with api_engine.begin() as conn:
+            await conn.execute(text("DELETE FROM subscription_prices"))
+
+        current = (await api.get("/admin/subscription-price", headers=admin_auth)).json()
+        assert current == {"amount": None, "updated_at": None, "configured": False}
+
+        await create_profile(api, carpentry_category, pro_auth, subscribed=False)
+        me = (await api.get("/me", headers=pro_auth)).json()
+        assert me["account"]["topup_amount"] is None
+        refused = await api.post("/me/subscription/checkout", headers=pro_auth)
+        assert refused.status_code == 409
+        assert refused.json()["code"] == "SUBSCRIPTION_NOT_AVAILABLE"
+
+    async def test_the_landing_reads_the_current_price_without_internals(
+        self, api: AsyncClient, admin_auth: dict[str, str]
+    ) -> None:
+        public = await api.get("/subscription-price")
+        assert public.status_code == 200
+        # Solo el importe: ni el precio de Stripe ni quien lo fijo.
+        assert list(public.json()) == ["amount"]
+        assert public.json()["amount"]["amount_cents"] == 1800
+
+        await api.put("/admin/subscription-price", json={"amount_cents": 2500}, headers=admin_auth)
+        assert (await api.get("/subscription-price")).json()["amount"]["amount_cents"] == 2500

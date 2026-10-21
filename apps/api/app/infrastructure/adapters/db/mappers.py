@@ -93,6 +93,10 @@ def category_to_domain(row: CategoryRow) -> Category:
                 name_en=s.name_en,
                 sort_order=s.sort_order,
                 active=s.active,
+                featured=s.featured,
+                image_key=s.image_key,
+                landing_name_es=s.landing_name_es,
+                landing_name_en=s.landing_name_en,
             )
             for s in sorted(row.services, key=lambda s: s.sort_order)
         ],

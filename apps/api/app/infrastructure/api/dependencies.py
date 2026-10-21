@@ -40,6 +40,7 @@ from app.application.use_cases import (
     DeleteCategory,
     DeleteService,
     GetAdminMetrics,
+    GetLandingServiceImage,
     GetLeadDetail,
     GetLeadPricing,
     GetMetricsTimeseries,
@@ -64,6 +65,7 @@ from app.application.use_cases import (
     RejectProfessional,
     ReleaseExpiredReservations,
     RemoveProfessionalDocument,
+    RequestCatalogImageUpload,
     RequestPhotoUpload,
     RequestProfessionalUpload,
     SetLeadPrice,
@@ -81,7 +83,6 @@ from app.application.use_cases import (
 from app.config import Settings, get_settings
 from app.domain.exceptions import DomainError, ProfessionalNotFoundError
 from app.domain.models import FlagEnvironment, Professional, ServiceArea, User
-from app.domain.value_objects import Money
 from app.infrastructure.adapters.db.repositories import (
     SqlAlchemyCategoryRepository,
     SqlAlchemyCreditLedgerRepository,
@@ -235,12 +236,7 @@ class RequestContainer:
 
     @property
     def pricing(self) -> SubscriptionPricing:
-        settings = self.infra.settings
-        return SubscriptionPricing(
-            prices=self.subscription_prices,
-            default_amount=Money(settings.subscription_topup_cents, settings.default_currency),
-            default_price_id=settings.stripe_topup_price_id,
-        )
+        return SubscriptionPricing(prices=self.subscription_prices)
 
     @property
     def credit(self) -> CreditLedgerService:
@@ -491,6 +487,7 @@ class RequestContainer:
             ledger=self.ledger,
             pricing=self.pricing,
             clock=self.infra.clock,
+            currency=self.infra.settings.default_currency,
         )
 
     @property
@@ -614,6 +611,14 @@ class RequestContainer:
     @property
     def request_photo_upload(self) -> RequestPhotoUpload:
         return RequestPhotoUpload(storage=self.infra.storage)
+
+    @property
+    def request_catalog_image_upload(self) -> RequestCatalogImageUpload:
+        return RequestCatalogImageUpload(categories=self.categories, storage=self.infra.storage)
+
+    @property
+    def landing_service_image(self) -> GetLandingServiceImage:
+        return GetLandingServiceImage(categories=self.categories, storage=self.infra.storage)
 
 
 def get_container(infra: InfraDep, session: SessionDep) -> RequestContainer:

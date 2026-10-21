@@ -48,7 +48,6 @@ vi.mock("@/services/admin.service", () => ({
     subscriptionPrice: vi.fn().mockResolvedValue({
       amount: { amount_cents: 1800, currency: "EUR", formatted: "18.00 €" },
       updated_at: null,
-      is_default: true,
       configured: true,
     }),
     setSubscriptionPrice: vi.fn(),

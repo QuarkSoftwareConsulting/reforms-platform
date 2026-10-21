@@ -43,21 +43,7 @@
       "subtitle": "Consulta el precio de referencia de cada oficio. Después, dentro de cada ficha, podrás ver el precio exacto de cada contacto.",
       "from": "Desde {price}",
       "all": "Ver todos los oficios",
-      "contactLabel": "Contacto",
-      "items": {
-        "fullRenovation": "Reforma integral",
-        "bathrooms": "Baños",
-        "kitchens": "Cocinas",
-        "painting": "Pintura",
-        "electrical": "Electricidad",
-        "plumbing": "Fontanería",
-        "carpentry": "Carpintería",
-        "locksmith": "Cerrajería",
-        "airConditioning": "Climatización",
-        "glazing": "Cristalería",
-        "gardening": "Jardinería",
-        "cleaning": "Limpieza"
-      }
+      "contactLabel": "Contacto"
     },
     "validation": {
       "eyebrow": "Proceso",
@@ -90,7 +76,8 @@
       },
       "topup": {
         "title": "Tu mensualidad se convierte en saldo",
-        "body": "Los {amount} mensuales pasan a tu saldo para utilizarlos en los contactos que elijas."
+        "body": "Los {amount} mensuales pasan a tu saldo para utilizarlos en los contactos que elijas.",
+        "bodyNoAmount": "Lo que pagas cada mes pasa a tu saldo para utilizarlo en los contactos que elijas."
       },
       "privacy": {
         "title": "Los datos del cliente están protegidos",
@@ -319,7 +306,10 @@
     "bannerCta": "Activar mensualidad",
     "bannerManage": "Ver mi mensualidad",
     "bannerDebt": "Tu banco devolvió una mensualidad que ya habías gastado y tienes {debt} pendientes. Puedes ver solicitudes, pero no comprar hasta que se salde con la próxima mensualidad.",
-    "debtNotice": "Tu banco devolvió el cobro de una mensualidad que ya habías gastado en contactos. Quedan {debt} pendientes: se descontarán de tu próxima mensualidad y, hasta entonces, no podrás comprar contactos."
+    "debtNotice": "Tu banco devolvió el cobro de una mensualidad que ya habías gastado en contactos. Quedan {debt} pendientes: se descontarán de tu próxima mensualidad y, hasta entonces, no podrás comprar contactos.",
+    "subtitleUnavailable": "Para comprar contactos necesitas la mensualidad, que se suma a tu saldo. Todavía no está disponible: puedes ver las solicitudes mientras tanto.",
+    "notAvailable": "Aún no disponible",
+    "notAvailableNotice": "La mensualidad todavía no está disponible. En cuanto lo esté podrás activarla desde aquí; mientras tanto puedes ver las solicitudes."
   },
   "profile": {
     "title": "Mi perfil profesional",
@@ -530,8 +520,7 @@
       "title": "Mensualidad",
       "body": "Importe mensual que paga cada profesional para poder comprar contactos; se abona como saldo. Un cambio solo afecta a las suscripciones nuevas: quien ya paga conserva su importe.",
       "current": "Vigente: {amount}",
-      "default": "(valor inicial de configuración)",
-      "notConfigured": "No hay precio configurado en Stripe: nadie puede suscribirse.",
+      "notConfigured": "Aún no has fijado la mensualidad: nadie puede suscribirse ni comprar contactos.",
       "label": "Nuevo importe (€)",
       "save": "Guardar mensualidad",
       "saved": "Mensualidad actualizada a {amount} para las nuevas suscripciones."
@@ -676,7 +665,16 @@
       "deleted": "Borrado.",
       "confirmTitle": "¿Borrar «{name}»?",
       "confirmBody": "Se borra del todo y no se puede deshacer. Si alguna solicitud o algún profesional lo usa, no se podrá borrar: desactívalo en su lugar.",
-      "confirm": "Sí, borrar"
+      "confirm": "Sí, borrar",
+      "featured": "Destacado en la landing (necesita foto)",
+      "featuredTag": "En la landing",
+      "photo": "Foto de la tarjeta",
+      "photoHint": "JPG, PNG o WebP, hasta 5 MB. Se ve en la landing en formato apaisado.",
+      "photoUploading": "Subiendo foto...",
+      "photoAlt": "Foto actual de «{name}»",
+      "landingNameEs": "Nombre corto en la landing (español)",
+      "landingNameEn": "Nombre corto en la landing (inglés)",
+      "landingNameHint": "Opcional, hasta {max} caracteres. Si lo dejas vacío, la tarjeta usa el nombre del servicio."
     }
   },
   "errors": {
@@ -783,7 +781,9 @@
     "CATALOG_NAME_INVALID": "El nombre es obligatorio, debe tener letras o números y como máximo {max} caracteres.",
     "CATALOG_SLUG_TAKEN": "Ya existe una categoría o un servicio con ese nombre (también entre los desactivados).",
     "CATALOG_ITEM_IN_USE": "No se puede borrar porque lo usan solicitudes o profesionales. Desactívalo en su lugar.",
-    "SERVICE_NOT_FOUND": "Ese servicio ya no existe. Recarga la página."
+    "SERVICE_NOT_FOUND": "Ese servicio ya no existe. Recarga la página.",
+    "SUBSCRIPTION_NOT_AVAILABLE": "La mensualidad todavía no está disponible. Inténtalo más tarde.",
+    "FEATURED_SERVICE_NEEDS_IMAGE": "Un servicio destacado en la landing necesita su foto. Súbela antes de guardar."
   },
   "validation": {
     "categoryRequired": "Elige un oficio.",
@@ -835,6 +835,9 @@
     "catalogNameRequired": "Escribe el nombre (con letras o números).",
     "catalogNameTooLong": "Máximo {max} caracteres.",
     "catalogPrice": "Indica un precio entre 0,01 € y 1.000 €.",
-    "catalogSortOrder": "Indica un número entero entre 0 y 10.000."
+    "catalogSortOrder": "Indica un número entero entre 0 y 10.000.",
+    "catalogPhotoRequired": "Sube la foto para poder destacarlo en la landing.",
+    "catalogPhotoType": "La foto debe ser JPG, PNG o WebP.",
+    "catalogPhotoSize": "La foto no puede superar 5 MB."
   }
 }

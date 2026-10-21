@@ -7,38 +7,13 @@ import { HomeJsonLd } from "@/components/features/HomeJsonLd";
 import { LandingIcon, type LandingIconName } from "@/components/ui/LandingIcon";
 import { cn } from "@/helpers/cn";
 import { formatMoney } from "@/helpers/currency";
+import { featuredTrades, toleratesApiOutage } from "@/helpers/landing";
 import { isAppLocale, path, type AppLocale } from "@/i18n/routing";
 import { leadsService } from "@/services/leads.service";
 import type { CatalogCategory, Money } from "@/types/api";
 
 /** Cap de plazas por solicitud. Lo impone el backend; aqui solo se comunica. */
 const MAX_PROFESSIONALS = 5;
-
-/** Recarga mensual. La cobra el precio de Stripe (`SUBSCRIPTION_TOPUP_CENTS` en el API). */
-const TOPUP_CENTS = 1800;
-
-/**
- * Oficios destacados de la landing.
- *
- * No son categorias: son servicios del catalogo (`services.csv`) con nombre corto
- * y foto. El precio es el sugerido de su categoria, que es lo que se cobra. Si el
- * API no devuelve la categoria o el servicio (retirado), la tarjeta no se pinta:
- * no anunciamos un oficio que no se puede publicar.
- */
-const FEATURED_TRADES = [
-  { key: "fullRenovation", image: "01_reforma_integral", category: "reformas", service: "reforma-integral" },
-  { key: "bathrooms", image: "02_banos", category: "reformas", service: "reformas-banos" },
-  { key: "kitchens", image: "03_cocinas", category: "reformas", service: "reformas-cocinas" },
-  { key: "painting", image: "04_pintura", category: "obras-menores", service: "pintores" },
-  { key: "electrical", image: "05_electricidad", category: "instaladores", service: "electricistas" },
-  { key: "plumbing", image: "06_fontaneria", category: "obras-menores", service: "fontaneros" },
-  { key: "carpentry", image: "07_carpinteria", category: "obras-menores", service: "carpinteros" },
-  { key: "locksmith", image: "08_cerrajeria", category: "obras-menores", service: "cerrajeros" },
-  { key: "airConditioning", image: "09_climatizacion", category: "instaladores", service: "aire-acondicionado" },
-  { key: "glazing", image: "10_cristaleria", category: "obras-menores", service: "cristaleros" },
-  { key: "gardening", image: "11_jardineria", category: "mantenimiento", service: "jardineros" },
-  { key: "cleaning", image: "12_limpieza", category: "mantenimiento", service: "limpieza" },
-] as const;
 
 const STEPS: { key: "one" | "two" | "three"; icon: LandingIconName }[] = [
   { key: "one", icon: "review" },
@@ -53,8 +28,12 @@ const ADVANTAGES: { key: "cap" | "price" | "topup" | "privacy"; icon: LandingIco
   { key: "privacy", icon: "privacy" },
 ];
 
-/** Catalogo cacheado 5 minutos en el servicio: la home se sirve estatica con ISR. */
-export const revalidate = 300;
+/**
+ * La home es estatica: se regenera al momento cuando el admin cambia el catalogo o la
+ * mensualidad (`/api/revalidate`) y, como respaldo, una vez al dia. Next exige un literal
+ * aqui: es `DAILY_REVALIDATE_SECONDS`.
+ */
+export const revalidate = 86400;
 
 /**
  * Landing renderizada en servidor.
@@ -70,10 +49,15 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const t = await getTranslations({ locale, namespace: "home" });
 
   let categories: CatalogCategory[] = [];
+  let topup: Money | null = null;
   try {
-    categories = await leadsService.categories(locale);
-  } catch {
-    // Si el API no responde, la landing sigue siendo util: mostramos el resto.
+    [categories, { amount: topup }] = await Promise.all([
+      leadsService.categories(locale),
+      leadsService.subscriptionPrice(locale),
+    ]);
+  } catch (error) {
+    // En produccion se propaga: Next conserva la version anterior (ver `toleratesApiOutage`).
+    if (!toleratesApiOutage()) throw error;
   }
 
   const cheapest = categories.reduce<CatalogCategory | null>(
@@ -88,17 +72,10 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const publishHref = path(locale, "publish");
   const projectsHref = path(locale, "projects");
 
-  const trades = FEATURED_TRADES.flatMap((trade) => {
-    const category = categories.find((c) => c.slug === trade.category);
-    if (!category?.services.some((s) => s.slug === trade.service)) return [];
-    return [
-      {
-        ...trade,
-        price: category.suggested_lead_price,
-        href: `${publishHref}?category=${trade.category}&service=${trade.service}`,
-      },
-    ];
-  });
+  const trades = featuredTrades(categories).map((trade) => ({
+    ...trade,
+    href: `${publishHref}?category=${trade.categorySlug}&service=${trade.serviceSlug}`,
+  }));
 
   return (
     <>
@@ -145,23 +122,26 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             />
             <ul className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
               {trades.map((trade) => (
-                <li key={trade.key}>
+                <li key={trade.serviceId}>
                   <Link
                     href={trade.href}
                     className={cn(SOFT_CARD, "group block h-full overflow-hidden")}
                   >
                     <span className="relative block aspect-[8/5] bg-page">
+                      {/* Sin optimizar: la URL del API redirige a una firmada que caduca, y el
+                          optimizador de Next la cachearia ya caducada. */}
                       <Image
-                        src={`/images/${trade.image}.webp`}
+                        src={leadsService.serviceImageUrl(trade.serviceId)}
                         alt=""
                         fill
+                        unoptimized
                         sizes="(min-width: 1024px) 200px, (min-width: 640px) 33vw, 50vw"
                         className="object-cover"
                       />
                     </span>
                     <span className="block px-3.5 pb-3.5 pt-2.5">
                       <span className="block text-[15px] font-bold text-navy group-hover:text-brand">
-                        {t(`trades.items.${trade.key}`)}
+                        {trade.name}
                       </span>
                       <span className="mt-1 block text-[15px] text-ink">
                         {t("trades.from", { price: formatPrice(trade.price, locale) })}
@@ -229,13 +209,12 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                   {t(`why.${item.key}.title`)}
                 </h3>
                 <p className="mt-1.5 text-[15.5px] leading-[1.45] text-secondary">
-                  {t(`why.${item.key}.body`, {
-                    maxProfessionals: MAX_PROFESSIONALS,
-                    amount: formatPrice(
-                      { amount_cents: TOPUP_CENTS, currency: "EUR", formatted: "" },
-                      locale,
-                    ),
-                  })}
+                  {item.key === "topup" && topup === null
+                    ? t("why.topup.bodyNoAmount")
+                    : t(`why.${item.key}.body`, {
+                        maxProfessionals: MAX_PROFESSIONALS,
+                        amount: topup ? formatPrice(topup, locale) : "",
+                      })}
                 </p>
               </li>
             ))}

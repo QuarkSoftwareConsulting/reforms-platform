@@ -138,6 +138,10 @@ class SqlAlchemyCategoryRepository(CategoryRepositoryPort):
             service_row.name_en = service.name_en
             service_row.sort_order = service.sort_order
             service_row.active = service.active
+            service_row.featured = service.featured
+            service_row.image_key = service.image_key
+            service_row.landing_name_es = service.landing_name_es
+            service_row.landing_name_en = service.landing_name_en
         await self._session.flush()
 
 

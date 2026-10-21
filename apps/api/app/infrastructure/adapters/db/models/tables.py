@@ -157,6 +157,12 @@ class ServiceRow(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     name_en: Mapped[str] = mapped_column(String(160), nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    featured: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    image_key: Mapped[str | None] = mapped_column(String(500))
+    landing_name_es: Mapped[str | None] = mapped_column(String(40))
+    landing_name_en: Mapped[str | None] = mapped_column(String(40))
 
     category: Mapped[CategoryRow] = relationship(back_populates="services")
 
@@ -164,6 +170,8 @@ class ServiceRow(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         # El mismo servicio puede existir en dos categorias (Domotica esta en Seguridad
         # Electronica y en Instaladores), pero no dos veces en la misma.
         UniqueConstraint("category_id", "slug", name="uq_services_category_slug"),
+        # Lo exige tambien el dominio: una tarjeta destacada sin foto no se puede pintar.
+        CheckConstraint("NOT featured OR image_key IS NOT NULL", name="featured_has_image"),
     )
 
 

@@ -7,8 +7,10 @@ from app.domain.exceptions import (
     CatalogNameInvalidError,
     CatalogSlugTakenError,
     CategoryNotFoundError,
+    FeaturedServiceNeedsImageError,
     InvalidSalePriceError,
     ServiceNotFoundError,
+    ValidationError,
 )
 from app.domain.models import Category, Service
 from app.domain.value_objects import Money
@@ -223,3 +225,169 @@ class TestServices:
         with pytest.raises(CatalogItemInUseError):
             await world.delete_service.execute(category_id=category.id, service_id=service.id)
         assert world.categories.items[category.id].services == [service]
+
+
+async def feature(world: World, category: Category, service: Service, **kwargs: object):
+    values: dict[str, object] = {
+        "category_id": category.id,
+        "service_id": service.id,
+        "name_es": service.name_es,
+        "name_en": service.name_en,
+        "sort_order": service.sort_order,
+        "active": True,
+        "featured": True,
+        "image_key": f"catalog/services/{service.id}/0001/podas.webp",
+        **kwargs,
+    }
+    return await world.update_service.execute(**values)  # type: ignore[arg-type]
+
+
+class TestFeaturedServices:
+    async def test_a_featured_service_keeps_its_photo(self, world: World) -> None:
+        category = world.add_category(slug="jardineria")
+        service = with_service(world, category)
+
+        updated = await feature(world, category, service)
+
+        featured = updated.service(service.id)
+        assert featured.featured
+        assert featured.on_landing
+        assert featured.image_key == f"catalog/services/{service.id}/0001/podas.webp"
+
+    async def test_featuring_without_a_photo_is_rejected(self, world: World) -> None:
+        category = world.add_category(slug="jardineria")
+        service = with_service(world, category)
+
+        with pytest.raises(FeaturedServiceNeedsImageError):
+            await feature(world, category, service, image_key=None)
+        assert not world.categories.items[category.id].service(service.id).featured
+
+    async def test_a_photo_uploaded_for_another_service_is_rejected(self, world: World) -> None:
+        category = world.add_category(slug="jardineria")
+        service = with_service(world, category)
+        other = with_service(world, category, "riegos")
+
+        with pytest.raises(ValidationError):
+            await feature(
+                world, category, service, image_key=f"catalog/services/{other.id}/0001/x.webp"
+            )
+
+    async def test_a_deactivated_featured_service_leaves_the_landing(self, world: World) -> None:
+        category = world.add_category(slug="jardineria")
+        service = with_service(world, category)
+
+        updated = await feature(world, category, service, active=False)
+
+        assert not updated.service(service.id).on_landing
+
+
+class TestCatalogImageUpload:
+    async def test_the_key_carries_the_service_id(self, world: World) -> None:
+        category = world.add_category(slug="jardineria")
+        service = with_service(world, category)
+
+        upload = await world.request_catalog_image_upload.execute(
+            category_id=category.id,
+            service_id=service.id,
+            filename="podas.webp",
+            content_type="image/webp",
+            size_bytes=200_000,
+        )
+
+        assert upload.storage_key.startswith(f"catalog/services/{service.id}/")
+
+    @pytest.mark.parametrize(
+        ("content_type", "size"),
+        [("image/heic", 1000), ("application/pdf", 1000), ("image/png", 6_000_000)],
+    )
+    async def test_unsuitable_files_are_rejected(
+        self, world: World, content_type: str, size: int
+    ) -> None:
+        category = world.add_category(slug="jardineria")
+        service = with_service(world, category)
+
+        with pytest.raises(ValidationError):
+            await world.request_catalog_image_upload.execute(
+                category_id=category.id,
+                service_id=service.id,
+                filename="x",
+                content_type=content_type,
+                size_bytes=size,
+            )
+
+    async def test_a_service_of_another_category_cannot_get_an_upload(self, world: World) -> None:
+        service = with_service(world, world.add_category(slug="jardineria"))
+        other = world.add_category(slug="reformas")
+
+        with pytest.raises(ServiceNotFoundError):
+            await world.request_catalog_image_upload.execute(
+                category_id=other.id,
+                service_id=service.id,
+                filename="x.webp",
+                content_type="image/webp",
+                size_bytes=10,
+            )
+
+
+class TestLandingServiceImage:
+    async def test_resolves_the_current_url_of_a_featured_service(self, world: World) -> None:
+        category = world.add_category(slug="jardineria")
+        service = with_service(world, category)
+        await feature(world, category, service)
+
+        url = await world.landing_service_image.execute(service_id=service.id)
+
+        assert url == f"https://cdn.test/reforma-hub/catalog/services/{service.id}/0001/podas.webp"
+
+    async def test_a_service_that_is_not_on_the_landing_has_no_image(self, world: World) -> None:
+        category = world.add_category(slug="jardineria")
+        plain = with_service(world, category)
+        hidden = with_service(world, category, "riegos")
+        await feature(world, category, hidden, active=False)
+
+        for service in (plain, hidden):
+            with pytest.raises(ServiceNotFoundError):
+                await world.landing_service_image.execute(service_id=service.id)
+
+    async def test_a_deactivated_category_takes_its_services_off_the_landing(
+        self, world: World
+    ) -> None:
+        category = world.add_category(slug="jardineria")
+        service = with_service(world, category)
+        await feature(world, category, service)
+        category.active = False
+
+        with pytest.raises(ServiceNotFoundError):
+            await world.landing_service_image.execute(service_id=service.id)
+
+
+class TestLandingName:
+    async def test_the_card_uses_the_short_name_in_each_language(self, world: World) -> None:
+        category = world.add_category(slug="reformas")
+        service = with_service(world, category, "reformas-de-banos")
+
+        updated = await feature(
+            world, category, service, landing_name_es="  Baños ", landing_name_en="Bathrooms"
+        )
+
+        edited = updated.service(service.id)
+        assert edited.landing_name("es") == "Baños"
+        assert edited.landing_name("en") == "Bathrooms"
+
+    async def test_without_a_short_name_the_service_name_is_used(self, world: World) -> None:
+        category = world.add_category(slug="reformas")
+        service = with_service(world, category, "pintores")
+
+        updated = await feature(world, category, service, landing_name_es="   ")
+
+        edited = updated.service(service.id)
+        assert edited.landing_name_es is None
+        assert edited.landing_name("es") == edited.name_es
+
+    async def test_a_short_name_must_fit_the_card(self, world: World) -> None:
+        category = world.add_category(slug="reformas")
+        service = with_service(world, category, "pintores")
+
+        with pytest.raises(CatalogNameInvalidError) as exc:
+            await feature(world, category, service, landing_name_es="x" * 41)
+        assert exc.value.details == {"min": 1, "max": 40}

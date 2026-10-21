@@ -28,6 +28,7 @@ from app.application.use_cases import (
     DeleteCategory,
     DeleteService,
     GetAdminMetrics,
+    GetLandingServiceImage,
     GetLeadDetail,
     GetLeadPricing,
     GetMetricsTimeseries,
@@ -52,6 +53,7 @@ from app.application.use_cases import (
     RejectProfessional,
     ReleaseExpiredReservations,
     RemoveProfessionalDocument,
+    RequestCatalogImageUpload,
     RequestPhotoUpload,
     RequestProfessionalUpload,
     SetLeadPrice,
@@ -71,6 +73,7 @@ from app.domain.models import (
     FlagEnvironment,
     Professional,
     ProfessionalAccount,
+    SubscriptionPrice,
     User,
 )
 from app.domain.value_objects import Coordinates, Money, PostalCode
@@ -109,7 +112,7 @@ from tests.fakes import (
 
 WEB_URL = "https://reformahub.test"
 TOPUP = Money(1800, "EUR")
-DEFAULT_TOPUP_PRICE_ID = "price_config_topup"
+ADMIN_TOPUP_PRICE_ID = "price_admin_topup"
 SMS_PER_ORIGIN = 3
 
 POSTAL_CODES = [
@@ -185,6 +188,8 @@ class World:
     create_service: CreateService = field(init=False)
     update_service: UpdateService = field(init=False)
     delete_service: DeleteService = field(init=False)
+    request_catalog_image_upload: RequestCatalogImageUpload = field(init=False)
+    landing_service_image: GetLandingServiceImage = field(init=False)
     list_admin_leads: ListAdminLeads = field(init=False)
     change_lead_availability: ChangeLeadAvailability = field(init=False)
     admin_metrics: GetAdminMetrics = field(init=False)
@@ -210,11 +215,17 @@ class World:
         self.categories.lead_index = self.leads
         self.categories.professional_index = self.professionals
         self.credit = CreditLedgerService(accounts=self.accounts, ledger=self.ledger, ids=self.ids)
-        self.pricing = SubscriptionPricing(
-            prices=self.subscription_prices,
-            default_amount=TOPUP,
-            default_price_id=DEFAULT_TOPUP_PRICE_ID,
+        # Como en produccion: la mensualidad la fija el admin. Sin ella nadie se
+        # suscribe; los tests de ese caso vacian `subscription_prices.items`.
+        self.subscription_prices.items.append(
+            SubscriptionPrice(
+                id=self.ids.new_id(),
+                amount=TOPUP,
+                stripe_price_id=ADMIN_TOPUP_PRICE_ID,
+                created_at=NOW - timedelta(days=30),
+            )
         )
+        self.pricing = SubscriptionPricing(prices=self.subscription_prices)
         self.create_lead = CreateLead(
             leads=self.leads,
             categories=self.categories,
@@ -360,6 +371,12 @@ class World:
         self.create_service = CreateService(categories=self.categories, ids=self.ids, uow=self.uow)
         self.update_service = UpdateService(categories=self.categories, uow=self.uow)
         self.delete_service = DeleteService(categories=self.categories, uow=self.uow)
+        self.request_catalog_image_upload = RequestCatalogImageUpload(
+            categories=self.categories, storage=self.storage
+        )
+        self.landing_service_image = GetLandingServiceImage(
+            categories=self.categories, storage=self.storage
+        )
         self.list_admin_leads = ListAdminLeads(leads=self.leads, categories=self.categories)
         self.change_lead_availability = ChangeLeadAvailability(leads=self.leads, uow=self.uow)
         self.admin_metrics = GetAdminMetrics(
@@ -399,7 +416,11 @@ class World:
             accounts=self.accounts, payments=self.payments, web_base_url=WEB_URL
         )
         self.get_account = GetProfessionalAccount(
-            accounts=self.accounts, ledger=self.ledger, pricing=self.pricing, clock=self.clock
+            accounts=self.accounts,
+            ledger=self.ledger,
+            pricing=self.pricing,
+            clock=self.clock,
+            currency="EUR",
         )
         self.set_subscription_price = SetSubscriptionPrice(
             prices=self.subscription_prices,

@@ -161,3 +161,31 @@ async def test_a_service_named_by_a_lead_is_in_use(
     repo = SqlAlchemyCategoryRepository(session)
     assert await repo.is_service_in_use(service.id)
     assert await repo.is_in_use(carpentry.id)
+
+
+async def test_featured_flag_and_image_are_persisted(
+    session: AsyncSession, carpentry: Category
+) -> None:
+    repo = SqlAlchemyCategoryRepository(session)
+    category = await repo.get(carpentry.id)
+    assert category is not None
+    service = category.services[0]
+    key = f"catalog/services/{service.id}/0001/puertas.webp"
+    category.edit_service(
+        service.id,
+        name_es=service.name_es,
+        name_en=service.name_en,
+        sort_order=service.sort_order,
+        active=True,
+        featured=True,
+        image_key=key,
+    )
+    await repo.update(category)
+    await session.commit()
+    session.expunge_all()
+
+    reloaded = await repo.get(carpentry.id)
+
+    assert reloaded is not None
+    assert reloaded.service(service.id).featured
+    assert reloaded.service(service.id).image_key == key

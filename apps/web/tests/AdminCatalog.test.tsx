@@ -5,6 +5,7 @@ import { AdminCatalog } from "@/components/features/AdminCatalog";
 import { nameError, parsePriceCents, parseSortOrder, priceInput } from "@/helpers/catalog";
 import { adminService } from "@/services/admin.service";
 import { ApiError } from "@/services/api";
+import { revalidationService } from "@/services/revalidation.service";
 import type { AdminCatalogCategory } from "@/types/api";
 
 import { messages, renderWithIntl } from "./render";
@@ -18,7 +19,11 @@ vi.mock("@/services/admin.service", () => ({
     createService: vi.fn(),
     updateService: vi.fn(),
     deleteService: vi.fn(),
+    requestServiceImageUpload: vi.fn(),
   },
+}));
+vi.mock("@/services/revalidation.service", () => ({
+  revalidationService: { revalidate: vi.fn() },
 }));
 
 const t = messages.admin.catalog;
@@ -42,6 +47,11 @@ function category(overrides: Partial<AdminCatalogCategory> = {}): AdminCatalogCa
         name_en: "Doors",
         sort_order: 1,
         active: true,
+        featured: false,
+        image_key: null,
+        landing_name_es: null,
+        landing_name_en: null,
+        image_url: null,
       },
     ],
     ...overrides,
@@ -200,6 +210,11 @@ describe("AdminCatalog", () => {
       name_en: "Floors",
       sort_order: 2,
       active: true,
+      featured: false,
+      image_key: null,
+      landing_name_es: null,
+      landing_name_en: null,
+      image_url: null,
     });
     vi.mocked(adminService.createService).mockResolvedValue(added);
     await renderCatalog();
@@ -213,6 +228,100 @@ describe("AdminCatalog", () => {
     expect(adminService.createService).toHaveBeenCalledWith(
       "cat-1",
       { name_es: "Tarimas", name_en: "Floors" },
+      "es",
+    );
+  });
+});
+
+describe("AdminCatalog: servicios destacados en la landing", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  function openService() {
+    fireEvent.click(screen.getByRole("button", { name: `Editar «Puertas»` }));
+    return screen.getByRole("form", { name: `Editar «Puertas»` });
+  }
+
+  it("does not feature a service without its photo", async () => {
+    await renderCatalog();
+    const form = openService();
+
+    fireEvent.click(within(form).getByLabelText(t.featured));
+    fireEvent.click(within(form).getByRole("button", { name: t.save }));
+
+    expect(await within(form).findByText(messages.validation.catalogPhotoRequired)).toBeTruthy();
+    expect(adminService.updateService).not.toHaveBeenCalled();
+  });
+
+  it("uploads the photo, saves it featured and refreshes the public pages", async () => {
+    vi.mocked(adminService.requestServiceImageUpload).mockResolvedValue({
+      storage_key: "catalog/services/svc-1/0001/puertas.webp",
+      upload_url: "https://bucket.test/upload",
+      method: "PUT",
+      headers: { "Content-Type": "image/webp" },
+      expires_in_seconds: 900,
+    });
+    const put = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", put);
+    vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: () => "blob:preview" }));
+    vi.mocked(adminService.updateService).mockResolvedValue(category());
+    await renderCatalog();
+    const form = openService();
+
+    const photo = new File(["x"], "puertas.webp", { type: "image/webp" });
+    fireEvent.change(within(form).getByLabelText(t.photo), { target: { files: [photo] } });
+    await within(form).findByRole("img", { name: `Foto actual de «Puertas»` });
+    fireEvent.click(within(form).getByLabelText(t.featured));
+    fireEvent.click(within(form).getByRole("button", { name: t.save }));
+
+    await screen.findByText(t.saved);
+    expect(put).toHaveBeenCalledWith("https://bucket.test/upload", expect.objectContaining({ method: "PUT" }));
+    expect(adminService.updateService).toHaveBeenCalledWith(
+      "cat-1",
+      "svc-1",
+      expect.objectContaining({
+        featured: true,
+        image_key: "catalog/services/svc-1/0001/puertas.webp",
+      }),
+      "es",
+    );
+    expect(revalidationService.revalidate).toHaveBeenCalledWith(["catalog"]);
+    vi.unstubAllGlobals();
+  });
+
+  it("rejects a photo in a format the landing cannot show", async () => {
+    await renderCatalog();
+    const form = openService();
+
+    const heic = new File(["x"], "puertas.heic", { type: "image/heic" });
+    fireEvent.change(within(form).getByLabelText(t.photo), { target: { files: [heic] } });
+
+    expect(await within(form).findByText(messages.validation.catalogPhotoType)).toBeTruthy();
+    expect(adminService.requestServiceImageUpload).not.toHaveBeenCalled();
+  });
+
+  it("sends the short landing names, empty as null, and checks their length", async () => {
+    vi.mocked(adminService.updateService).mockResolvedValue(category());
+    await renderCatalog();
+    const form = openService();
+
+    fireEvent.change(within(form).getByLabelText(t.landingNameEs), {
+      target: { value: "x".repeat(41) },
+    });
+    fireEvent.click(within(form).getByRole("button", { name: t.save }));
+    const tooLong = messages.validation.catalogNameTooLong.replace("{max}", "40");
+    expect(await within(form).findByText(tooLong)).toBeTruthy();
+    expect(adminService.updateService).not.toHaveBeenCalled();
+
+    fireEvent.change(within(form).getByLabelText(t.landingNameEs), {
+      target: { value: "  Puertas  " },
+    });
+    fireEvent.click(within(form).getByRole("button", { name: t.save }));
+
+    await screen.findByText(t.saved);
+    expect(adminService.updateService).toHaveBeenCalledWith(
+      "cat-1",
+      "svc-1",
+      expect.objectContaining({ landing_name_es: "Puertas", landing_name_en: null }),
       "es",
     );
   });

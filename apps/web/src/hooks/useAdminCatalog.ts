@@ -5,6 +5,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 
+import { CATALOG_TAG } from "@/helpers/cacheTags";
 import { useApiError } from "@/hooks/useApiError";
 import {
   adminService,
@@ -13,6 +14,7 @@ import {
   type NewCategoryPayload,
   type ServicePayload,
 } from "@/services/admin.service";
+import { revalidationService } from "@/services/revalidation.service";
 import type { AdminCatalogCategory, Locale } from "@/types/api";
 
 export interface AdminCatalogState {
@@ -28,6 +30,8 @@ export interface AdminCatalogState {
   createService: (categoryId: string, payload: CatalogNames) => Promise<boolean>;
   updateService: (categoryId: string, serviceId: string, payload: ServicePayload) => Promise<boolean>;
   deleteService: (categoryId: string, serviceId: string) => Promise<boolean>;
+  /** Sube la foto al bucket y devuelve su clave; se guarda al guardar el servicio. */
+  uploadServiceImage: (categoryId: string, serviceId: string, file: File) => Promise<string | null>;
 }
 
 function byCatalogOrder(a: AdminCatalogCategory, b: AdminCatalogCategory): number {
@@ -77,6 +81,8 @@ export function useAdminCatalog(): AdminCatalogState {
       try {
         await action();
         setNotice(message);
+        // La landing y el formulario publico son estaticos: se regeneran con el cambio.
+        void revalidationService.revalidate([CATALOG_TAG]);
         return true;
       } catch (caught) {
         // "En uso" llega como CATALOG_ITEM_IN_USE: el texto ya dice que se desactive.
@@ -125,6 +131,30 @@ export function useAdminCatalog(): AdminCatalogState {
           upsert(await adminService.updateService(categoryId, serviceId, payload, locale)),
         t("saved"),
       ),
+    uploadServiceImage: async (categoryId, serviceId, file) => {
+      setPending(`image:${serviceId}`);
+      setError(null);
+      try {
+        const presigned = await adminService.requestServiceImageUpload(
+          categoryId,
+          serviceId,
+          file,
+          locale,
+        );
+        const response = await fetch(presigned.upload_url, {
+          method: presigned.method,
+          headers: presigned.headers,
+          body: file,
+        });
+        if (!response.ok) throw new Error(`Fallo la subida de ${file.name}`);
+        return presigned.storage_key;
+      } catch (caught) {
+        setError(translateError(caught));
+        return null;
+      } finally {
+        setPending(null);
+      }
+    },
     deleteService: (categoryId, serviceId) =>
       run(
         `service:${serviceId}`,

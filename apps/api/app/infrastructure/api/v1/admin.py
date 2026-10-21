@@ -58,7 +58,7 @@ from app.infrastructure.api.schemas.billing import (
     SetSubscriptionPriceIn,
     SubscriptionPriceOut,
 )
-from app.infrastructure.api.schemas.leads import CreateLeadOut
+from app.infrastructure.api.schemas.leads import CreateLeadOut, PresignPhotoIn, PresignPhotoOut
 from app.infrastructure.api.schemas.professionals import ProfessionalOut
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -470,7 +470,9 @@ async def set_lead_price(
 )
 async def list_catalog(container: ContainerDep, _: AdminDep) -> list[AdminCategoryOut]:
     categories = await container.list_catalog.execute()
-    return [serializers.admin_category_out(category) for category in categories]
+    return [
+        serializers.admin_category_out(category, container.infra.storage) for category in categories
+    ]
 
 
 @router.post(
@@ -490,7 +492,7 @@ async def create_category(
         ),
         sort_order=payload.sort_order,
     )
-    return serializers.admin_category_out(category)
+    return serializers.admin_category_out(category, container.infra.storage)
 
 
 @router.put(
@@ -509,7 +511,7 @@ async def update_category(
         sort_order=payload.sort_order,
         active=payload.active,
     )
-    return serializers.admin_category_out(category)
+    return serializers.admin_category_out(category, container.infra.storage)
 
 
 @router.delete(
@@ -533,7 +535,7 @@ async def create_service(
     category = await container.create_service.execute(
         category_id=category_id, name_es=payload.name_es, name_en=payload.name_en
     )
-    return serializers.admin_category_out(category)
+    return serializers.admin_category_out(category, container.infra.storage)
 
 
 @router.put(
@@ -555,8 +557,34 @@ async def update_service(
         name_en=payload.name_en,
         sort_order=payload.sort_order,
         active=payload.active,
+        featured=payload.featured,
+        image_key=payload.image_key,
+        landing_name_es=payload.landing_name_es,
+        landing_name_en=payload.landing_name_en,
     )
-    return serializers.admin_category_out(category)
+    return serializers.admin_category_out(category, container.infra.storage)
+
+
+@router.post(
+    "/categories/{category_id}/services/{service_id}/image-upload",
+    response_model=PresignPhotoOut,
+    summary="URL firmada para subir la foto de la tarjeta de un servicio",
+)
+async def request_service_image_upload(
+    category_id: UUID,
+    service_id: UUID,
+    payload: PresignPhotoIn,
+    container: ContainerDep,
+    _: AdminDep,
+) -> PresignPhotoOut:
+    upload = await container.request_catalog_image_upload.execute(
+        category_id=category_id,
+        service_id=service_id,
+        filename=payload.filename,
+        content_type=payload.content_type,
+        size_bytes=payload.size_bytes,
+    )
+    return serializers.presign_out(upload)
 
 
 @router.delete(

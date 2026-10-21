@@ -1,7 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
-import { useState, type FormEvent } from "react";
+import { useState, type ChangeEvent, type FormEvent } from "react";
 
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -10,11 +11,15 @@ import { CheckboxField, TextField } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import {
   CATEGORY_NAME_MAX,
+  LANDING_NAME_MAX,
   SERVICE_NAME_MAX,
   cleanName,
+  landingNameError,
+  landingNameValue,
   nameError,
   parsePriceCents,
   parseSortOrder,
+  photoError,
   priceInput,
   type CatalogFieldError,
 } from "@/helpers/catalog";
@@ -23,7 +28,12 @@ import { useAdminCatalog, type AdminCatalogState } from "@/hooks/useAdminCatalog
 import { type AppLocale } from "@/i18n/routing";
 import type { AdminCatalogCategory, AdminCatalogService } from "@/types/api";
 
-type Errors = Partial<Record<"name_es" | "name_en" | "price" | "sort_order", CatalogFieldError>>;
+type Errors = Partial<
+  Record<
+    "name_es" | "name_en" | "price" | "sort_order" | "photo" | "landing_es" | "landing_en",
+    CatalogFieldError
+  >
+>;
 
 /** Lo que el admin va a borrar, para el dialogo de confirmacion. */
 type DeleteTarget =
@@ -399,16 +409,42 @@ function ServiceRow({
   const [nameEn, setNameEn] = useState(service.name_en);
   const [order, setOrder] = useState(String(service.sort_order));
   const [active, setActive] = useState(service.active);
+  const [featured, setFeatured] = useState(service.featured);
+  const [imageKey, setImageKey] = useState(service.image_key);
+  const [landingEs, setLandingEs] = useState(service.landing_name_es ?? "");
+  const [landingEn, setLandingEn] = useState(service.landing_name_en ?? "");
+  const [preview, setPreview] = useState(service.image_url);
   const [errors, setErrors] = useState<Errors>({});
   const busy = catalog.pending === `service:${service.id}`;
+  const uploading = catalog.pending === `image:${service.id}`;
 
   function startEditing() {
     setNameEs(service.name_es);
     setNameEn(service.name_en);
     setOrder(String(service.sort_order));
     setActive(service.active);
+    setFeatured(service.featured);
+    setImageKey(service.image_key);
+    setLandingEs(service.landing_name_es ?? "");
+    setLandingEn(service.landing_name_en ?? "");
+    setPreview(service.image_url);
     setErrors({});
     setEditing(true);
+  }
+
+  async function choosePhoto(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    const rejected = photoError(file);
+    setErrors((current) => ({ ...current, photo: rejected ?? undefined }));
+    if (rejected) return;
+    const key = await catalog.uploadServiceImage(category.id, service.id, file);
+    if (key) {
+      setImageKey(key);
+      // Vista previa local: la URL firmada del bucket llega al guardar.
+      setPreview(URL.createObjectURL(file));
+    }
   }
 
   async function submit(event: FormEvent) {
@@ -418,6 +454,9 @@ function ServiceRow({
       name_es: nameError(nameEs, SERVICE_NAME_MAX) ?? undefined,
       name_en: nameError(nameEn, SERVICE_NAME_MAX) ?? undefined,
       sort_order: sortOrder === null ? "catalogSortOrder" : undefined,
+      photo: featured && !imageKey ? "catalogPhotoRequired" : undefined,
+      landing_es: landingNameError(landingEs) ?? undefined,
+      landing_en: landingNameError(landingEn) ?? undefined,
     };
     setErrors(next);
     if (Object.values(next).some(Boolean) || sortOrder === null) return;
@@ -426,6 +465,10 @@ function ServiceRow({
       name_en: cleanName(nameEn),
       sort_order: sortOrder,
       active,
+      featured,
+      image_key: imageKey,
+      landing_name_es: landingNameValue(landingEs),
+      landing_name_en: landingNameValue(landingEn),
     });
     if (saved) setEditing(false);
   }
@@ -441,6 +484,11 @@ function ServiceRow({
           {!service.active && (
             <Tag tone="neutral" className="ml-2">
               {t("serviceStatusInactive")}
+            </Tag>
+          )}
+          {service.featured && (
+            <Tag tone="accent" className="ml-2">
+              {t("featuredTag")}
             </Tag>
           )}
         </p>
@@ -485,15 +533,57 @@ function ServiceRow({
         inputMode="numeric"
         required
       />
-      <div className="md:col-span-3">
+      <div className="space-y-3 md:col-span-3">
         <CheckboxField
           label={t("serviceActive")}
           checked={active}
           onChange={(event) => setActive(event.target.checked)}
         />
+        <CheckboxField
+          label={t("featured")}
+          checked={featured}
+          onChange={(event) => setFeatured(event.target.checked)}
+        />
+      </div>
+      <TextField
+        label={t("landingNameEs")}
+        hint={t("landingNameHint", { max: LANDING_NAME_MAX })}
+        value={landingEs}
+        onChange={(event) => setLandingEs(event.target.value)}
+        error={errors.landing_es && tValidation(errors.landing_es, { max: LANDING_NAME_MAX })}
+      />
+      <TextField
+        label={t("landingNameEn")}
+        hint={t("landingNameHint", { max: LANDING_NAME_MAX })}
+        value={landingEn}
+        onChange={(event) => setLandingEn(event.target.value)}
+        error={errors.landing_en && tValidation(errors.landing_en, { max: LANDING_NAME_MAX })}
+      />
+      <div className="flex flex-wrap items-end gap-4 md:col-span-3">
+        {preview && (
+          <Image
+            src={preview}
+            alt={t("photoAlt", { name: service.name_es })}
+            width={160}
+            height={100}
+            unoptimized
+            className="h-[100px] w-[160px] rounded-option object-cover"
+          />
+        )}
+        <div className="min-w-[240px] flex-1">
+          <TextField
+            label={t("photo")}
+            hint={uploading ? t("photoUploading") : t("photoHint")}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={(event) => void choosePhoto(event)}
+            error={message(errors.photo)}
+            disabled={uploading}
+          />
+        </div>
       </div>
       <div className="flex flex-wrap items-center gap-3 md:col-span-3">
-        <Button type="submit" variant="secondary" size="sm" loading={busy}>
+        <Button type="submit" variant="secondary" size="sm" loading={busy} disabled={uploading}>
           {t("save")}
         </Button>
         <Button type="button" variant="text" disabled={busy} onClick={() => setEditing(false)}>

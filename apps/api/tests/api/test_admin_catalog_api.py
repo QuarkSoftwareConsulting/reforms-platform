@@ -145,3 +145,54 @@ class TestCatalogApi:
         gone = await api.delete(url, headers=admin_auth)
         assert gone.status_code == 404
         assert gone.json()["code"] == "SERVICE_NOT_FOUND"
+
+    async def test_featured_service_reaches_the_landing_with_a_stable_image_url(
+        self, api: AsyncClient, carpentry_category: Category, admin_auth: dict[str, str]
+    ) -> None:
+        service = carpentry_category.services[0]
+        base = f"/admin/categories/{carpentry_category.id}/services/{service.id}"
+
+        upload = await api.post(
+            f"{base}/image-upload",
+            json={"filename": "puertas.webp", "content_type": "image/webp", "size_bytes": 1000},
+            headers=admin_auth,
+        )
+        assert upload.status_code == 200, upload.text
+        key = upload.json()["storage_key"]
+        assert key.startswith(f"catalog/services/{service.id}/")
+
+        body = {"name_es": "Puertas", "name_en": "Doors", "sort_order": 1, "active": True}
+        no_photo = await api.put(base, json={**body, "featured": True}, headers=admin_auth)
+        assert no_photo.status_code == 422
+        assert no_photo.json()["code"] == "FEATURED_SERVICE_NEEDS_IMAGE"
+
+        featured = await api.put(
+            base,
+            json={
+                **body,
+                "featured": True,
+                "image_key": key,
+                "landing_name_es": "Puertas a medida",
+                "landing_name_en": "Custom doors",
+            },
+            headers=admin_auth,
+        )
+        assert featured.status_code == 200, featured.text
+        stored = next(s for s in featured.json()["services"] if s["id"] == str(service.id))
+        assert stored["featured"] is True
+        assert stored["image_url"].endswith(key)
+
+        public = (await api.get("/categories", headers={"Accept-Language": "en"})).json()
+        carpentry = next(c for c in public if c["id"] == str(carpentry_category.id))
+        card = next(s for s in carpentry["services"] if s["id"] == str(service.id))
+        assert card["featured"] is True
+        assert card["landing_name"] == "Custom doors"
+
+        image = await api.get(f"/catalog/services/{service.id}/image", follow_redirects=False)
+        assert image.status_code == 302
+        assert image.headers["location"].endswith(key)
+        assert image.headers["cache-control"] == "public, max-age=300"
+
+        other = carpentry_category.services[1]
+        missing = await api.get(f"/catalog/services/{other.id}/image", follow_redirects=False)
+        assert missing.status_code == 404

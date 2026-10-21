@@ -739,7 +739,7 @@ async def main() -> int:
             report.ok("Comprar sin recarga devuelve 402 SUBSCRIPTION_REQUIRED")
 
             started = await api.request(
-                "POST", "/me/subscription/checkout", token=token, expect=(200, 503)
+                "POST", "/me/subscription/checkout", token=token, expect=(200, 409, 503)
             )
             if started.status_code == 200:
                 require(
@@ -750,7 +750,7 @@ async def main() -> int:
             else:
                 report.skip(
                     "Checkout de la recarga en Stripe",
-                    "sin STRIPE_SECRET_KEY o STRIPE_TOPUP_PRICE_ID de test",
+                    "sin STRIPE_SECRET_KEY de test o sin mensualidad fijada por el admin",
                 )
             account = (await api.request("GET", "/me/account", token=token, expect=200)).json()
             require(

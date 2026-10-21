@@ -8,10 +8,12 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { TextField } from "@/components/ui/Field";
+import { PRICING_TAG } from "@/helpers/cacheTags";
 import { formatMoney } from "@/helpers/currency";
 import { useApiError } from "@/hooks/useApiError";
 import { path, type AppLocale } from "@/i18n/routing";
 import { adminService } from "@/services/admin.service";
+import { revalidationService } from "@/services/revalidation.service";
 import type { SubscriptionPrice } from "@/types/api";
 
 /**
@@ -85,12 +87,11 @@ export function AdminPricing() {
             <h2 className="text-card-title font-bold text-ink">{t("subscriptionPrice.title")}</h2>
             <p className="text-sm text-secondary">{t("subscriptionPrice.body")}</p>
           </div>
-          {subscriptionPrice && (
+          {subscriptionPrice?.amount && (
             <p className="text-sm text-ink">
               {t("subscriptionPrice.current", {
                 amount: formatMoney(subscriptionPrice.amount, locale),
-              })}{" "}
-              {subscriptionPrice.is_default && t("subscriptionPrice.default")}
+              })}
             </p>
           )}
           {subscriptionPrice && !subscriptionPrice.configured && (
@@ -114,6 +115,8 @@ export function AdminPricing() {
                 // El importe viaja en centimos, como todo `Money`.
                 const cents = Math.round(Number(subscriptionDraft) * 100);
                 await adminService.setSubscriptionPrice(cents, locale);
+                // La landing anuncia la mensualidad: se regenera con el importe nuevo.
+                void revalidationService.revalidate([PRICING_TAG]);
                 setSubscriptionDraft("");
               })
             }

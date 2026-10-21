@@ -5,6 +5,9 @@ Es idempotente, asi que se puede ejecutar tantas veces como haga falta. El catal
 existe, porque lo gestiona el admin desde el panel. Volver a sembrar no deshace sus
 renombres, precios ni desactivaciones, ni retira lo que el admin creo.
 
+Los servicios destacados de la landing tambien: si ninguno lo esta todavia, marca los
+de `featured_services.csv` y sube sus fotos (`data/featured/`) al bucket publico.
+
     uv run python -m scripts.seed
     uv run python -m scripts.seed --postal-codes ruta/al/dataset-completo.csv
 """
@@ -15,6 +18,7 @@ import argparse
 import asyncio
 import csv
 import sys
+import urllib.request
 from pathlib import Path
 from uuid import UUID
 
@@ -22,9 +26,12 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.application.ports import StoragePort
+from app.application.use_cases.admin_catalog import catalog_image_prefix
 from app.config import get_settings
 from app.infrastructure.adapters.db.models import CategoryRow, PostalCodeRow, ServiceRow
 from app.infrastructure.adapters.db.session import create_engine, create_session_factory
+from app.infrastructure.api.dependencies import create_storage
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
@@ -131,11 +138,62 @@ async def seed_postal_codes(session_factory: async_sessionmaker[AsyncSession], p
     return len(rows)
 
 
+async def seed_featured_services(
+    session_factory: async_sessionmaker[AsyncSession], storage: StoragePort, path: Path
+) -> int:
+    """Marca los destacados iniciales y sube sus fotos, solo si no hay ninguno.
+
+    En cuanto el admin destaca algo, la landing es suya: volver a sembrar no anade los
+    que el quito ni pisa las fotos que subio.
+    """
+    rows = read_csv(path)
+    async with session_factory() as session:
+        already = await session.execute(select(ServiceRow.id).where(ServiceRow.featured).limit(1))
+        if not rows or already.first() is not None:
+            return 0
+        services = {
+            (category_slug, service.slug): service
+            for service, category_slug in (
+                await session.execute(select(ServiceRow, CategoryRow.slug).join(CategoryRow))
+            ).tuples()
+        }
+        featured = 0
+        for row in rows:
+            service = services.get((row["category_slug"], row["service_slug"]))
+            if service is None:
+                print(
+                    f"featured_services.csv: no existe {row['category_slug']}/{row['service_slug']}"
+                )
+                continue
+            image = path.parent / "featured" / row["image"]
+            upload = await storage.create_presigned_upload(
+                key_prefix=catalog_image_prefix(service.id),
+                filename=row["image"],
+                content_type="image/webp",
+            )
+            # La misma subida firmada que usa el navegador: no hace falta otra via al bucket.
+            request = urllib.request.Request(
+                upload.upload_url,
+                data=image.read_bytes(),
+                method=upload.method,
+                headers=upload.headers,
+            )
+            await asyncio.to_thread(urllib.request.urlopen, request, timeout=30)
+            service.image_key = upload.storage_key
+            service.featured = True
+            service.landing_name_es = row.get("landing_name_es") or None
+            service.landing_name_en = row.get("landing_name_en") or None
+            featured += 1
+        await session.commit()
+    return featured
+
+
 async def main() -> int:
     parser = argparse.ArgumentParser(description="Carga las semillas de Reforma Hub")
     parser.add_argument("--categories", type=Path, default=DATA_DIR / "categories.csv")
     parser.add_argument("--services", type=Path, default=DATA_DIR / "services.csv")
     parser.add_argument("--postal-codes", type=Path, default=DATA_DIR / "postal_codes_es.csv")
+    parser.add_argument("--featured", type=Path, default=DATA_DIR / "featured_services.csv")
     args = parser.parse_args()
 
     settings = get_settings()
@@ -146,12 +204,21 @@ async def main() -> int:
         categories = await seed_categories(session_factory, args.categories)
         services = await seed_services(session_factory, args.services)
         postal_codes = await seed_postal_codes(session_factory, args.postal_codes)
+        try:
+            featured = await seed_featured_services(
+                session_factory, create_storage(settings), args.featured
+            )
+        except Exception as exc:
+            # Sin bucket (MinIO parado, sin credenciales) el catalogo sigue sirviendo; la
+            # landing no muestra tarjetas hasta que el admin suba las fotos.
+            print(f"No se pudieron cargar los destacados de la landing: {exc}")
+            featured = 0
     finally:
         await engine.dispose()
 
     print(
         f"Semillas cargadas: {categories} categorias, {services} servicios, "
-        f"{postal_codes} codigos postales"
+        f"{postal_codes} codigos postales, {featured} destacados"
     )
     return 0
 

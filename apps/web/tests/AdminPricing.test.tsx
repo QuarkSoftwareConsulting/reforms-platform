@@ -14,7 +14,6 @@ describe("AdminPricing", () => {
   it("sends the category price to the catalog instead of editing it here", async () => {
     vi.mocked(adminService.subscriptionPrice).mockResolvedValue({
       amount: { amount_cents: 1800, currency: "EUR", formatted: "" },
-      is_default: false,
       configured: true,
       updated_at: null,
     });

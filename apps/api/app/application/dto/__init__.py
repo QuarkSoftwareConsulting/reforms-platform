@@ -344,7 +344,8 @@ class AccountSummary:
     status: SubscriptionStatus
     is_active: bool
     balance: Money
-    topup_amount: Money
+    topup_amount: Money | None
+    """Lo que paga (o pagaria) al mes. `None` si el admin aun no fijo la mensualidad."""
     current_period_end: datetime | None
     can_manage_billing: bool
     """Tiene cliente en la pasarela: puede abrir el portal de pagos."""
@@ -358,7 +359,5 @@ class SubscriptionPriceInfo:
     """Mensualidad vigente para las suscripciones nuevas."""
 
     amount: Money
-    stripe_price_id: str | None
-    updated_at: datetime | None
-    is_default: bool
-    """True si el admin aun no la ha fijado y se usa la de configuracion."""
+    stripe_price_id: str
+    updated_at: datetime

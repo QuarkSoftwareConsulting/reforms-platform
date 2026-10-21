@@ -57,6 +57,12 @@ class AdminServiceOut(ApiModel):
     name_en: str
     sort_order: int
     active: bool
+    featured: bool
+    image_key: str | None
+    landing_name_es: str | None
+    landing_name_en: str | None
+    image_url: str | None
+    """Para la vista previa del panel. Con GCS caduca en minutos: no se guarda."""
 
 
 class AdminCategoryOut(ApiModel):
@@ -100,6 +106,13 @@ class UpdateServiceIn(ApiModel):
     name_en: str = Field(max_length=CATALOG_NAME_GUARD)
     sort_order: int = Field(ge=0, le=MAX_SORT_ORDER)
     active: bool
+    featured: bool = False
+    """Tarjeta en la landing. Exige `image_key` (FEATURED_SERVICE_NEEDS_IMAGE)."""
+    image_key: str | None = Field(default=None, max_length=500)
+    """Clave devuelta por la subida de la foto de este servicio."""
+    landing_name_es: str | None = Field(default=None, max_length=CATALOG_NAME_GUARD)
+    """Nombre corto de la tarjeta; vacio usa el nombre del servicio."""
+    landing_name_en: str | None = Field(default=None, max_length=CATALOG_NAME_GUARD)
 
 
 class LeadPricingOut(ApiModel):

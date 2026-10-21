@@ -43,21 +43,7 @@
       "subtitle": "Check the reference price of each trade. Then, on each card, you'll see the exact price of each contact.",
       "from": "From {price}",
       "all": "See all trades",
-      "contactLabel": "Contact",
-      "items": {
-        "fullRenovation": "Full renovation",
-        "bathrooms": "Bathrooms",
-        "kitchens": "Kitchens",
-        "painting": "Painting",
-        "electrical": "Electrical",
-        "plumbing": "Plumbing",
-        "carpentry": "Carpentry",
-        "locksmith": "Locksmith",
-        "airConditioning": "Air conditioning",
-        "glazing": "Glazing",
-        "gardening": "Gardening",
-        "cleaning": "Cleaning"
-      }
+      "contactLabel": "Contact"
     },
     "validation": {
       "eyebrow": "Process",
@@ -90,7 +76,8 @@
       },
       "topup": {
         "title": "Your monthly fee becomes balance",
-        "body": "Your {amount} monthly fee goes to your balance to spend on the contacts you choose."
+        "body": "Your {amount} monthly fee goes to your balance to spend on the contacts you choose.",
+        "bodyNoAmount": "What you pay each month goes to your balance, to spend on the contacts you choose."
       },
       "privacy": {
         "title": "Client data is protected",
@@ -319,7 +306,10 @@
     "bannerCta": "Activate monthly fee",
     "bannerManage": "View my monthly fee",
     "bannerDebt": "Your bank returned a monthly fee you had already spent and you owe {debt}. You can browse requests, but not buy until your next monthly fee settles it.",
-    "debtNotice": "Your bank returned a monthly fee you had already spent on contacts. {debt} is outstanding: it will be taken from your next monthly fee and, until then, you can't buy contacts."
+    "debtNotice": "Your bank returned a monthly fee you had already spent on contacts. {debt} is outstanding: it will be taken from your next monthly fee and, until then, you can't buy contacts.",
+    "subtitleUnavailable": "To buy contacts you need the monthly plan, which is added to your balance. It is not available yet: you can browse requests in the meantime.",
+    "notAvailable": "Not available yet",
+    "notAvailableNotice": "The monthly plan is not available yet. As soon as it is, you can activate it here; in the meantime you can browse requests."
   },
   "profile": {
     "title": "My professional profile",
@@ -530,8 +520,7 @@
       "title": "Monthly fee",
       "body": "Monthly amount each professional pays to be able to buy contacts; it's added as balance. A change only affects new subscriptions: existing subscribers keep their amount.",
       "current": "Current: {amount}",
-      "default": "(initial configured value)",
-      "notConfigured": "No price configured in Stripe: nobody can subscribe.",
+      "notConfigured": "You have not set the monthly plan yet: nobody can subscribe or buy contacts.",
       "label": "New amount (€)",
       "save": "Save monthly fee",
       "saved": "Monthly fee updated to {amount} for new subscriptions."
@@ -676,7 +665,16 @@
       "deleted": "Deleted.",
       "confirmTitle": "Delete “{name}”?",
       "confirmBody": "It is deleted for good and cannot be undone. If any request or professional uses it, it cannot be deleted: deactivate it instead.",
-      "confirm": "Yes, delete"
+      "confirm": "Yes, delete",
+      "featured": "Featured on the landing page (needs a photo)",
+      "featuredTag": "On the landing page",
+      "photo": "Card photo",
+      "photoHint": "JPG, PNG or WebP, up to 5 MB. Shown on the landing page in landscape format.",
+      "photoUploading": "Uploading photo...",
+      "photoAlt": "Current photo of “{name}”",
+      "landingNameEs": "Short name on the landing page (Spanish)",
+      "landingNameEn": "Short name on the landing page (English)",
+      "landingNameHint": "Optional, up to {max} characters. If left empty, the card uses the service name."
     }
   },
   "errors": {
@@ -783,7 +781,9 @@
     "CATALOG_NAME_INVALID": "The name is required, must contain letters or numbers and be at most {max} characters long.",
     "CATALOG_SLUG_TAKEN": "A category or service with that name already exists (deactivated ones included).",
     "CATALOG_ITEM_IN_USE": "It cannot be deleted because requests or professionals use it. Deactivate it instead.",
-    "SERVICE_NOT_FOUND": "That service no longer exists. Reload the page."
+    "SERVICE_NOT_FOUND": "That service no longer exists. Reload the page.",
+    "SUBSCRIPTION_NOT_AVAILABLE": "The monthly plan is not available yet. Please try again later.",
+    "FEATURED_SERVICE_NEEDS_IMAGE": "A service featured on the landing page needs its photo. Upload it before saving."
   },
   "validation": {
     "categoryRequired": "Pick a trade.",
@@ -835,6 +835,9 @@
     "catalogNameRequired": "Enter the name (with letters or numbers).",
     "catalogNameTooLong": "{max} characters at most.",
     "catalogPrice": "Enter a price between €0.01 and €1,000.",
-    "catalogSortOrder": "Enter a whole number between 0 and 10,000."
+    "catalogSortOrder": "Enter a whole number between 0 and 10,000.",
+    "catalogPhotoRequired": "Upload the photo to feature it on the landing page.",
+    "catalogPhotoType": "The photo must be JPG, PNG or WebP.",
+    "catalogPhotoSize": "The photo cannot exceed 5 MB."
   }
 }

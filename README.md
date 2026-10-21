@@ -190,9 +190,8 @@ una de las plazas del lead.
 **Mensualidad.** Comprar solicitudes exige la mensualidad al día; **verlas no**: una cuenta
 inactiva ve el listado y el detalle (sin datos de contacto) pero `POST /leads/{id}/purchase`
 responde `402 SUBSCRIPTION_REQUIRED`. Además, solo compra quien tiene el alta aprobada. El admin fija su
-importe desde el panel, y eso crea el precio en Stripe. Para arrancar sin intervención del
-admin, crea en Stripe un precio recurrente mensual (EUR, IVA incluido) y ponlo en
-`STRIPE_TOPUP_PRICE_ID` junto a su importe en `SUBSCRIPTION_TOPUP_CENTS`. El webhook debe escuchar,
+importe desde el panel (Precios), y eso crea el precio en Stripe; hasta que lo fije nadie se
+puede suscribir (`409 SUBSCRIPTION_NOT_AVAILABLE`) y, por tanto, nadie compra. El webhook debe escuchar,
 además de los eventos de checkout, `invoice.paid`, `invoice.payment_failed` y
 `customer.subscription.created|updated|deleted` y, para las devoluciones de un cobro por el
 banco, `charge.dispute.created|funds_withdrawn|funds_reinstated|closed`. Activa el Customer Portal en el panel de
@@ -315,6 +314,16 @@ desactivar. El slug sale del nombre al crear y no cambia al renombrar (lo usan l
 Lo que usa algún lead o profesional solo se desactiva; borrar solo vale para lo que nada
 usa. `categories.csv` y `services.csv` son la carga inicial: `pnpm api:seed` crea lo que
 falta y no pisa lo que el admin cambió.
+
+**Las tarjetas de la landing son los servicios destacados.** El admin marca un servicio como
+destacado en el catálogo, sube su foto (obligatoria; va al bucket público) y, si quiere, le
+pone un nombre corto para la tarjeta ("Baños" en vez de "Reformas de baños"). La landing enlaza
+la foto por una URL estable del API (`/catalog/services/{id}/image`) que redirige a una URL
+vigente del bucket: con GCS las firmadas caducan en minutos y la página se cachea. La landing
+y el formulario son estáticos: se regeneran cuando el admin guarda un cambio del catálogo o de
+la mensualidad (ruta `/api/revalidate` de Next, solo admin) y, como respaldo, una vez al día.
+En un entorno nuevo, `pnpm api:seed` marca los destacados de `featured_services.csv` y sube
+sus fotos (`data/featured/`), solo si todavía no hay ninguno.
 
 **El consentimiento RGPD es un registro auditable.** `lead_consents` guarda versión de
 política, IP y user-agent tomados del servidor (nunca del cuerpo de la petición), y el

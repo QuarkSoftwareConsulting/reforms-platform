@@ -19,6 +19,7 @@ from uuid import UUID
 from app.domain.exceptions import (
     CatalogNameInvalidError,
     CatalogSlugTakenError,
+    FeaturedServiceNeedsImageError,
     InvalidServiceError,
     ServiceNotFoundError,
     ValidationError,
@@ -32,6 +33,8 @@ MAX_SERVICES_PER_LEAD = 10
 # Limites de las columnas: un nombre mas largo no cabe en la BD.
 CATEGORY_NAME_MAX_LENGTH = 120
 SERVICE_NAME_MAX_LENGTH = 160
+# Nombre corto de la tarjeta de la landing: cabe en una tarjeta estrecha.
+LANDING_NAME_MAX_LENGTH = 40
 CATEGORY_SLUG_MAX_LENGTH = 60
 SERVICE_SLUG_MAX_LENGTH = 80
 
@@ -41,6 +44,13 @@ def slugify(name: str, *, max_length: int) -> str:
     ascii_name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
     slug = re.sub(r"[^a-z0-9]+", "-", ascii_name.lower()).strip("-")
     return slug[:max_length].rstrip("-")
+
+
+def _optional_name(name: str | None) -> str | None:
+    """Nombre corto opcional: vacio es "sin nombre corto", no un error."""
+    if name is None or not name.strip():
+        return None
+    return clean_name(name, max_length=LANDING_NAME_MAX_LENGTH)
 
 
 def clean_name(name: str, *, max_length: int) -> str:
@@ -61,10 +71,29 @@ class Service:
     name_en: str
     sort_order: int = 0
     active: bool = True
+    featured: bool = False
+    """Sale como tarjeta en la landing. Exige foto: una tarjeta sin foto no se pinta."""
+    image_key: str | None = None
+    """Foto de la tarjeta en el bucket publico."""
+    landing_name_es: str | None = None
+    """Nombre corto de la tarjeta ("Banos" en vez de "Reformas de banos"). Opcional."""
+    landing_name_en: str | None = None
 
     def __post_init__(self) -> None:
         if not _SLUG_RE.match(self.slug):
             raise ValidationError(f"Slug de servicio invalido: {self.slug!r}")
+        if self.featured and not self.image_key:
+            raise FeaturedServiceNeedsImageError()
+
+    def landing_name(self, locale: str) -> str:
+        """El nombre de la tarjeta: el corto si lo hay; si no, el del servicio."""
+        short = self.landing_name_en if locale.lower().startswith("en") else self.landing_name_es
+        return short or self.name(locale)
+
+    @property
+    def on_landing(self) -> bool:
+        """Lo que la landing pinta: destacado y ofrecido hoy en el formulario."""
+        return self.featured and self.active
 
     def name(self, locale: str) -> str:
         return self.name_en if locale.lower().startswith("en") else self.name_es
@@ -161,9 +190,19 @@ class Category:
         return service
 
     def edit_service(
-        self, service_id: UUID, *, name_es: str, name_en: str, sort_order: int, active: bool
+        self,
+        service_id: UUID,
+        *,
+        name_es: str,
+        name_en: str,
+        sort_order: int,
+        active: bool,
+        featured: bool = False,
+        image_key: str | None = None,
+        landing_name_es: str | None = None,
+        landing_name_en: str | None = None,
     ) -> Service:
-        """Renombra, reordena o (des)activa un servicio. Su slug no cambia."""
+        """Renombra, reordena, (des)activa o destaca un servicio. Su slug no cambia."""
         current = self.service(service_id)
         updated = replace(
             current,
@@ -171,6 +210,10 @@ class Category:
             name_en=clean_name(name_en, max_length=SERVICE_NAME_MAX_LENGTH),
             sort_order=sort_order,
             active=active,
+            featured=featured,
+            image_key=image_key or None,
+            landing_name_es=_optional_name(landing_name_es),
+            landing_name_en=_optional_name(landing_name_en),
         )
         self.services = [updated if s.id == service_id else s for s in self.services]
         return updated

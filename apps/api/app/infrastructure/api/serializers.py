@@ -116,10 +116,16 @@ def category_out(category: Category, locale: str) -> CategoryOut:
 
 
 def service_out(service: Service, locale: str) -> ServiceOut:
-    return ServiceOut(id=service.id, slug=service.slug, name=service.name(locale))
+    return ServiceOut(
+        id=service.id,
+        slug=service.slug,
+        name=service.name(locale),
+        featured=service.on_landing,
+        landing_name=service.landing_name(locale),
+    )
 
 
-def admin_category_out(category: Category) -> AdminCategoryOut:
+def admin_category_out(category: Category, storage: StoragePort) -> AdminCategoryOut:
     return AdminCategoryOut(
         id=category.id,
         slug=category.slug,
@@ -136,6 +142,11 @@ def admin_category_out(category: Category) -> AdminCategoryOut:
                 name_en=s.name_en,
                 sort_order=s.sort_order,
                 active=s.active,
+                featured=s.featured,
+                image_key=s.image_key,
+                landing_name_es=s.landing_name_es,
+                landing_name_en=s.landing_name_en,
+                image_url=storage.public_url(s.image_key) if s.image_key else None,
             )
             for s in sorted(category.services, key=lambda s: s.sort_order)
         ],
@@ -604,7 +615,7 @@ def account_out(summary: AccountSummary) -> AccountOut:
         status=summary.status.value,
         is_active=summary.is_active,
         balance=money_out(summary.balance),
-        topup_amount=money_out(summary.topup_amount),
+        topup_amount=money_out(summary.topup_amount) if summary.topup_amount else None,
         current_period_end=summary.current_period_end,
         can_manage_billing=summary.can_manage_billing,
         entries=[credit_entry_out(entry) for entry in summary.entries],
@@ -616,10 +627,9 @@ def account_out(summary: AccountSummary) -> AccountOut:
     )
 
 
-def subscription_price_out(info: SubscriptionPriceInfo) -> SubscriptionPriceOut:
+def subscription_price_out(info: SubscriptionPriceInfo | None) -> SubscriptionPriceOut:
+    if info is None:
+        return SubscriptionPriceOut(amount=None, updated_at=None, configured=False)
     return SubscriptionPriceOut(
-        amount=money_out(info.amount),
-        updated_at=info.updated_at,
-        is_default=info.is_default,
-        configured=info.stripe_price_id is not None,
+        amount=money_out(info.amount), updated_at=info.updated_at, configured=True
     )

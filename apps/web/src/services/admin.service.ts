@@ -15,6 +15,7 @@ import type {
   CreatedLead,
   Locale,
   MetricsTimeseries,
+  PresignedUpload,
   Professional,
   PurchaseStatus,
   Rejection,
@@ -75,6 +76,10 @@ export interface CategoryPayload extends NewCategoryPayload {
 export interface ServicePayload extends CatalogNames {
   sort_order: number;
   active: boolean;
+  featured: boolean;
+  image_key: string | null;
+  landing_name_es: string | null;
+  landing_name_en: string | null;
 }
 
 export interface AdminPurchaseFilters extends Page {
@@ -159,6 +164,23 @@ export const adminService = {
       body: payload,
       locale,
     });
+  },
+
+  /** URL firmada para subir la foto de la tarjeta de un servicio al bucket publico. */
+  requestServiceImageUpload(
+    categoryId: string,
+    serviceId: string,
+    file: File,
+    locale: Locale,
+  ): Promise<PresignedUpload> {
+    return request<PresignedUpload>(
+      `/admin/categories/${categoryId}/services/${serviceId}/image-upload`,
+      {
+        method: "POST",
+        body: { filename: file.name, content_type: file.type, size_bytes: file.size },
+        locale,
+      },
+    );
   },
 
   deleteService(categoryId: string, serviceId: string, locale: Locale): Promise<void> {

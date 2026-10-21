@@ -13,14 +13,32 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import UUID
 
-from app.application.ports import CategoryRepositoryPort, IdGeneratorPort, UnitOfWork
+from app.application.ports import (
+    CategoryRepositoryPort,
+    IdGeneratorPort,
+    PresignedUpload,
+    StoragePort,
+    UnitOfWork,
+)
 from app.domain.exceptions import (
     CatalogItemInUseError,
     CatalogSlugTakenError,
     CategoryNotFoundError,
+    ServiceNotFoundError,
+    ValidationError,
 )
 from app.domain.models import Category, Service
 from app.domain.value_objects import Money
+
+# Fotos de las tarjetas de la landing. Formatos que cualquier navegador pinta (sin HEIC)
+# y un tamano razonable para una tarjeta.
+CATALOG_IMAGE_TYPES = frozenset({"image/jpeg", "image/png", "image/webp"})
+CATALOG_IMAGE_MAX_BYTES = 5 * 1024 * 1024
+
+
+def catalog_image_prefix(service_id: UUID) -> str:
+    """Las fotos de un servicio llevan su id en la clave: no se adjunta la de otro."""
+    return f"catalog/services/{service_id}"
 
 
 @dataclass(slots=True)
@@ -131,11 +149,27 @@ class UpdateService:
         name_en: str,
         sort_order: int,
         active: bool,
+        featured: bool = False,
+        image_key: str | None = None,
+        landing_name_es: str | None = None,
+        landing_name_en: str | None = None,
     ) -> Category:
+        if image_key and (
+            not image_key.startswith(f"{catalog_image_prefix(service_id)}/") or ".." in image_key
+        ):
+            raise ValidationError("La foto no pertenece a este servicio")
         async with self.uow:
             category = await _load(self.categories, category_id)
             category.edit_service(
-                service_id, name_es=name_es, name_en=name_en, sort_order=sort_order, active=active
+                service_id,
+                name_es=name_es,
+                name_en=name_en,
+                sort_order=sort_order,
+                active=active,
+                featured=featured,
+                image_key=image_key,
+                landing_name_es=landing_name_es,
+                landing_name_en=landing_name_en,
             )
             return await self.categories.update(category)
 
@@ -154,6 +188,55 @@ class DeleteService:
             removed = category.remove_service(service_id)
             await self.categories.delete_service(service_id)
             return removed
+
+
+@dataclass(slots=True)
+class RequestCatalogImageUpload:
+    """URL firmada para que el navegador del admin suba la foto de un servicio."""
+
+    categories: CategoryRepositoryPort
+    storage: StoragePort
+
+    async def execute(
+        self,
+        *,
+        category_id: UUID,
+        service_id: UUID,
+        filename: str,
+        content_type: str,
+        size_bytes: int | None,
+    ) -> PresignedUpload:
+        normalized = content_type.split(";")[0].strip().lower()
+        if normalized not in CATALOG_IMAGE_TYPES:
+            raise ValidationError(f"Tipo de imagen no permitido: {content_type}")
+        if size_bytes is not None and size_bytes > CATALOG_IMAGE_MAX_BYTES:
+            raise ValidationError("La foto supera el maximo de 5 MB")
+        category = await _load(self.categories, category_id)
+        category.service(service_id)
+        return await self.storage.create_presigned_upload(
+            key_prefix=catalog_image_prefix(service_id),
+            filename=filename,
+            content_type=normalized,
+        )
+
+
+@dataclass(slots=True)
+class GetLandingServiceImage:
+    """URL de la foto de un servicio destacado, resuelta en cada peticion.
+
+    La landing se cachea un dia y el bucket da URLs firmadas que caducan en minutos:
+    la pagina enlaza una URL estable del API y esta la traduce a una vigente.
+    """
+
+    categories: CategoryRepositoryPort
+    storage: StoragePort
+
+    async def execute(self, *, service_id: UUID) -> str:
+        for category in await self.categories.list_active():
+            for service in category.services:
+                if service.id == service_id and service.on_landing and service.image_key:
+                    return self.storage.public_url(service.image_key)
+        raise ServiceNotFoundError()
 
 
 async def _load(categories: CategoryRepositoryPort, category_id: UUID) -> Category:
