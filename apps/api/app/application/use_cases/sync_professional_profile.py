@@ -8,6 +8,7 @@ solo lo propone al crear la cuenta.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -18,23 +19,29 @@ from app.application.ports import (
     CategoryRepositoryPort,
     ClockPort,
     IdGeneratorPort,
+    PaymentPort,
     PostalCodeRepositoryPort,
+    ProfessionalAccountRepositoryPort,
     ProfessionalRepositoryPort,
     UnitOfWork,
     UserRepositoryPort,
 )
 from app.application.use_cases.phone_verification import parse_mobile
 from app.application.use_cases.professional_files import assert_own_key, media_prefix
+from app.application.use_cases.subscription import billing_details
 from app.domain.exceptions import (
     CategoryNotFoundError,
     InvalidServiceError,
     InvalidTaxIdError,
+    PaymentGatewayError,
     ProfessionalNotFoundError,
     UnknownPostalCodeError,
     ValidationError,
 )
 from app.domain.models import MADRID, Professional, ServiceArea, User, UserRole
 from app.domain.value_objects import Email, TaxId
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -96,6 +103,8 @@ class UpsertProfessionalProfile:
     clock: ClockPort
     ids: IdGeneratorPort
     uow: UnitOfWork
+    accounts: ProfessionalAccountRepositoryPort
+    payments: PaymentPort
     service_area: ServiceArea = MADRID
 
     async def execute(self, *, user_id: UUID, data: UpsertProfessionalInput) -> Professional:
@@ -117,6 +126,7 @@ class UpsertProfessionalProfile:
                 # incluido. Sin el bloqueo, guardar el perfil mientras el admin aprueba
                 # o rechaza devolveria el alta al estado leido.
                 existing = await self.professionals.get_for_update(existing.id)
+            billing_before = billing_details(existing) if existing is not None else None
             professional = existing or Professional(
                 id=self.ids.new_id(),
                 user_id=user_id,
@@ -149,10 +159,44 @@ class UpsertProfessionalProfile:
             )
             # Revalida los invariantes tras la mutacion (radio, nombre, fotos, CIF).
             professional.__post_init__()
+            # Se marca en la misma transaccion que el cambio: si la pasarela falla (o el
+            # proceso muere antes de llamarla), el siguiente guardado lo reintenta aunque
+            # ya no haya diferencia con lo guardado.
+            if billing_before is not None and billing_details(professional) != billing_before:
+                professional.billing_sync_pending = True
 
             if existing is None:
                 return await self.professionals.add(professional)
-            return await self.professionals.update(professional)
+            saved = await self.professionals.update(professional)
+
+        if saved.billing_sync_pending:
+            await self._sync_billing(saved)
+        return saved
+
+    async def _sync_billing(self, professional: Professional) -> None:
+        """Lleva a la pasarela el nuevo nombre fiscal, NIF o domicilio.
+
+        Despues del commit y sin bloquear el guardado: el perfil ya es correcto y un
+        fallo de la pasarela no debe obligar a repetirlo. Queda pendiente y se envia de
+        nuevo en el siguiente guardado del perfil.
+        """
+        sent = billing_details(professional)
+        account = await self.accounts.get(professional.id)
+        if account is not None and account.stripe_customer_id is not None:
+            try:
+                await self.payments.update_customer_billing(account.stripe_customer_id, sent)
+            except PaymentGatewayError:
+                logger.warning("datos_fiscales_sin_sincronizar: professional=%s", professional.id)
+                return
+        # Sin cliente en la pasarela no hay nada que llevar: `StartSubscription` le
+        # enviara los datos vigentes al crearlo.
+        async with self.uow:
+            current = await self.professionals.get_for_update(professional.id)
+            # Si otro guardado cambio los datos entretanto, lo enviado ya no es lo
+            # vigente: sigue pendiente y lo lleva ese guardado o el siguiente.
+            if current is not None and billing_details(current) == sent:
+                current.billing_sync_pending = False
+                await self.professionals.update(current)
 
     @staticmethod
     def _parse_tax_id(raw: str | None) -> TaxId | None:

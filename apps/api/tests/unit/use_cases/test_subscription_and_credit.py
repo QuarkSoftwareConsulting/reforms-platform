@@ -21,7 +21,7 @@ from app.domain.models import (
     SubscriptionStatus,
 )
 from app.domain.value_objects import Money
-from tests.conftest import DEFAULT_TOPUP_PRICE_ID, WEB_URL, World
+from tests.conftest import ADMIN_TOPUP_PRICE_ID, WEB_URL, World
 from tests.factories import NOW, make_lead
 from tests.fakes import FakePaymentGateway
 from tests.fakes.payments import VALID_SIGNATURE
@@ -514,15 +514,15 @@ class TestAdminAdjustment:
 
 
 class TestConfigurableMonthlyPrice:
-    async def test_until_the_admin_sets_it_the_configured_price_is_used(
+    async def test_new_subscriptions_use_the_price_set_by_the_admin(
         self, world: World, carpentry_18: Category
     ) -> None:
         buyer = pro(world, carpentry_18, subscribed=False)
         await world.start_subscription.execute(professional=buyer, email="pro@example.com")
 
-        assert world.payments.subscription_checkouts[-1].price_id == DEFAULT_TOPUP_PRICE_ID
+        assert world.payments.subscription_checkouts[-1].price_id == ADMIN_TOPUP_PRICE_ID
         info = await world.pricing.current()
-        assert info.is_default
+        assert info is not None
         assert info.amount == PRICE
 
     async def test_admin_price_creates_a_gateway_price_used_by_new_subscriptions(
@@ -532,7 +532,6 @@ class TestConfigurableMonthlyPrice:
         info = await world.set_subscription_price.execute(amount_cents=2500, admin_user_id=admin.id)
 
         assert info.amount == Money(2500, "EUR")
-        assert not info.is_default
         assert list(world.payments.created_prices.values()) == [Money(2500, "EUR")]
 
         buyer = pro(world, carpentry_18, subscribed=False)
@@ -571,7 +570,7 @@ class TestConfigurableMonthlyPrice:
         await world.set_subscription_price.execute(amount_cents=2500, admin_user_id=admin.id)
         await world.set_subscription_price.execute(amount_cents=2500, admin_user_id=admin.id)
         assert len(world.payments.created_prices) == 1
-        assert len(world.subscription_prices.items) == 1
+        assert len(world.subscription_prices.items) == 2, "la inicial y la nueva, una vez"
 
     @pytest.mark.parametrize("cents", [0, 49, 100_001])
     async def test_absurd_prices_are_rejected(self, world: World, cents: int) -> None:
@@ -589,15 +588,22 @@ class TestConfigurableMonthlyPrice:
             await world.set_subscription_price.execute(
                 amount_cents=2500, admin_user_id=world.add_user().id
             )
-        assert world.subscription_prices.items == []
-        assert (await world.pricing.current()).is_default
+        assert len(world.subscription_prices.items) == 1
+        current = await world.pricing.current()
+        assert current is not None
+        assert current.amount == PRICE, "sigue la anterior"
 
-    async def test_without_any_configured_price_nobody_can_subscribe(
+    async def test_until_the_admin_sets_a_price_nobody_can_subscribe(
         self, world: World, carpentry_18: Category
     ) -> None:
-        from app.domain.exceptions import PaymentGatewayError
+        from app.domain.exceptions import SubscriptionNotAvailableError
 
-        world.pricing.default_price_id = ""
+        world.subscription_prices.items.clear()
         buyer = pro(world, carpentry_18, subscribed=False)
-        with pytest.raises(PaymentGatewayError):
+
+        with pytest.raises(SubscriptionNotAvailableError):
             await world.start_subscription.execute(professional=buyer, email="pro@example.com")
+        assert world.payments.subscription_checkouts == []
+        assert world.payments.customers == {}, "ni siquiera se crea el cliente en la pasarela"
+        summary = await world.get_account.execute(professional_id=buyer.id)
+        assert summary.topup_amount is None

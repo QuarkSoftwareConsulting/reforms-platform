@@ -48,6 +48,10 @@ efectos, eventos del navegador o contexto.
 - Lo que debe indexar Google (landing, catálogo de oficios) se renderiza en servidor con
   datos reales del API. No lo conviertas en carga desde cliente: es el SEO local el que
   justifica Next.js en este proyecto.
+- Los datos que cambia el admin (catálogo, mensualidad) se piden con una etiqueta de caché
+  (`helpers/cacheTags.ts`) y un día de respaldo. Tras guardar, el panel llama a
+  `revalidationService.revalidate([...])` y las páginas se regeneran al momento. Un dato nuevo
+  de ese tipo necesita su etiqueta en `CACHE_TAGS` y la llamada tras guardarlo.
 - Las zonas privadas (`proyectos`, `mis-contactos`, `perfil`) llevan
   `robots: { index: false }` en su `generateMetadata`.
 - **`useSearchParams()` en un componente cliente exige un `<Suspense>` alrededor**, o
@@ -78,7 +82,7 @@ solo `lib/firebase.ts` y ese hook.
 **Cero cadenas de UI incrustadas en componentes.** Todo texto visible sale de
 `messages/es.json` / `messages/en.json`.
 
-- Los dos archivos deben tener **exactamente las mismas claves** (hoy: 631 cada uno).
+- Los dos archivos deben tener **exactamente las mismas claves** (hoy: 697 cada uno).
   Comprobación rápida:
 
   ```bash
@@ -112,7 +116,7 @@ solo `lib/firebase.ts` y ese hook.
 ## Feature flags
 
 `FeatureFlagsProvider` (en el layout de idioma) recibe las flags que el servidor leyó con
-`featureFlagsService.list()`, cacheadas 60 s. En cliente: `useFeatureFlag("nombre")` o
+`featureFlagsService.list()`, cacheadas 5 min. En cliente: `useFeatureFlag("nombre")` o
 `<Feature name="nombre" fallback={…}>`. En un Server Component, llama a
 `featureFlagsService.list()` directamente (Next deduplica la petición).
 
@@ -157,7 +161,7 @@ error fuera de pantalla hace que el botón "no haga nada". El patrón (ver `Prof
 ## Tests
 
 ```bash
-pnpm test              # vitest, 211 tests
+pnpm test              # vitest, 249 tests
 pnpm test:watch
 pnpm lint              # eslint + tsc --noEmit
 ```

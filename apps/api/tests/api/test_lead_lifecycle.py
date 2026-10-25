@@ -573,8 +573,14 @@ class TestAdminPricing:
         )
 
         response = await api.put(
-            f"/admin/categories/{carpentry_category.id}/suggested-price",
-            json={"amount_cents": 800},
+            f"/admin/categories/{carpentry_category.id}",
+            json={
+                "name_es": carpentry_category.name_es,
+                "name_en": carpentry_category.name_en,
+                "suggested_price_cents": 800,
+                "sort_order": carpentry_category.sort_order,
+                "active": True,
+            },
             headers=admin_auth,
         )
         assert response.status_code == 200, response.text

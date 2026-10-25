@@ -7,6 +7,7 @@ class FakeStorage(StoragePort):
     def __init__(self, base_url: str = "https://cdn.test/reforma-hub") -> None:
         self.base_url = base_url
         self.deleted: list[str] = []
+        self.fail_on_delete = False
         self._counter = 0
 
     async def create_presigned_upload(
@@ -27,4 +28,6 @@ class FakeStorage(StoragePort):
         return f"{self.base_url}/{storage_key}?download={filename}&signature=fake"
 
     async def delete(self, storage_key: str) -> None:
+        if self.fail_on_delete:
+            raise RuntimeError("El bucket no responde")
         self.deleted.append(storage_key)

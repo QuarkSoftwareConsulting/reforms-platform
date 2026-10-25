@@ -21,9 +21,15 @@ from uuid import uuid4
 
 import pytest
 
-from app.application.ports import PaymentEventType
+from app.application.ports import (
+    BillingDetails,
+    CustomerRequest,
+    PaymentEventType,
+    SubscriptionCheckoutRequest,
+)
 from app.domain.exceptions import AuthenticationError
 from app.domain.models import SubscriptionStatus
+from app.domain.value_objects import TaxId
 from app.infrastructure.adapters.payments.stripe_adapter import StripePaymentGateway
 
 WEBHOOK_SECRET = "whsec_test_secret"
@@ -211,6 +217,58 @@ class TestSubscriptionEvents:
         assert event.period_end == datetime.fromtimestamp(1_782_592_000, tz=UTC)
         assert event.occurred_at == datetime.fromtimestamp(1_780_000_000, tz=UTC)
         assert event.purchase_id is None
+
+    def test_invoice_paid_carries_what_is_stored_of_the_invoice(
+        self, gateway: StripePaymentGateway
+    ) -> None:
+        payload = signed_event(
+            "invoice.paid",
+            invoice(
+                number="VAR-0001",
+                hosted_invoice_url="https://invoice.stripe.com/i/acct_1/test_1",
+                invoice_pdf="https://pay.stripe.com/invoice/acct_1/test_1/pdf",
+                total_taxes=[
+                    {"amount": 312, "tax_behavior": "inclusive"},
+                    {"amount": 1, "tax_behavior": "inclusive"},
+                ],
+                status_transitions={"finalized_at": 1_779_999_000, "paid_at": 1_780_000_000},
+            ),
+        )
+        event = gateway.parse_webhook_event(payload.encode(), sign(payload))
+
+        assert event.invoice_number == "VAR-0001"
+        assert event.invoice_url == "https://invoice.stripe.com/i/acct_1/test_1"
+        assert event.invoice_pdf_url == "https://pay.stripe.com/invoice/acct_1/test_1/pdf"
+        assert event.tax_cents == 313
+        assert event.issued_at == datetime.fromtimestamp(1_779_999_000, tz=UTC)
+
+    def test_invoice_without_taxes_or_finalization_date(
+        self, gateway: StripePaymentGateway
+    ) -> None:
+        payload = signed_event("invoice.paid", invoice(total_taxes=[], created=1_779_000_000))
+        event = gateway.parse_webhook_event(payload.encode(), sign(payload))
+
+        assert event.tax_cents is None
+        assert event.issued_at == datetime.fromtimestamp(1_779_000_000, tz=UTC)
+
+    def test_invoice_total_is_kept_apart_from_what_was_charged(
+        self, gateway: StripePaymentGateway
+    ) -> None:
+        # Saldo a favor del cliente en Stripe: la factura es de 18 EUR, se cobran 2.
+        payload = signed_event(
+            "invoice.paid",
+            invoice(total=1800, amount_paid=200, total_taxes=[{"amount": 312}]),
+        )
+        event = gateway.parse_webhook_event(payload.encode(), sign(payload))
+
+        assert event.invoice_total_cents == 1800
+        assert event.amount_cents == 200, "se abona lo cobrado"
+        assert event.tax_cents == 312
+
+    def test_legacy_invoice_tax_field_is_also_read(self, gateway: StripePaymentGateway) -> None:
+        payload = signed_event("invoice.paid", invoice(tax=312))
+        event = gateway.parse_webhook_event(payload.encode(), sign(payload))
+        assert event.tax_cents == 312
 
     def test_legacy_invoice_subscription_field_is_also_read(
         self, gateway: StripePaymentGateway
@@ -465,6 +523,7 @@ class ScriptedHttpClient:
         self.responses = responses
         self.calls: list[tuple[str, str]] = []
         self.urls: list[str] = []
+        self.bodies: dict[tuple[str, str], str] = {}
 
     def build(self) -> object:
         import stripe
@@ -480,6 +539,7 @@ class ScriptedHttpClient:
                 path = url.split("api.stripe.com", 1)[1].split("?", 1)[0]
                 scripted.calls.append((method.upper(), path))
                 scripted.urls.append(url)
+                scripted.bodies[(method.upper(), path)] = str(post_data or "")
                 status, body = scripted.responses[(method.upper(), path)]
                 return json.dumps(body), status, {"request-id": "req_test"}
 
@@ -737,3 +797,252 @@ class TestDescribeCharge:
         )
         with pytest.raises(PaymentGatewayError):
             await gateway_with(http).describe_charge("ch_x")
+
+
+def form(body: str) -> dict[str, list[str]]:
+    from urllib.parse import parse_qs
+
+    return parse_qs(body)
+
+
+CUSTOMER = {"id": "cus_1", "object": "customer"}
+
+
+def tax_id_list(*values: str) -> dict[str, object]:
+    return {
+        "object": "list",
+        "url": "/v1/customers/cus_1/tax_ids",
+        "has_more": False,
+        "data": [
+            {"id": f"txi_{index}", "object": "tax_id", "type": "es_cif", "value": value}
+            for index, value in enumerate(values)
+        ],
+    }
+
+
+def billing(**overrides: object) -> BillingDetails:
+    values: dict[str, object] = {
+        "name": "Juan Lopez Garcia",
+        "tax_id": TaxId("12345678Z"),
+        "address": "Calle Mayor 1, 28013 Madrid",
+        **overrides,
+    }
+    return BillingDetails(**values)  # type: ignore[arg-type]
+
+
+class TestCustomerBillingDetails:
+    """Lo que Stripe imprime en la factura sale del cliente: nombre, NIF y domicilio."""
+
+    async def test_a_new_customer_carries_name_tax_id_and_address(self) -> None:
+        http = ScriptedHttpClient({("POST", "/v1/customers"): (200, CUSTOMER)})
+        customer_id = await gateway_with(http).create_customer(
+            CustomerRequest(professional_id=uuid4(), email="pro@example.com", billing=billing())
+        )
+
+        assert customer_id == "cus_1"
+        sent = form(http.bodies[("POST", "/v1/customers")])
+        assert sent["name"] == ["Juan Lopez Garcia"]
+        assert sent["address[line1]"] == ["Calle Mayor 1, 28013 Madrid"]
+        assert sent["address[country]"] == ["ES"]
+        assert sent["tax_id_data[0][type]"] == ["es_cif"]
+        assert sent["tax_id_data[0][value]"] == ["12345678Z"]
+
+    async def test_without_fiscal_data_only_the_name_is_sent(self) -> None:
+        http = ScriptedHttpClient({("POST", "/v1/customers"): (200, CUSTOMER)})
+        await gateway_with(http).create_customer(
+            CustomerRequest(
+                professional_id=uuid4(),
+                email="pro@example.com",
+                billing=billing(tax_id=None, address=None),
+            )
+        )
+
+        sent = form(http.bodies[("POST", "/v1/customers")])
+        assert sent["name"] == ["Juan Lopez Garcia"]
+        assert not any(key.startswith(("address", "tax_id_data")) for key in sent)
+
+    async def test_update_replaces_an_old_tax_id(self) -> None:
+        http = ScriptedHttpClient(
+            {
+                ("POST", "/v1/customers/cus_1"): (200, CUSTOMER),
+                ("GET", "/v1/customers/cus_1/tax_ids"): (200, tax_id_list("X1234567L")),
+                ("DELETE", "/v1/customers/cus_1/tax_ids/txi_0"): (
+                    200,
+                    {"id": "txi_0", "object": "tax_id", "deleted": True},
+                ),
+                ("POST", "/v1/customers/cus_1/tax_ids"): (
+                    200,
+                    {"id": "txi_1", "object": "tax_id", "type": "es_cif", "value": "12345678Z"},
+                ),
+            }
+        )
+        await gateway_with(http).update_customer_billing("cus_1", billing())
+
+        assert form(http.bodies[("POST", "/v1/customers/cus_1")])["address[line1]"] == [
+            "Calle Mayor 1, 28013 Madrid"
+        ]
+        assert form(http.bodies[("POST", "/v1/customers/cus_1/tax_ids")])["value"] == ["12345678Z"]
+        assert http.calls.index(("POST", "/v1/customers/cus_1/tax_ids")) < http.calls.index(
+            ("DELETE", "/v1/customers/cus_1/tax_ids/txi_0")
+        ), "el nuevo antes de borrar el viejo"
+
+    async def test_if_the_new_tax_id_is_rejected_the_old_one_stays(self) -> None:
+        from app.domain.exceptions import PaymentGatewayError
+
+        http = ScriptedHttpClient(
+            {
+                ("POST", "/v1/customers/cus_1"): (200, CUSTOMER),
+                ("GET", "/v1/customers/cus_1/tax_ids"): (200, tax_id_list("X1234567L")),
+                ("POST", "/v1/customers/cus_1/tax_ids"): (
+                    400,
+                    {"error": {"type": "invalid_request_error", "code": "tax_id_invalid"}},
+                ),
+            }
+        )
+        with pytest.raises(PaymentGatewayError):
+            await gateway_with(http).update_customer_billing("cus_1", billing())
+
+        assert ("DELETE", "/v1/customers/cus_1/tax_ids/txi_0") not in http.calls
+
+    async def test_update_without_address_clears_the_old_one(self) -> None:
+        from urllib.parse import parse_qs
+
+        http = ScriptedHttpClient(
+            {
+                ("POST", "/v1/customers/cus_1"): (200, CUSTOMER),
+                ("GET", "/v1/customers/cus_1/tax_ids"): (200, tax_id_list("12345678Z")),
+            }
+        )
+        await gateway_with(http).update_customer_billing("cus_1", billing(address=None))
+
+        sent = parse_qs(http.bodies[("POST", "/v1/customers/cus_1")], keep_blank_values=True)
+        assert sent["address"] == [""]
+
+    async def test_update_keeps_a_tax_id_that_did_not_change(self) -> None:
+        http = ScriptedHttpClient(
+            {
+                ("POST", "/v1/customers/cus_1"): (200, CUSTOMER),
+                ("GET", "/v1/customers/cus_1/tax_ids"): (200, tax_id_list("12345678Z")),
+            }
+        )
+        await gateway_with(http).update_customer_billing("cus_1", billing())
+
+        assert http.calls == [
+            ("POST", "/v1/customers/cus_1"),
+            ("GET", "/v1/customers/cus_1/tax_ids"),
+        ]
+
+    async def test_a_rejected_tax_id_is_a_gateway_error(self) -> None:
+        from app.domain.exceptions import PaymentGatewayError
+
+        http = ScriptedHttpClient(
+            {
+                ("POST", "/v1/customers/cus_1"): (200, CUSTOMER),
+                ("GET", "/v1/customers/cus_1/tax_ids"): (200, tax_id_list()),
+                ("POST", "/v1/customers/cus_1/tax_ids"): (
+                    400,
+                    {
+                        "error": {
+                            "type": "invalid_request_error",
+                            "code": "tax_id_invalid",
+                            "message": "Invalid value for es_cif.",
+                        }
+                    },
+                ),
+            }
+        )
+        with pytest.raises(PaymentGatewayError):
+            await gateway_with(http).update_customer_billing("cus_1", billing())
+
+
+def tax_rate(rate_id: str, *, percentage: int = 21, managed: bool = True) -> dict[str, object]:
+    return {
+        "id": rate_id,
+        "object": "tax_rate",
+        "percentage": percentage,
+        "inclusive": True,
+        "active": True,
+        "metadata": {"managed_by": "reforma-hub"} if managed else {},
+    }
+
+
+def tax_rate_list(*rates: dict[str, object]) -> dict[str, object]:
+    return {"object": "list", "url": "/v1/tax_rates", "has_more": False, "data": list(rates)}
+
+
+class TestSubscriptionCheckoutVat:
+    """El 21 % es una constante del dominio; el id del tipo en Stripe lo resuelve el adaptador."""
+
+    def _request(self) -> SubscriptionCheckoutRequest:
+        return SubscriptionCheckoutRequest(
+            professional_id=uuid4(),
+            customer_id="cus_1",
+            price_id="price_1",
+            success_url="https://reformahub.test/es/suscripcion?status=success",
+            cancel_url="https://reformahub.test/es/suscripcion?status=cancelled",
+        )
+
+    def _http(self, *rates: dict[str, object]) -> ScriptedHttpClient:
+        session = {
+            "id": "cs_1",
+            "object": "checkout.session",
+            "url": "https://checkout.stripe.com/c/pay/cs_1",
+            "expires_at": 1_780_000_000,
+        }
+        return ScriptedHttpClient(
+            {
+                ("GET", "/v1/tax_rates"): (200, tax_rate_list(*rates)),
+                ("POST", "/v1/tax_rates"): (200, tax_rate("txr_new")),
+                ("POST", "/v1/checkout/sessions"): (200, session),
+            }
+        )
+
+    async def test_reuses_the_vat_rate_the_app_already_created(self) -> None:
+        # Un tipo ajeno (sin la marca) o de otro porcentaje no se confunde con el nuestro.
+        http = self._http(
+            tax_rate("txr_other", managed=False),
+            tax_rate("txr_reduced", percentage=10),
+            tax_rate("txr_iva21"),
+        )
+        await gateway_with(http).create_subscription_checkout(self._request())
+
+        sent = form(http.bodies[("POST", "/v1/checkout/sessions")])
+        assert sent["line_items[0][price]"] == ["price_1"]
+        assert sent["line_items[0][tax_rates][0]"] == ["txr_iva21"]
+        assert ("POST", "/v1/tax_rates") not in http.calls
+
+    async def test_creates_the_vat_rate_the_first_time(self) -> None:
+        http = self._http(tax_rate("txr_other", managed=False))
+        await gateway_with(http).create_subscription_checkout(self._request())
+
+        created = form(http.bodies[("POST", "/v1/tax_rates")])
+        assert created["percentage"] == ["21"]
+        assert created["inclusive"] == ["true"]
+        assert created["country"] == ["ES"]
+        assert created["metadata[managed_by]"] == ["reforma-hub"]
+        sent = form(http.bodies[("POST", "/v1/checkout/sessions")])
+        assert sent["line_items[0][tax_rates][0]"] == ["txr_new"]
+
+    async def test_the_vat_rate_is_looked_up_once_per_process(self) -> None:
+        http = self._http(tax_rate("txr_iva21"))
+        gateway = gateway_with(http)
+
+        await gateway.create_subscription_checkout(self._request())
+        await gateway.create_subscription_checkout(self._request())
+
+        assert http.calls.count(("GET", "/v1/tax_rates")) == 1
+
+    async def test_no_checkout_if_the_vat_rate_cannot_be_resolved(self) -> None:
+        from app.domain.exceptions import PaymentGatewayError
+
+        http = ScriptedHttpClient(
+            {
+                ("GET", "/v1/tax_rates"): (
+                    500,
+                    {"error": {"type": "api_error", "message": "Stripe is down"}},
+                )
+            }
+        )
+        with pytest.raises(PaymentGatewayError):
+            await gateway_with(http).create_subscription_checkout(self._request())
+        assert ("POST", "/v1/checkout/sessions") not in http.calls

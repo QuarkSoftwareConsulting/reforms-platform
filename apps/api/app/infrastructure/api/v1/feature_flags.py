@@ -9,9 +9,10 @@ from app.infrastructure.api.schemas.feature_flags import FeatureFlagsOut
 
 router = APIRouter(tags=["feature-flags"])
 
-# El frontend las cachea 60 s (ISR de Next); el navegador y una CDN, lo mismo. Es el
-# retraso maximo entre cambiar una flag en la BD y verlo en la web.
-CACHE_SECONDS = 60
+# El frontend las cachea 5 min (ISR de Next); el navegador y una CDN, lo mismo. Es el
+# retraso maximo entre cambiar una flag en la BD y verlo en la web. No es menor porque
+# el layout las pide en todas las paginas: fija cada cuanto se regeneran todas.
+CACHE_SECONDS = 300
 
 
 @router.get(

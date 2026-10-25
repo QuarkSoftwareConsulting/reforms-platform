@@ -1,5 +1,6 @@
 from app.infrastructure.adapters.db.repositories.billing_repository import (
     SqlAlchemyCreditLedgerRepository,
+    SqlAlchemyInvoiceRepository,
     SqlAlchemyProfessionalAccountRepository,
     SqlAlchemySubscriptionPriceRepository,
 )
@@ -28,6 +29,7 @@ __all__ = [
     "SqlAlchemyCategoryRepository",
     "SqlAlchemyCreditLedgerRepository",
     "SqlAlchemyFeatureFlagRepository",
+    "SqlAlchemyInvoiceRepository",
     "SqlAlchemyLeadRepository",
     "SqlAlchemyPostalCodeRepository",
     "SqlAlchemyProcessedEventRepository",

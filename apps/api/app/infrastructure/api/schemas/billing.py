@@ -25,7 +25,8 @@ class AccountOut(ApiModel):
     status: SubscriptionStatusOut
     is_active: bool
     balance: MoneyOut
-    topup_amount: MoneyOut
+    topup_amount: MoneyOut | None
+    """`null` si el admin aun no fijo la mensualidad: nadie se puede suscribir."""
     current_period_end: datetime | None = None
     can_manage_billing: bool
     entries: list[CreditEntryOut] = Field(default_factory=list)
@@ -60,11 +61,17 @@ class AdminAccountOut(ApiModel):
 class SubscriptionPriceOut(ApiModel):
     """Mensualidad vigente para las suscripciones nuevas."""
 
-    amount: MoneyOut
+    amount: MoneyOut | None
     updated_at: datetime | None = None
-    is_default: bool
     configured: bool
-    """False si no hay precio en la pasarela: nadie podria suscribirse."""
+    """False si el admin aun no la fijo: nadie se puede suscribir."""
+
+
+class PublicSubscriptionPriceOut(ApiModel):
+    """Lo que la landing anuncia. Sin el `stripe_price_id` ni quien lo fijo."""
+
+    amount: MoneyOut | None
+    """`null` si el admin aun no la fijo."""
 
 
 class SetSubscriptionPriceIn(ApiModel):

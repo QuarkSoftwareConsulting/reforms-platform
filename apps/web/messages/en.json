@@ -43,21 +43,7 @@
       "subtitle": "Check the reference price of each trade. Then, on each card, you'll see the exact price of each contact.",
       "from": "From {price}",
       "all": "See all trades",
-      "contactLabel": "Contact",
-      "items": {
-        "fullRenovation": "Full renovation",
-        "bathrooms": "Bathrooms",
-        "kitchens": "Kitchens",
-        "painting": "Painting",
-        "electrical": "Electrical",
-        "plumbing": "Plumbing",
-        "carpentry": "Carpentry",
-        "locksmith": "Locksmith",
-        "airConditioning": "Air conditioning",
-        "glazing": "Glazing",
-        "gardening": "Gardening",
-        "cleaning": "Cleaning"
-      }
+      "contactLabel": "Contact"
     },
     "validation": {
       "eyebrow": "Process",
@@ -90,7 +76,8 @@
       },
       "topup": {
         "title": "Your monthly fee becomes balance",
-        "body": "Your {amount} monthly fee goes to your balance to spend on the contacts you choose."
+        "body": "Your {amount} monthly fee goes to your balance to spend on the contacts you choose.",
+        "bodyNoAmount": "What you pay each month goes to your balance, to spend on the contacts you choose."
       },
       "privacy": {
         "title": "Client data is protected",
@@ -319,7 +306,10 @@
     "bannerCta": "Activate monthly fee",
     "bannerManage": "View my monthly fee",
     "bannerDebt": "Your bank returned a monthly fee you had already spent and you owe {debt}. You can browse requests, but not buy until your next monthly fee settles it.",
-    "debtNotice": "Your bank returned a monthly fee you had already spent on contacts. {debt} is outstanding: it will be taken from your next monthly fee and, until then, you can't buy contacts."
+    "debtNotice": "Your bank returned a monthly fee you had already spent on contacts. {debt} is outstanding: it will be taken from your next monthly fee and, until then, you can't buy contacts.",
+    "subtitleUnavailable": "To buy contacts you need the monthly plan, which is added to your balance. It is not available yet: you can browse requests in the meantime.",
+    "notAvailable": "Not available yet",
+    "notAvailableNotice": "The monthly plan is not available yet. As soon as it is, you can activate it here; in the meantime you can browse requests."
   },
   "profile": {
     "title": "My professional profile",
@@ -476,11 +466,9 @@
       "submit": "Publish manual lead"
     },
     "categoryPricing": {
-      "title": "Suggested category price",
-      "category": "Trade",
-      "placeholder": "Select a trade",
-      "amount": "Amount in cents",
-      "submit": "Save suggested price"
+      "title": "Suggested price per category",
+      "body": "It is edited with the rest of the category, in the catalog: open “Edit” on the category and change its suggested price. The price of a specific contact is set on its card, in Requests.",
+      "link": "Go to the catalog"
     },
     "leads": {
       "title": "Lead inventory",
@@ -532,8 +520,7 @@
       "title": "Monthly fee",
       "body": "Monthly amount each professional pays to be able to buy contacts; it's added as balance. A change only affects new subscriptions: existing subscribers keep their amount.",
       "current": "Current: {amount}",
-      "default": "(initial configured value)",
-      "notConfigured": "No price configured in Stripe: nobody can subscribe.",
+      "notConfigured": "You have not set the monthly plan yet: nobody can subscribe or buy contacts.",
       "label": "New amount (€)",
       "save": "Save monthly fee",
       "saved": "Monthly fee updated to {amount} for new subscriptions."
@@ -640,7 +627,54 @@
       "leads": "Requests",
       "purchases": "Purchases",
       "pricing": "Pricing",
-      "pending": "{count, plural, one {pending sign-up} other {pending sign-ups}}"
+      "pending": "{count, plural, one {pending sign-up} other {pending sign-ups}}",
+      "catalog": "Catalog"
+    },
+    "catalog": {
+      "intro": "Create, rename, reorder or deactivate categories and services. Anything already used by requests or professionals can only be deactivated; deleting is for items created by mistake. Changes can take up to 5 minutes to show on the public site.",
+      "newCategory": "New category",
+      "nameEs": "Name in Spanish",
+      "nameEn": "Name in English",
+      "price": "Suggested price per contact (€)",
+      "priceHint": "Charged for contacts in this category that have no price of their own.",
+      "sortOrder": "Order",
+      "sortOrderHint": "Lower numbers come first.",
+      "categoryActive": "Active: offered when posting a request and in the professional's profile",
+      "serviceActive": "Active: offered when posting a request and in the professional's profile",
+      "create": "Create category",
+      "edit": "Edit",
+      "editNamed": "Edit “{name}”",
+      "save": "Save changes",
+      "delete": "Delete",
+      "statusActive": "Active",
+      "statusInactive": "Deactivated",
+      "serviceStatusInactive": "Deactivated",
+      "slug": "URL: {slug}",
+      "suggested": "Suggested price: {amount}",
+      "order": "Order {order}",
+      "services": "{count, plural, =0 {Services} one {1 service} other {# services}}",
+      "noServices": "This category has no services yet.",
+      "newServiceIn": "Add a service to “{name}”",
+      "newServiceEs": "New service (Spanish)",
+      "newServiceEn": "New service (English)",
+      "addService": "Add service",
+      "empty": "The catalog is empty.",
+      "created": "Category created.",
+      "serviceAdded": "Service added.",
+      "saved": "Changes saved.",
+      "deleted": "Deleted.",
+      "confirmTitle": "Delete “{name}”?",
+      "confirmBody": "It is deleted for good and cannot be undone. If any request or professional uses it, it cannot be deleted: deactivate it instead.",
+      "confirm": "Yes, delete",
+      "featured": "Featured on the landing page (needs a photo)",
+      "featuredTag": "On the landing page",
+      "photo": "Card photo",
+      "photoHint": "JPG, PNG or WebP, up to 5 MB. Shown on the landing page in landscape format.",
+      "photoUploading": "Uploading photo...",
+      "photoAlt": "Current photo of “{name}”",
+      "landingNameEs": "Short name on the landing page (Spanish)",
+      "landingNameEn": "Short name on the landing page (English)",
+      "landingNameHint": "Optional, up to {max} characters. If left empty, the card uses the service name."
     }
   },
   "errors": {
@@ -727,7 +761,11 @@
       "consent_policy_version": "Policy version",
       "consent_accepted_at": "Acceptance date",
       "consent_channel": "Capture channel",
-      "consent_campaign_reference": "Campaign reference"
+      "consent_campaign_reference": "Campaign reference",
+      "name_es": "Name in Spanish",
+      "name_en": "Name in English",
+      "suggested_price_cents": "Suggested price",
+      "sort_order": "Order"
     },
     "fieldError": {
       "intro": "Check the form: {details}.",
@@ -739,7 +777,15 @@
       "tooLong": "at most {max} characters",
       "invalid": "invalid value"
     },
-    "summary": "Check {count, plural, one {# field} other {# fields}} to continue"
+    "summary": "Check {count, plural, one {# field} other {# fields}} to continue",
+    "CATALOG_NAME_INVALID": "The name is required, must contain letters or numbers and be at most {max} characters long.",
+    "CATALOG_SLUG_TAKEN": "A category or service with that name already exists (deactivated ones included).",
+    "CATALOG_IMAGE_TYPE_NOT_ALLOWED": "The photo must be a JPG, PNG or WebP file.",
+    "CATALOG_IMAGE_TOO_LARGE": "The photo cannot be larger than {max} MB.",
+    "CATALOG_ITEM_IN_USE": "It cannot be deleted because requests or professionals use it. Deactivate it instead.",
+    "SERVICE_NOT_FOUND": "That service no longer exists. Reload the page.",
+    "SUBSCRIPTION_NOT_AVAILABLE": "The monthly plan is not available yet. Please try again later.",
+    "FEATURED_SERVICE_NEEDS_IMAGE": "A service featured on the landing page needs its photo. Upload it before saving."
   },
   "validation": {
     "categoryRequired": "Pick a trade.",
@@ -787,6 +833,13 @@
     "campaignTooLong": "The campaign reference cannot exceed 200 characters.",
     "acceptedAtRequired": "Enter the date and time the client accepted.",
     "acceptedAtInvalid": "The acceptance date is not valid.",
-    "acceptedAtFuture": "The acceptance date cannot be later than now."
+    "acceptedAtFuture": "The acceptance date cannot be later than now.",
+    "catalogNameRequired": "Enter the name (with letters or numbers).",
+    "catalogNameTooLong": "{max} characters at most.",
+    "catalogPrice": "Enter a price between €0.01 and €1,000.",
+    "catalogSortOrder": "Enter a whole number between 0 and 10,000.",
+    "catalogPhotoRequired": "Upload the photo to feature it on the landing page.",
+    "catalogPhotoType": "The photo must be JPG, PNG or WebP.",
+    "catalogPhotoSize": "The photo cannot exceed 5 MB."
   }
 }

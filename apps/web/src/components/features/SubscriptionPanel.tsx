@@ -103,7 +103,8 @@ export function SubscriptionPanel() {
     return error ? <Alert tone="error">{error}</Alert> : <Skeleton className="h-96 w-full" />;
   }
 
-  const amount = formatMoney(account.topup_amount, locale);
+  // Sin mensualidad fijada por el admin no hay importe que mostrar ni a que suscribirse.
+  const amount = account.topup_amount ? formatMoney(account.topup_amount, locale) : null;
   const canStart = account.status === "none" || account.status === "canceled";
   // Pago hecho en Stripe y sin confirmar en nuestra BD: el webhook va en camino. Volver
   // a mostrar "Activar" invitaba a pagar dos veces (el backend ya lo impide, ver
@@ -122,7 +123,9 @@ export function SubscriptionPanel() {
     <div className="space-y-6">
       <header className="space-y-1">
         <h1 className="text-h1 font-bold text-ink">{t("title")}</h1>
-        <p className="text-secondary">{t("subtitle", { amount })}</p>
+        <p className="text-secondary">
+          {amount ? t("subtitle", { amount }) : t("subtitleUnavailable")}
+        </p>
       </header>
 
       {returnStatus === "success" && !account.is_active && !confirming && (
@@ -147,7 +150,7 @@ export function SubscriptionPanel() {
           </div>
           <div>
             <dt className="text-[13px] text-secondary">{t("topupLabel")}</dt>
-            <dd className="text-[24px] font-bold text-ink">{amount}</dd>
+            <dd className="text-[24px] font-bold text-ink">{amount ?? t("notAvailable")}</dd>
             {account.current_period_end && account.is_active && (
               <dd className="text-[13px] text-secondary">
                 {t("renewsOn", { date: formatDate(account.current_period_end, locale) })}
@@ -174,6 +177,8 @@ export function SubscriptionPanel() {
               </Button>
             )}
           </div>
+        ) : canStart && amount === null ? (
+          <Alert tone="info">{t("notAvailableNotice")}</Alert>
         ) : canStart ? (
           <div className="space-y-3">
             <Button

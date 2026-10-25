@@ -190,9 +190,8 @@ una de las plazas del lead.
 **Mensualidad.** Comprar solicitudes exige la mensualidad al día; **verlas no**: una cuenta
 inactiva ve el listado y el detalle (sin datos de contacto) pero `POST /leads/{id}/purchase`
 responde `402 SUBSCRIPTION_REQUIRED`. Además, solo compra quien tiene el alta aprobada. El admin fija su
-importe desde el panel, y eso crea el precio en Stripe. Para arrancar sin intervención del
-admin, crea en Stripe un precio recurrente mensual (EUR, IVA incluido) y ponlo en
-`STRIPE_TOPUP_PRICE_ID` junto a su importe en `SUBSCRIPTION_TOPUP_CENTS`. El webhook debe escuchar,
+importe desde el panel (Precios), y eso crea el precio en Stripe; hasta que lo fije nadie se
+puede suscribir (`409 SUBSCRIPTION_NOT_AVAILABLE`) y, por tanto, nadie compra. El webhook debe escuchar,
 además de los eventos de checkout, `invoice.paid`, `invoice.payment_failed` y
 `customer.subscription.created|updated|deleted` y, para las devoluciones de un cobro por el
 banco, `charge.dispute.created|funds_withdrawn|funds_reinstated|closed`. Activa el Customer Portal en el panel de
@@ -207,6 +206,15 @@ stripe listen --forward-to localhost:8010/api/v1/webhooks/stripe \
 contactos y, si no alcanza, el resto se cobra con Checkout. Si el banco devuelve una
 recarga (adeudo SEPA devuelto o disputa), se retira el saldo y lo ya gastado queda como deuda:
 no se compra hasta que la siguiente recarga la salde.
+
+**Facturas de la mensualidad.** Las emite Stripe en cada cobro. Para que sean factura
+completa, el cliente de Stripe lleva la razón social, el NIF (tipo `es_cif`, que acepta NIF,
+NIE y CIF) y el domicilio del perfil; se actualizan al guardar el perfil y al iniciar la
+mensualidad. Desglosan el IVA (21 % incluido, `VAT_RATE_PERCENT`): la app busca en Stripe
+su tipo impositivo y lo crea la primera vez, sin configuración; solo afecta a las
+suscripciones nuevas. Al llegar `invoice.paid` se guarda en `invoices` su
+número, importes, IVA y los enlaces a la factura y al PDF. Que estas facturas basten
+legalmente (Verifactu) está pendiente de la gestoría: `docs/preguntas-cliente.md`, pregunta 2.
 
 ---
 
@@ -238,8 +246,10 @@ VALUES ('new-checkout', '1.4.0', 'Checkout en una sola página', 'dev'),
 UPDATE feature_flags SET enabled = true WHERE name = 'new-checkout' AND environment = 'dev';
 ```
 
-La web tarda **hasta 60 s** en ver el cambio: el layout las lee en el servidor y las cachea
-un minuto, para que las páginas sigan siendo estáticas y no haya parpadeo. Si el API no
+La web tarda **hasta 5 minutos** en ver el cambio: el layout las lee en el servidor y las
+cachea ese tiempo, para que las páginas sigan siendo estáticas y no haya parpadeo. Como el
+layout está en todas las páginas, ese plazo marca cada cuánto se regeneran: bajarlo
+multiplica las regeneraciones y su coste en el hosting. Si el API no
 responde, todas cuentan como apagadas. En el frontend:
 
 ```tsx
@@ -300,10 +310,22 @@ publicar, el cliente confirma su móvil con un SMS (`PhoneVerificationPort`). Mi
 haya proveedor, `PHONE_VERIFICATION_BACKEND=disabled` publica sin código; en local,
 `console` escribe el código en el log del API.
 
-**El catálogo tiene dos niveles.** Categoría (`categories.csv`) → servicios
-(`services.csv`), en el orden del documento del cliente. `pnpm api:seed` es idempotente:
-desactiva, sin borrarlo, lo que sale del catálogo (los leads antiguos lo siguen nombrando)
-y no pisa el precio sugerido que haya cambiado el admin.
+**El catálogo tiene dos niveles** —categoría → servicios— y lo gestiona el admin desde el
+panel (`/admin/catalogo`): crear, renombrar, reordenar, cambiar el precio sugerido y
+desactivar. El slug sale del nombre al crear y no cambia al renombrar (lo usan las URL).
+Lo que usa algún lead o profesional solo se desactiva; borrar solo vale para lo que nada
+usa. `categories.csv` y `services.csv` son la carga inicial: `pnpm api:seed` crea lo que
+falta y no pisa lo que el admin cambió.
+
+**Las tarjetas de la landing son los servicios destacados.** El admin marca un servicio como
+destacado en el catálogo, sube su foto (obligatoria; va al bucket público) y, si quiere, le
+pone un nombre corto para la tarjeta ("Baños" en vez de "Reformas de baños"). La landing enlaza
+la foto por una URL estable del API (`/catalog/services/{id}/image`) que redirige a una URL
+vigente del bucket: con GCS las firmadas caducan en minutos y la página se cachea. La landing
+y el formulario son estáticos: se regeneran cuando el admin guarda un cambio del catálogo o de
+la mensualidad (ruta `/api/revalidate` de Next, solo admin) y, como respaldo, una vez al día.
+En un entorno nuevo, `pnpm api:seed` marca los destacados de `featured_services.csv` y sube
+sus fotos (`data/featured/`), solo si todavía no hay ninguno.
 
 **El consentimiento RGPD es un registro auditable.** `lead_consents` guarda versión de
 política, IP y user-agent tomados del servidor (nunca del cuerpo de la petición), y el

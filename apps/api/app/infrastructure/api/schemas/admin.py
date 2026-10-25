@@ -44,9 +44,75 @@ class SetLeadPriceIn(ApiModel):
     )
 
 
-class SetCategoryPriceIn(ApiModel):
-    amount_cents: int = Field(gt=0, le=MAX_SALE_PRICE_CENTS)
-    currency: str | None = Field(default=None, min_length=3, max_length=3)
+# --- Catalogo. Los nombres los valida el dominio (CATALOG_NAME_INVALID, con su limite
+# exacto); el `max_length` de aqui solo frena cuerpos absurdos.
+CATALOG_NAME_GUARD = 500
+MAX_SORT_ORDER = 10_000
+
+
+class AdminServiceOut(ApiModel):
+    id: UUID
+    slug: str
+    name_es: str
+    name_en: str
+    sort_order: int
+    active: bool
+    featured: bool
+    image_key: str | None
+    landing_name_es: str | None
+    landing_name_en: str | None
+    image_url: str | None
+    """Para la vista previa del panel. Con GCS caduca en minutos: no se guarda."""
+
+
+class AdminCategoryOut(ApiModel):
+    """Categoria con sus nombres en los dos idiomas y todos sus servicios, tambien los
+    desactivados: es lo que el admin edita."""
+
+    id: UUID
+    slug: str
+    name_es: str
+    name_en: str
+    suggested_lead_price: MoneyOut
+    sort_order: int
+    active: bool
+    services: list[AdminServiceOut]
+
+
+class CreateCategoryIn(ApiModel):
+    name_es: str = Field(max_length=CATALOG_NAME_GUARD)
+    name_en: str = Field(max_length=CATALOG_NAME_GUARD)
+    suggested_price_cents: int = Field(gt=0, le=MAX_SALE_PRICE_CENTS)
+    sort_order: int | None = Field(
+        default=None, ge=0, le=MAX_SORT_ORDER, description="Sin orden, va la ultima."
+    )
+
+
+class UpdateCategoryIn(ApiModel):
+    name_es: str = Field(max_length=CATALOG_NAME_GUARD)
+    name_en: str = Field(max_length=CATALOG_NAME_GUARD)
+    suggested_price_cents: int = Field(gt=0, le=MAX_SALE_PRICE_CENTS)
+    sort_order: int = Field(ge=0, le=MAX_SORT_ORDER)
+    active: bool
+
+
+class CreateServiceIn(ApiModel):
+    name_es: str = Field(max_length=CATALOG_NAME_GUARD)
+    name_en: str = Field(max_length=CATALOG_NAME_GUARD)
+
+
+class UpdateServiceIn(ApiModel):
+    name_es: str = Field(max_length=CATALOG_NAME_GUARD)
+    name_en: str = Field(max_length=CATALOG_NAME_GUARD)
+    sort_order: int = Field(ge=0, le=MAX_SORT_ORDER)
+    active: bool
+    featured: bool = False
+    """Tarjeta en la landing. Exige `image_key` (FEATURED_SERVICE_NEEDS_IMAGE)."""
+    image_key: str | None = Field(default=None, max_length=500)
+    """Clave devuelta por la subida de la foto de este servicio."""
+    landing_name_es: str | None = Field(default=None, max_length=CATALOG_NAME_GUARD)
+    """Nombre corto de la tarjeta; vacio usa el nombre del servicio."""
+    landing_name_en: str | None = Field(default=None, max_length=CATALOG_NAME_GUARD)
 
 
 class LeadPricingOut(ApiModel):
@@ -292,7 +358,6 @@ __all__ = [
     "MetricsTimeseriesOut",
     "PurchaseReviewIn",
     "PurchaseReviewOut",
-    "SetCategoryPriceIn",
     "SetLeadPriceIn",
     "SetUserRoleIn",
     "UserRoleEventOut",

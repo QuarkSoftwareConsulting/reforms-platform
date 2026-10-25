@@ -31,7 +31,7 @@ async def test_returns_the_flags_of_its_environment_without_auth(
     assert response.json() == {"flags": {"admin.reports": False, "new-checkout": True}}
     # La version y la descripcion son para quien edita la tabla, no para la web.
     assert "nota interna" not in response.text
-    assert response.headers["cache-control"] == "public, max-age=60"
+    assert response.headers["cache-control"] == "public, max-age=300"
 
 
 async def test_without_flags_everything_is_off(api: AsyncClient) -> None:

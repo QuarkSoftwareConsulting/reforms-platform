@@ -1,4 +1,4 @@
-"""Repositorios de la mensualidad: cuentas, libro de saldo e historial de precios."""
+"""Repositorios de la mensualidad: cuentas, libro de saldo, precios y facturas."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.ports import (
     CreditLedgerRepositoryPort,
     DailyCount,
+    InvoiceRepositoryPort,
     ProfessionalAccountRepositoryPort,
     SubscriptionPriceRepositoryPort,
 )
@@ -20,6 +21,7 @@ from app.domain.models import (
     RENEWAL_GRACE,
     CreditEntry,
     CreditEntryKind,
+    Invoice,
     ProfessionalAccount,
     SubscriptionPrice,
     SubscriptionStatus,
@@ -33,6 +35,7 @@ from app.infrastructure.adapters.db.mappers import (
 )
 from app.infrastructure.adapters.db.models import (
     CreditEntryRow,
+    InvoiceRow,
     ProfessionalAccountRow,
     SubscriptionPriceRow,
 )
@@ -231,3 +234,30 @@ class SqlAlchemySubscriptionPriceRepository(SubscriptionPriceRepositoryPort):
         )
         row = (await self._session.execute(stmt)).scalar_one_or_none()
         return subscription_price_to_domain(row) if row is not None else None
+
+
+class SqlAlchemyInvoiceRepository(InvoiceRepositoryPort):
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add_if_absent(self, invoice: Invoice) -> bool:
+        stmt = (
+            insert(InvoiceRow)
+            .values(
+                id=invoice.id,
+                professional_id=invoice.professional_id,
+                gateway_invoice_id=invoice.gateway_invoice_id,
+                number=invoice.number,
+                total_cents=invoice.total.amount_cents,
+                tax_cents=invoice.tax.amount_cents if invoice.tax is not None else None,
+                currency=invoice.total.currency,
+                hosted_url=invoice.hosted_url,
+                pdf_url=invoice.pdf_url,
+                issued_at=invoice.issued_at,
+                created_at=invoice.created_at,
+            )
+            .on_conflict_do_nothing(index_elements=[InvoiceRow.gateway_invoice_id])
+            .returning(InvoiceRow.id)
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none() is not None

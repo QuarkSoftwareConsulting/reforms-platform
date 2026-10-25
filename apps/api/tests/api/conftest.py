@@ -22,7 +22,13 @@ from app.config import Settings
 from app.domain.models import Category, Service
 from app.domain.value_objects import Coordinates, Money
 from app.infrastructure.adapters.clock import Uuid4Generator
-from app.infrastructure.adapters.db.models import Base, CategoryRow, PostalCodeRow, ServiceRow
+from app.infrastructure.adapters.db.models import (
+    Base,
+    CategoryRow,
+    PostalCodeRow,
+    ServiceRow,
+    SubscriptionPriceRow,
+)
 from app.infrastructure.api.dependencies import Infrastructure
 from app.main import create_app
 from tests.factories import BARCELONA, MADRID
@@ -40,6 +46,7 @@ TRUNCATE_ORDER = (
     "feature_flags",
     "processed_payment_events",
     "rate_limit_counters",
+    "invoices",
     "credit_entries",
     "professional_accounts",
     "subscription_prices",
@@ -83,9 +90,6 @@ def api_settings() -> Settings:
     settings = Settings(environment="test")
     # La app de test apunta a la BD de integracion, no a la de desarrollo.
     settings.database_url = settings.test_database_url
-    # Mensualidad inicial fija para no depender del .env de desarrollo.
-    settings.stripe_topup_price_id = "price_test_config"
-    settings.subscription_topup_cents = 1800
     return settings
 
 
@@ -174,6 +178,16 @@ async def api(
                     location=f"SRID=4326;POINT({point.longitude} {point.latitude})",
                 )
             )
+        # Como en produccion: la mensualidad la fija el admin. Sin ella nadie se suscribe.
+        setup.add(
+            SubscriptionPriceRow(
+                id=uuid4(),
+                amount_cents=1800,
+                currency="EUR",
+                stripe_price_id="price_admin_topup",
+                created_at=datetime(2026, 2, 1, tzinfo=UTC),
+            )
+        )
         await setup.commit()
 
     app = create_app(api_settings)

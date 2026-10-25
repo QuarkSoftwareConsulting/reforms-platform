@@ -78,23 +78,3 @@ class SetLeadPrice:
             lead = await self.leads.update(lead)
 
         return _pricing(lead, category)
-
-
-@dataclass(slots=True)
-class SetCategorySuggestedPrice:
-    """Cambia el precio sugerido de un oficio.
-
-    No reescribe los leads con precio propio: el admin ya decidio sobre ellos uno a
-    uno y una edicion del catalogo no debe deshacer esa decision.
-    """
-
-    categories: CategoryRepositoryPort
-    uow: UnitOfWork
-
-    async def execute(self, *, category_id: UUID, price: Money) -> Category:
-        async with self.uow:
-            category = await self.categories.get(category_id)
-            if category is None:
-                raise CategoryNotFoundError()
-            category.change_suggested_lead_price(price)
-            return await self.categories.update(category)

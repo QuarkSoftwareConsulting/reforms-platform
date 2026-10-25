@@ -51,7 +51,7 @@ const CATEGORIES: CatalogCategory[] = [
     slug: "carpinteria",
     name: "Carpinteria",
     suggested_lead_price: { amount_cents: 500, currency: "EUR", formatted: "5.00 €" },
-    services: [{ id: WARDROBES, slug: "armarios", name: "Armarios a medida" }],
+    services: [{ id: WARDROBES, slug: "armarios", name: "Armarios a medida", featured: false, landing_name: "Armarios a medida" }],
   },
 ];
 

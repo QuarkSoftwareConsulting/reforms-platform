@@ -34,6 +34,11 @@ export const professionalService = {
     return request<Me>("/me", { locale });
   },
 
+  /** `/me` con la cabecera de otra peticion: lo usa una ruta del servidor de Next. */
+  meWith(authorization: string): Promise<Me> {
+    return request<Me>("/me", { authorization });
+  },
+
   upsertProfile(payload: ProfilePayload, locale: Locale): Promise<Professional> {
     return request<Professional>("/me/professional", { method: "PUT", body: payload, locale });
   },

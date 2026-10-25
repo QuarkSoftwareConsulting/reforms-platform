@@ -33,9 +33,14 @@ from app.application.use_cases import (
     ApproveProfessional,
     ChangeLeadAvailability,
     ChangeUserRole,
+    CreateCategory,
     CreateLead,
+    CreateService,
     CreditLedgerService,
+    DeleteCategory,
+    DeleteService,
     GetAdminMetrics,
+    GetLandingServiceImage,
     GetLeadDetail,
     GetLeadPricing,
     GetMetricsTimeseries,
@@ -47,6 +52,7 @@ from app.application.use_cases import (
     ListAdminProfessionals,
     ListAdminPurchases,
     ListAdminUsers,
+    ListCatalogForAdmin,
     ListCategories,
     ListFeatureFlags,
     ListLeadPurchasesForAdmin,
@@ -59,9 +65,9 @@ from app.application.use_cases import (
     RejectProfessional,
     ReleaseExpiredReservations,
     RemoveProfessionalDocument,
+    RequestCatalogImageUpload,
     RequestPhotoUpload,
     RequestProfessionalUpload,
-    SetCategorySuggestedPrice,
     SetLeadPrice,
     SetSubscriptionPrice,
     StartLeadPurchase,
@@ -70,16 +76,18 @@ from app.application.use_cases import (
     SubmitForReview,
     SubscriptionPricing,
     SyncUserFromIdentity,
+    UpdateCategory,
+    UpdateService,
     UpsertProfessionalProfile,
 )
 from app.config import Settings, get_settings
 from app.domain.exceptions import DomainError, ProfessionalNotFoundError
 from app.domain.models import FlagEnvironment, Professional, ServiceArea, User
-from app.domain.value_objects import Money
 from app.infrastructure.adapters.db.repositories import (
     SqlAlchemyCategoryRepository,
     SqlAlchemyCreditLedgerRepository,
     SqlAlchemyFeatureFlagRepository,
+    SqlAlchemyInvoiceRepository,
     SqlAlchemyLeadRepository,
     SqlAlchemyPostalCodeRepository,
     SqlAlchemyProcessedEventRepository,
@@ -202,6 +210,7 @@ class RequestContainer:
     accounts: SqlAlchemyProfessionalAccountRepository
     ledger: SqlAlchemyCreditLedgerRepository
     subscription_prices: SqlAlchemySubscriptionPriceRepository
+    invoices: SqlAlchemyInvoiceRepository
     feature_flags: SqlAlchemyFeatureFlagRepository
 
     @classmethod
@@ -221,17 +230,13 @@ class RequestContainer:
             accounts=SqlAlchemyProfessionalAccountRepository(session),
             ledger=SqlAlchemyCreditLedgerRepository(session),
             subscription_prices=SqlAlchemySubscriptionPriceRepository(session),
+            invoices=SqlAlchemyInvoiceRepository(session),
             feature_flags=SqlAlchemyFeatureFlagRepository(session),
         )
 
     @property
     def pricing(self) -> SubscriptionPricing:
-        settings = self.infra.settings
-        return SubscriptionPricing(
-            prices=self.subscription_prices,
-            default_amount=Money(settings.subscription_topup_cents, settings.default_currency),
-            default_price_id=settings.stripe_topup_price_id,
-        )
+        return SubscriptionPricing(prices=self.subscription_prices)
 
     @property
     def credit(self) -> CreditLedgerService:
@@ -308,8 +313,32 @@ class RequestContainer:
         return SetLeadPrice(leads=self.leads, categories=self.categories, uow=self.uow)
 
     @property
-    def set_category_price(self) -> SetCategorySuggestedPrice:
-        return SetCategorySuggestedPrice(categories=self.categories, uow=self.uow)
+    def list_catalog(self) -> ListCatalogForAdmin:
+        return ListCatalogForAdmin(categories=self.categories)
+
+    @property
+    def create_category(self) -> CreateCategory:
+        return CreateCategory(categories=self.categories, ids=self.infra.ids, uow=self.uow)
+
+    @property
+    def update_category(self) -> UpdateCategory:
+        return UpdateCategory(categories=self.categories, uow=self.uow)
+
+    @property
+    def delete_category(self) -> DeleteCategory:
+        return DeleteCategory(categories=self.categories, storage=self.infra.storage, uow=self.uow)
+
+    @property
+    def create_service(self) -> CreateService:
+        return CreateService(categories=self.categories, ids=self.infra.ids, uow=self.uow)
+
+    @property
+    def update_service(self) -> UpdateService:
+        return UpdateService(categories=self.categories, storage=self.infra.storage, uow=self.uow)
+
+    @property
+    def delete_service(self) -> DeleteService:
+        return DeleteService(categories=self.categories, storage=self.infra.storage, uow=self.uow)
 
     @property
     def admin_leads(self) -> ListAdminLeads:
@@ -401,7 +430,11 @@ class RequestContainer:
             uow=self.uow,
             credit=self.credit,
             subscriptions=ApplySubscriptionEvent(
-                accounts=self.accounts, credit=self.credit, clock=self.infra.clock
+                accounts=self.accounts,
+                credit=self.credit,
+                invoices=self.invoices,
+                clock=self.infra.clock,
+                ids=self.infra.ids,
             ),
             chargebacks=ApplyChargeback(
                 accounts=self.accounts,
@@ -454,6 +487,7 @@ class RequestContainer:
             ledger=self.ledger,
             pricing=self.pricing,
             clock=self.infra.clock,
+            currency=self.infra.settings.default_currency,
         )
 
     @property
@@ -495,6 +529,8 @@ class RequestContainer:
             clock=self.infra.clock,
             ids=self.infra.ids,
             uow=self.uow,
+            accounts=self.accounts,
+            payments=self.infra.payments,
             service_area=ServiceArea.from_prefixes(self.infra.settings.covered_postal_prefixes),
         )
 
@@ -575,6 +611,14 @@ class RequestContainer:
     @property
     def request_photo_upload(self) -> RequestPhotoUpload:
         return RequestPhotoUpload(storage=self.infra.storage)
+
+    @property
+    def request_catalog_image_upload(self) -> RequestCatalogImageUpload:
+        return RequestCatalogImageUpload(categories=self.categories, storage=self.infra.storage)
+
+    @property
+    def landing_service_image(self) -> GetLandingServiceImage:
+        return GetLandingServiceImage(categories=self.categories, storage=self.infra.storage)
 
 
 def get_container(infra: InfraDep, session: SessionDep) -> RequestContainer:

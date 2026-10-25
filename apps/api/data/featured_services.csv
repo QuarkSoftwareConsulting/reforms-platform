@@ -1,0 +1,16 @@
+# Servicios destacados de la landing en un entorno nuevo, con su foto (data/featured/).
+# Solo carga inicial: si ya hay algun destacado, la semilla no toca nada. Despues los
+# elige el admin desde el panel (Catalogo), subiendo la foto de cada uno.
+category_slug,service_slug,image,landing_name_es,landing_name_en
+reformas,reforma-integral,01_reforma_integral.webp,Reforma integral,Full renovation
+reformas,reformas-banos,02_banos.webp,Baños,Bathrooms
+reformas,reformas-cocinas,03_cocinas.webp,Cocinas,Kitchens
+obras-menores,pintores,04_pintura.webp,Pintura,Painting
+instaladores,electricistas,05_electricidad.webp,Electricidad,Electrical
+obras-menores,fontaneros,06_fontaneria.webp,Fontanería,Plumbing
+obras-menores,carpinteros,07_carpinteria.webp,Carpintería,Carpentry
+obras-menores,cerrajeros,08_cerrajeria.webp,Cerrajería,Locksmith
+instaladores,aire-acondicionado,09_climatizacion.webp,Climatización,Air conditioning
+obras-menores,cristaleros,10_cristaleria.webp,Cristalería,Glazing
+mantenimiento,jardineros,11_jardineria.webp,Jardinería,Gardening
+mantenimiento,limpieza,12_limpieza.webp,Limpieza,Cleaning

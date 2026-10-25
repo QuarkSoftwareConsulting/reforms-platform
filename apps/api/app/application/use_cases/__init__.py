@@ -1,3 +1,14 @@
+from app.application.use_cases.admin_catalog import (
+    CreateCategory,
+    CreateService,
+    DeleteCategory,
+    DeleteService,
+    GetLandingServiceImage,
+    ListCatalogForAdmin,
+    RequestCatalogImageUpload,
+    UpdateCategory,
+    UpdateService,
+)
 from app.application.use_cases.admin_operations import (
     ChangeLeadAvailability,
     GetAdminMetrics,
@@ -10,7 +21,6 @@ from app.application.use_cases.admin_operations import (
 )
 from app.application.use_cases.admin_pricing import (
     GetLeadPricing,
-    SetCategorySuggestedPrice,
     SetLeadPrice,
 )
 from app.application.use_cases.apply_chargeback import ApplyChargeback
@@ -73,9 +83,14 @@ __all__ = [
     "ApproveProfessional",
     "ChangeLeadAvailability",
     "ChangeUserRole",
+    "CreateCategory",
     "CreateLead",
+    "CreateService",
     "CreditLedgerService",
+    "DeleteCategory",
+    "DeleteService",
     "GetAdminMetrics",
+    "GetLandingServiceImage",
     "GetLeadDetail",
     "GetLeadPricing",
     "GetMetricsTimeseries",
@@ -87,6 +102,7 @@ __all__ = [
     "ListAdminProfessionals",
     "ListAdminPurchases",
     "ListAdminUsers",
+    "ListCatalogForAdmin",
     "ListCategories",
     "ListFeatureFlags",
     "ListLeadPurchasesForAdmin",
@@ -101,9 +117,9 @@ __all__ = [
     "RejectProfessional",
     "ReleaseExpiredReservations",
     "RemoveProfessionalDocument",
+    "RequestCatalogImageUpload",
     "RequestPhotoUpload",
     "RequestProfessionalUpload",
-    "SetCategorySuggestedPrice",
     "SetLeadPrice",
     "SetSubscriptionPrice",
     "StartLeadPurchase",
@@ -112,6 +128,8 @@ __all__ = [
     "SubmitForReview",
     "SubscriptionPricing",
     "SyncUserFromIdentity",
+    "UpdateCategory",
+    "UpdateService",
     "UploadPurpose",
     "UpsertProfessionalProfile",
 ]

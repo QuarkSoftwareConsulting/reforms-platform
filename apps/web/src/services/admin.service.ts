@@ -4,6 +4,7 @@ import type { VerificationStatus } from "@/helpers/professionalOptions";
 import { request } from "@/services/api";
 import type {
   AdminAccount,
+  AdminCatalogCategory,
   AdminLeadList,
   AdminMetrics,
   AdminProfessionalList,
@@ -11,10 +12,10 @@ import type {
   AdminPurchaseList,
   AdminUser,
   AdminUserList,
-  Category,
   CreatedLead,
   Locale,
   MetricsTimeseries,
+  PresignedUpload,
   Professional,
   PurchaseStatus,
   Rejection,
@@ -58,6 +59,29 @@ export interface AdminUserFilters extends Page {
   verificationStatus?: VerificationStatus;
 }
 
+export interface CatalogNames {
+  name_es: string;
+  name_en: string;
+}
+
+export interface NewCategoryPayload extends CatalogNames {
+  suggested_price_cents: number;
+}
+
+export interface CategoryPayload extends NewCategoryPayload {
+  sort_order: number;
+  active: boolean;
+}
+
+export interface ServicePayload extends CatalogNames {
+  sort_order: number;
+  active: boolean;
+  featured: boolean;
+  image_key: string | null;
+  landing_name_es: string | null;
+  landing_name_en: string | null;
+}
+
 export interface AdminPurchaseFilters extends Page {
   status?: PurchaseStatus;
   /** `YYYY-MM-DD` en hora de Madrid, incluido. */
@@ -85,6 +109,85 @@ function paramsFor(filters: AdminLeadFilters): string {
 export const adminService = {
   metrics(locale: Locale): Promise<AdminMetrics> {
     return request<AdminMetrics>("/admin/metrics", { locale });
+  },
+
+  /** Todo el catalogo, tambien lo desactivado. */
+  catalog(locale: Locale): Promise<AdminCatalogCategory[]> {
+    return request<AdminCatalogCategory[]>("/admin/catalog", { locale });
+  },
+
+  createCategory(payload: NewCategoryPayload, locale: Locale): Promise<AdminCatalogCategory> {
+    return request<AdminCatalogCategory>("/admin/categories", {
+      method: "POST",
+      body: payload,
+      locale,
+    });
+  },
+
+  updateCategory(
+    categoryId: string,
+    payload: CategoryPayload,
+    locale: Locale,
+  ): Promise<AdminCatalogCategory> {
+    return request<AdminCatalogCategory>(`/admin/categories/${categoryId}`, {
+      method: "PUT",
+      body: payload,
+      locale,
+    });
+  },
+
+  /** 409 CATALOG_ITEM_IN_USE si algo la usa: entonces se desactiva. */
+  deleteCategory(categoryId: string, locale: Locale): Promise<void> {
+    return request<void>(`/admin/categories/${categoryId}`, { method: "DELETE", locale });
+  },
+
+  createService(
+    categoryId: string,
+    payload: CatalogNames,
+    locale: Locale,
+  ): Promise<AdminCatalogCategory> {
+    return request<AdminCatalogCategory>(`/admin/categories/${categoryId}/services`, {
+      method: "POST",
+      body: payload,
+      locale,
+    });
+  },
+
+  updateService(
+    categoryId: string,
+    serviceId: string,
+    payload: ServicePayload,
+    locale: Locale,
+  ): Promise<AdminCatalogCategory> {
+    return request<AdminCatalogCategory>(`/admin/categories/${categoryId}/services/${serviceId}`, {
+      method: "PUT",
+      body: payload,
+      locale,
+    });
+  },
+
+  /** URL firmada para subir la foto de la tarjeta de un servicio al bucket publico. */
+  requestServiceImageUpload(
+    categoryId: string,
+    serviceId: string,
+    file: File,
+    locale: Locale,
+  ): Promise<PresignedUpload> {
+    return request<PresignedUpload>(
+      `/admin/categories/${categoryId}/services/${serviceId}/image-upload`,
+      {
+        method: "POST",
+        body: { filename: file.name, content_type: file.type, size_bytes: file.size },
+        locale,
+      },
+    );
+  },
+
+  deleteService(categoryId: string, serviceId: string, locale: Locale): Promise<void> {
+    return request<void>(`/admin/categories/${categoryId}/services/${serviceId}`, {
+      method: "DELETE",
+      locale,
+    });
   },
 
   subscriptionPrice(locale: Locale): Promise<SubscriptionPrice> {
@@ -125,14 +228,6 @@ export const adminService = {
 
   setLeadPrice(leadId: string, amountCents: number | null, locale: Locale): Promise<void> {
     return request<void>(`/admin/leads/${leadId}/price`, {
-      method: "PUT",
-      body: { amount_cents: amountCents },
-      locale,
-    });
-  },
-
-  setCategoryPrice(categoryId: string, amountCents: number, locale: Locale): Promise<Category> {
-    return request<Category>(`/admin/categories/${categoryId}/suggested-price`, {
       method: "PUT",
       body: { amount_cents: amountCents },
       locale,
