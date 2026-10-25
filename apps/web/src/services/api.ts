@@ -40,6 +40,11 @@ export function setTokenProvider(provider: TokenProvider): void {
   tokenProvider = provider;
 }
 
+/** El ID token actual, para llamadas que no van al API (rutas de Next). */
+export function currentToken(): Promise<string | null> {
+  return tokenProvider(false);
+}
+
 interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
@@ -49,6 +54,10 @@ interface RequestOptions {
   signal?: AbortSignal;
   /** Revalidacion de Next para peticiones desde Server Components. */
   revalidate?: number | false;
+  /** Etiquetas de la cache de Next: `revalidateTag` regenera lo que las usa. */
+  tags?: string[];
+  /** Cabecera `Authorization` ya hecha (una ruta del servidor que reenvia la del navegador). */
+  authorization?: string;
 }
 
 async function buildHeaders(options: RequestOptions, forceRefresh: boolean): Promise<HeadersInit> {
@@ -59,7 +68,9 @@ async function buildHeaders(options: RequestOptions, forceRefresh: boolean): Pro
   if (options.body !== undefined) {
     headers["Content-Type"] = "application/json";
   }
-  if (!options.anonymous) {
+  if (options.authorization) {
+    headers.Authorization = options.authorization;
+  } else if (!options.anonymous) {
     const token = await tokenProvider(forceRefresh);
     if (token) {
       headers.Authorization = `Bearer ${token}`;
@@ -100,10 +111,13 @@ async function send<T>(path: string, options: RequestOptions, retried: boolean):
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
     signal: options.signal,
     cache: options.revalidate === undefined ? "no-store" : undefined,
-    next: options.revalidate === undefined ? undefined : { revalidate: options.revalidate || 0 },
+    next:
+      options.revalidate === undefined
+        ? undefined
+        : { revalidate: options.revalidate || 0, tags: options.tags },
   });
 
-  if (response.status === 401 && !retried && !options.anonymous) {
+  if (response.status === 401 && !retried && !options.anonymous && !options.authorization) {
     // El token pudo caducar entre el render y la peticion: se renueva y reintenta.
     return send<T>(path, options, true);
   }

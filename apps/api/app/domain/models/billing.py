@@ -311,6 +311,38 @@ class SubscriptionPrice:
             raise ValidationError("La mensualidad necesita su precio en la pasarela")
 
 
+@dataclass(frozen=True, slots=True)
+class Invoice:
+    """Factura que la pasarela emitio al cobrar una recarga.
+
+    La emite la pasarela; aqui guardamos su numero, sus importes y donde
+    consultarla, para encontrarla y auditarla sin depender de la pasarela. Una
+    por factura de la pasarela (`gateway_invoice_id`): el webhook puede repetirse.
+    """
+
+    id: UUID
+    professional_id: UUID
+    gateway_invoice_id: str
+    total: Money
+    issued_at: datetime
+    created_at: datetime
+    number: str | None = None
+    """Numero correlativo que la pasarela imprime en la factura."""
+    tax: Money | None = None
+    """Cuota de IVA incluida en `total`, si la factura la desglosa."""
+    hosted_url: str | None = None
+    pdf_url: str | None = None
+
+    def __post_init__(self) -> None:
+        if not self.gateway_invoice_id.strip():
+            raise ValidationError("La factura necesita su identificador en la pasarela")
+        if self.tax is not None:
+            if self.tax.currency != self.total.currency:
+                raise CurrencyMismatchError("El IVA y el total de la factura difieren de divisa")
+            if self.tax.amount_cents > self.total.amount_cents:
+                raise ValidationError("El IVA no puede superar el total de la factura")
+
+
 def assert_valid_subscription_amount(amount: Money) -> None:
     if not MIN_CHARGE_CENTS <= amount.amount_cents <= MAX_SUBSCRIPTION_CENTS:
         raise ValidationError(

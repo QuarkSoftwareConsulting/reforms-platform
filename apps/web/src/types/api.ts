@@ -34,6 +34,42 @@ export interface Service {
   id: string;
   slug: string;
   name: string;
+  /** Tarjeta en la landing; su foto en `leadsService.serviceImageUrl(id)`. */
+  featured: boolean;
+  /** Nombre de la tarjeta: el corto que fijo el admin o, si no hay, `name`. */
+  landing_name: string;
+}
+
+/** Servicio tal como lo edita el admin: los dos idiomas y si se ofrece. */
+export interface AdminCatalogService {
+  id: string;
+  /** Sale del nombre al crearlo y no cambia al renombrar. */
+  slug: string;
+  name_es: string;
+  name_en: string;
+  sort_order: number;
+  active: boolean;
+  /** Tarjeta en la landing. Exige foto (`image_key`). */
+  featured: boolean;
+  image_key: string | null;
+  /** Nombre corto de la tarjeta de la landing; `null` usa el nombre del servicio. */
+  landing_name_es: string | null;
+  landing_name_en: string | null;
+  /** Vista previa en el panel. Con GCS caduca en minutos: no se guarda. */
+  image_url: string | null;
+}
+
+/** Categoria tal como la edita el admin, con todos sus servicios (tambien desactivados). */
+export interface AdminCatalogCategory {
+  id: string;
+  /** Sale del nombre al crearla y no cambia al renombrar: lo usan las URL. */
+  slug: string;
+  name_es: string;
+  name_en: string;
+  suggested_lead_price: Money;
+  sort_order: number;
+  active: boolean;
+  services: AdminCatalogService[];
 }
 
 /** Categoria del catalogo con los servicios que hoy se ofrecen en el formulario. */
@@ -162,7 +198,8 @@ export interface Account {
   status: SubscriptionStatus;
   is_active: boolean;
   balance: Money;
-  topup_amount: Money;
+  /** `null` si el admin aun no fijo la mensualidad: nadie se puede suscribir. */
+  topup_amount: Money | null;
   current_period_end: string | null;
   can_manage_billing: boolean;
   entries: CreditEntry[];
@@ -339,11 +376,9 @@ export interface Rejection {
 }
 
 export interface SubscriptionPrice {
-  amount: Money;
+  amount: Money | null;
   updated_at: string | null;
-  /** Aun no la fijo el admin: rige el valor inicial de configuracion. */
-  is_default: boolean;
-  /** Sin precio en Stripe nadie puede suscribirse. */
+  /** False si el admin aun no la fijo: nadie puede suscribirse ni comprar. */
   configured: boolean;
 }
 

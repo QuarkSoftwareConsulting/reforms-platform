@@ -62,8 +62,8 @@ npx -y firebase-tools emulators:start --only auth \
 | Objetivo                                           | Comando                                                                  |
 | -------------------------------------------------- | ------------------------------------------------------------------------ |
 | Todo el lint (ruff + mypy strict + eslint + tsc)   | `pnpm lint`                                                              |
-| Todos los tests (681 back + 211 front)             | `pnpm test`                                                              |
-| Backend rápido, **sin Docker** (568 tests)         | `cd apps/api && uv run pytest -m "not integration"`                      |
+| Todos los tests (766 back + 249 front)             | `pnpm test`                                                              |
+| Backend rápido, **sin Docker** (641 tests)         | `cd apps/api && uv run pytest -m "not integration"`                      |
 | Backend completo (requiere `pnpm infra:up`)        | `pnpm api:test`                                                          |
 | Un solo test de backend                            | `cd apps/api && uv run pytest tests/unit/domain/test_lead.py -k capping` |
 | Frontend en watch                                  | `pnpm --filter web test:watch`                                           |
@@ -208,8 +208,8 @@ dice de quién es el cargo: `describe_charge` lo pregunta a Stripe **antes** de 
 transacción. La disputa de una compra de contacto no toca el saldo.
 → El importe lo fija el admin (`PUT /admin/subscription-price`), que crea un precio nuevo en
 Stripe y una fila en `subscription_prices` (append-only; vige la más reciente). Solo afecta
-a las suscripciones nuevas: quien ya paga conserva su importe. Hasta que el admin lo fije,
-rige `STRIPE_TOPUP_PRICE_ID` + `SUBSCRIPTION_TOPUP_CENTS`.
+a las suscripciones nuevas: quien ya paga conserva su importe. Hasta que el admin lo fije
+nadie se suscribe (`409 SUBSCRIPTION_NOT_AVAILABLE`): no hay importe por configuración.
 
 **4.11 · Solo se publica dentro de la zona de cobertura.**
 En la Etapa 1, la Comunidad de Madrid (CP 28xxx). `CreateLead` lo comprueba con
@@ -381,9 +381,10 @@ dentro de `pnpm-workspace.yaml`.
 alrededor o el `build` falla al prerenderizar. Ver `publicar/page.tsx`.
 
 **Acentos** — `apps/web/messages/*.json` es texto de cara al usuario y lleva acentos
-correctos (631 claves por idioma). La regla de ASCII puro aplica **solo al código fuente**.
+correctos (697 claves por idioma). La regla de ASCII puro aplica **solo al código fuente**.
 Lo mismo vale para `apps/api/data/categories.csv`, `services.csv`: los nombres de oficio se muestran en la
-landing y en el formulario.
+landing y en el formulario. Son solo la carga inicial: el catálogo lo gestiona el admin desde
+el panel (`/admin/catalogo`) y la semilla no pisa sus cambios.
 
 ---
 

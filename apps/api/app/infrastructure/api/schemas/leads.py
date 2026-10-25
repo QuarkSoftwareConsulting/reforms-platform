@@ -73,6 +73,10 @@ class ServiceOut(ApiModel):
     id: UUID
     slug: str
     name: str
+    featured: bool = False
+    """Sale como tarjeta en la landing; su foto en `/catalog/services/{id}/image`."""
+    landing_name: str
+    """Nombre de la tarjeta: el corto que fijo el admin o, si no hay, `name`."""
 
 
 class CatalogCategoryOut(CategoryOut):

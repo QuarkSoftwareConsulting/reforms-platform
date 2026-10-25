@@ -41,6 +41,7 @@ from app.infrastructure.adapters.clock import Uuid4Generator
 from app.infrastructure.adapters.db.repositories import (
     SqlAlchemyCategoryRepository,
     SqlAlchemyCreditLedgerRepository,
+    SqlAlchemyInvoiceRepository,
     SqlAlchemyLeadRepository,
     SqlAlchemyProcessedEventRepository,
     SqlAlchemyProfessionalAccountRepository,
@@ -123,7 +124,9 @@ def webhook_use_case(session: AsyncSession, clock: FakeClock, gateway: FakePayme
         subscriptions=ApplySubscriptionEvent(
             accounts=SqlAlchemyProfessionalAccountRepository(session),
             credit=credit_service(session),
+            invoices=SqlAlchemyInvoiceRepository(session),
             clock=clock,
+            ids=Uuid4Generator(),
         ),
         chargebacks=ApplyChargeback(
             accounts=SqlAlchemyProfessionalAccountRepository(session),

@@ -135,3 +135,21 @@ describe("SubscriptionPanel: vuelta del checkout", () => {
     expect(activateButton()).not.toBeNull();
   });
 });
+
+describe("SubscriptionPanel: sin mensualidad fijada por el admin", () => {
+  beforeEach(() => {
+    accountMock.mockReset();
+    startCheckout.mockReset();
+    search = new URLSearchParams();
+  });
+
+  it("explains it is not available yet instead of offering to subscribe", async () => {
+    accountMock.mockResolvedValue(account({ topup_amount: null }));
+    renderWithIntl(<SubscriptionPanel />);
+
+    expect(await screen.findByText(t.notAvailableNotice)).toBeTruthy();
+    expect(screen.getByText(t.notAvailable)).toBeTruthy();
+    expect(activateButton()).toBeNull();
+    expect(startCheckout).not.toHaveBeenCalled();
+  });
+});

@@ -7,16 +7,19 @@ import pytest
 
 from app.domain.exceptions import (
     CreditDebtOutstandingError,
+    CurrencyMismatchError,
     InsufficientCreditError,
     PurchaseNotPayableError,
     SubscriptionAlreadyExistsError,
     SubscriptionRequiredError,
+    ValidationError,
 )
 from app.domain.models import (
     MIN_CHARGE_CENTS,
     RENEWAL_GRACE,
     CreditEntry,
     CreditEntryKind,
+    Invoice,
     ProfessionalAccount,
     SubscriptionStatus,
 )
@@ -284,3 +287,34 @@ class TestPurchaseWithCredit:
     def test_credit_cannot_exceed_price(self) -> None:
         with pytest.raises(PurchaseNotPayableError):
             make_purchase(price=Money(1800, "EUR"), credit_applied=Money(1801, "EUR"))
+
+
+def invoice(**overrides: object) -> Invoice:
+    values: dict[str, object] = {
+        "id": uuid4(),
+        "professional_id": uuid4(),
+        "gateway_invoice_id": "in_1",
+        "total": Money(1800, "EUR"),
+        "issued_at": NOW,
+        "created_at": NOW,
+        **overrides,
+    }
+    return Invoice(**values)  # type: ignore[arg-type]
+
+
+class TestInvoice:
+    def test_vat_is_optional(self) -> None:
+        assert invoice().tax is None
+        assert invoice(tax=Money(312, "EUR")).tax == Money(312, "EUR")
+
+    def test_needs_the_gateway_reference(self) -> None:
+        with pytest.raises(ValidationError):
+            invoice(gateway_invoice_id="  ")
+
+    def test_vat_cannot_exceed_the_total(self) -> None:
+        with pytest.raises(ValidationError):
+            invoice(tax=Money(1801, "EUR"))
+
+    def test_vat_in_another_currency_is_rejected(self) -> None:
+        with pytest.raises(CurrencyMismatchError):
+            invoice(tax=Money(312, "USD"))

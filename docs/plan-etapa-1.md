@@ -321,6 +321,20 @@ Pendiente:
 - Correo al cliente con los profesionales que compraron: al llegar a 5 compras o a las
   24 h con los que haya.
 - Botón de WhatsApp tras la compra y "generar factura".
+- Hecho por adelantado (2026-10-18), por si las facturas se quedan en Stripe: las de la
+  mensualidad llevan razón social, NIF y domicilio del profesional (se sincronizan con el
+  perfil), desglosan el IVA (21 % incluido; la app crea el tipo en Stripe) y se guardan en
+  `invoices` (número, importes, IVA, enlaces). Falta lo que decida la gestoría
+  ([`preguntas-cliente.md`](./preguntas-cliente.md), pregunta 2): sistema Verifactu,
+  facturas de los contactos pagados con tarjeta, rectificativas y mostrarlas en la app.
+- Hecho por adelantado (2026-10-18): el admin gestiona el catálogo desde el panel
+  (`/admin/catalogo`): crear, renombrar, reordenar, cambiar el precio sugerido y desactivar
+  categorías y servicios; borrar solo lo que ningún lead ni profesional usa. El slug no
+  cambia al renombrar. La semilla pasa a ser solo carga inicial.
+- Hecho por adelantado (2026-10-18): las tarjetas de la landing son los servicios que el admin
+  destaca en el catálogo, con foto obligatoria; la landing anuncia la mensualidad real y se
+  regenera al guardar cambios (respaldo diario). La mensualidad ya no tiene valor por
+  configuración: sin la que fije el admin nadie se suscribe.
 - Header: fondo blanco con logotipo azul y amarillo. Navegación pública: Soy profesional |
   Acceder | Publicar solicitud. Privada: Contactos | Mis contactos | Mi perfil | Salir.
 

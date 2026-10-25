@@ -4,8 +4,8 @@ El cobro y la activacion no ocurren aqui: iniciar la suscripcion solo devuelve l
 URL del checkout. La cuenta se activa y el saldo se abona cuando el webhook
 confirma el cobro (`ApplySubscriptionEvent`), nunca al volver el navegador.
 
-El importe lo fija el admin (`SetSubscriptionPrice`). Mientras no lo haga, rige el
-de configuracion (`STRIPE_TOPUP_PRICE_ID` + `SUBSCRIPTION_TOPUP_CENTS`).
+El importe lo fija el admin (`SetSubscriptionPrice`). Mientras no lo haga nadie se
+puede suscribir, y sin mensualidad no se compran contactos.
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from uuid import UUID
 
 from app.application.dto import AccountSummary, SubscriptionPriceInfo
 from app.application.ports import (
+    BillingDetails,
     ClockPort,
     CreditLedgerRepositoryPort,
     CustomerRequest,
@@ -28,9 +29,9 @@ from app.application.ports import (
 )
 from app.application.use_cases.credit_ledger import CreditLedgerService
 from app.domain.exceptions import (
-    PaymentGatewayError,
     ProfessionalNotFoundError,
     SubscriptionAlreadyExistsError,
+    SubscriptionNotAvailableError,
     SubscriptionRequiredError,
     ValidationError,
 )
@@ -48,28 +49,29 @@ RECENT_ENTRIES = 20
 PRODUCT_NAME = "Mensualidad Voy a Reformar"
 
 
+def billing_details(professional: Professional) -> BillingDetails:
+    """Datos con los que la pasarela factura al profesional."""
+    return BillingDetails(
+        name=professional.legal_name or professional.business_name,
+        tax_id=professional.tax_id,
+        address=professional.address,
+    )
+
+
 @dataclass(slots=True)
 class SubscriptionPricing:
-    """Resuelve la mensualidad vigente: la del admin o, si no hay, la de configuracion."""
+    """Resuelve la mensualidad vigente: la ultima que fijo el admin, o ninguna."""
 
     prices: SubscriptionPriceRepositoryPort
-    default_amount: Money
-    default_price_id: str
 
-    async def current(self) -> SubscriptionPriceInfo:
+    async def current(self) -> SubscriptionPriceInfo | None:
         price = await self.prices.current()
-        if price is not None:
-            return SubscriptionPriceInfo(
-                amount=price.amount,
-                stripe_price_id=price.stripe_price_id,
-                updated_at=price.created_at,
-                is_default=False,
-            )
+        if price is None:
+            return None
         return SubscriptionPriceInfo(
-            amount=self.default_amount,
-            stripe_price_id=self.default_price_id or None,
-            updated_at=None,
-            is_default=True,
+            amount=price.amount,
+            stripe_price_id=price.stripe_price_id,
+            updated_at=price.created_at,
         )
 
 
@@ -89,7 +91,7 @@ class SetSubscriptionPrice:
         amount = Money(amount_cents, self.currency)
         assert_valid_subscription_amount(amount)
         current = await self.pricing.current()
-        if not current.is_default and current.amount == amount:
+        if current is not None and current.amount == amount:
             return current
 
         # Llamada de red antes de escribir: si la pasarela falla no queda una
@@ -97,17 +99,18 @@ class SetSubscriptionPrice:
         stripe_price_id = await self.payments.create_recurring_price(
             amount=amount, product_name=PRODUCT_NAME
         )
+        price = SubscriptionPrice(
+            id=self.ids.new_id(),
+            amount=amount,
+            stripe_price_id=stripe_price_id,
+            created_at=self.clock.now(),
+            created_by_user_id=admin_user_id,
+        )
         async with self.uow:
-            await self.prices.add(
-                SubscriptionPrice(
-                    id=self.ids.new_id(),
-                    amount=amount,
-                    stripe_price_id=stripe_price_id,
-                    created_at=self.clock.now(),
-                    created_by_user_id=admin_user_id,
-                )
-            )
-        return await self.pricing.current()
+            await self.prices.add(price)
+        return SubscriptionPriceInfo(
+            amount=price.amount, stripe_price_id=price.stripe_price_id, updated_at=price.created_at
+        )
 
 
 @dataclass(slots=True)
@@ -127,8 +130,8 @@ class StartSubscription:
             account.assert_can_start_subscription()
 
         price = await self.pricing.current()
-        if price.stripe_price_id is None:
-            raise PaymentGatewayError("La mensualidad no esta configurada")
+        if price is None:
+            raise SubscriptionNotAvailableError()
 
         customer_id = account.stripe_customer_id if account is not None else None
         if customer_id is not None and await self.payments.has_live_subscription(customer_id):
@@ -136,13 +139,17 @@ class StartSubscription:
             # viene en camino (o se perdio). Otro checkout seria un segundo cobro. Si la
             # pasarela no responde, el error sube: sin saberlo, no se abre el checkout.
             raise SubscriptionAlreadyExistsError()
-        if customer_id is None:
+        if customer_id is not None:
+            # El cliente pudo crearse antes de que el perfil tuviera NIF y domicilio, y
+            # la primera factura se emite nada mas pagar el checkout con lo que tenga.
+            await self.payments.update_customer_billing(customer_id, billing_details(professional))
+        else:
             # Llamada de red fuera de la transaccion, como en la compra de leads.
             customer_id = await self.payments.create_customer(
                 CustomerRequest(
                     professional_id=professional.id,
                     email=email,
-                    name=professional.business_name,
+                    billing=billing_details(professional),
                 )
             )
             async with self.uow:
@@ -194,17 +201,19 @@ class GetProfessionalAccount:
     ledger: CreditLedgerRepositoryPort
     pricing: SubscriptionPricing
     clock: ClockPort
+    currency: str
 
     async def execute(
         self, *, professional_id: UUID, include_entries: bool = False
     ) -> AccountSummary:
         account = await self.accounts.get(professional_id)
-        offered = (await self.pricing.current()).amount
+        current = await self.pricing.current()
+        offered = current.amount if current is not None else None
         if account is None:
             return AccountSummary(
                 status=SubscriptionStatus.NONE,
                 is_active=False,
-                balance=Money.zero(offered.currency),
+                balance=Money.zero(self.currency),
                 topup_amount=offered,
                 current_period_end=None,
                 can_manage_billing=False,

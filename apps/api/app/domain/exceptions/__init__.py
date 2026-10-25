@@ -155,6 +155,52 @@ class CategoryNotFoundError(NotFoundError):
     code = "CATEGORY_NOT_FOUND"
 
 
+class ServiceNotFoundError(NotFoundError):
+    """El servicio no existe en esa categoria."""
+
+    code = "SERVICE_NOT_FOUND"
+
+
+class CatalogNameInvalidError(ValidationError):
+    """El nombre es obligatorio, debe tener letras o numeros y no puede ser tan largo."""
+
+    # `min`/`max` viajan en `details`: el frontend los pone en el texto traducido.
+    code = "CATALOG_NAME_INVALID"
+
+
+class FeaturedServiceNeedsImageError(ValidationError):
+    """Un servicio destacado en la landing necesita su foto."""
+
+    code = "FEATURED_SERVICE_NEEDS_IMAGE"
+
+
+class CatalogImageTypeNotAllowedError(ValidationError):
+    """La foto de un servicio debe ser JPG, PNG o WebP."""
+
+    code = "CATALOG_IMAGE_TYPE_NOT_ALLOWED"
+
+
+class CatalogImageTooLargeError(ValidationError):
+    """La foto de un servicio supera el tamano maximo."""
+
+    # `max` (en MB) viaja en `details`: el frontend lo pone en el texto traducido.
+    code = "CATALOG_IMAGE_TOO_LARGE"
+
+
+class CatalogSlugTakenError(DomainError):
+    """Ya existe una categoria o un servicio con ese nombre."""
+
+    code = "CATALOG_SLUG_TAKEN"
+    status = 409
+
+
+class CatalogItemInUseError(DomainError):
+    """Hay solicitudes o profesionales que lo usan: desactivalo en vez de borrarlo."""
+
+    code = "CATALOG_ITEM_IN_USE"
+    status = 409
+
+
 class UnknownPostalCodeError(ValidationError):
     """No reconocemos ese codigo postal."""
 
@@ -241,6 +287,13 @@ class ConsentDateInFutureError(ValidationError):
 
 
 # --------------------------- Recarga y saldo -----------------------------
+
+
+class SubscriptionNotAvailableError(DomainError):
+    """La mensualidad todavia no esta disponible: el admin no ha fijado su importe."""
+
+    code = "SUBSCRIPTION_NOT_AVAILABLE"
+    status = 409
 
 
 class SubscriptionRequiredError(DomainError):
@@ -346,6 +399,11 @@ class LastAdminError(DomainError):
 __all__ = [
     "AuthenticationError",
     "CannotChangeOwnRoleError",
+    "CatalogImageTooLargeError",
+    "CatalogImageTypeNotAllowedError",
+    "CatalogItemInUseError",
+    "CatalogNameInvalidError",
+    "CatalogSlugTakenError",
     "CategoryMismatchError",
     "CategoryNotFoundError",
     "ClientNameRequiredError",
@@ -356,6 +414,7 @@ __all__ = [
     "CurrencyMismatchError",
     "DescriptionLengthError",
     "DomainError",
+    "FeaturedServiceNeedsImageError",
     "InsufficientCreditError",
     "InvalidEmailError",
     "InvalidPhoneError",
@@ -383,7 +442,9 @@ __all__ = [
     "PurchaseNotFoundError",
     "PurchaseNotPayableError",
     "RejectionAwaitingPaymentError",
+    "ServiceNotFoundError",
     "SubscriptionAlreadyExistsError",
+    "SubscriptionNotAvailableError",
     "SubscriptionRequiredError",
     "TitleLengthError",
     "TooManyVerificationAttemptsError",

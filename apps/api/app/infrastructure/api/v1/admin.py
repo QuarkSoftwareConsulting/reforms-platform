@@ -15,8 +15,9 @@ from uuid import UUID
 from fastapi import APIRouter, Query, status
 
 from app.application.dto import AdminPurchaseQuery, ConsentInput, CreateLeadInput
-from app.application.ports import AdminLeadFilters, AdminUserFilters
+from app.application.ports import AdminLeadFilters, AdminUserFilters, StoragePort
 from app.domain.models import (
+    Category,
     LeadSource,
     LeadStatus,
     PurchaseStatus,
@@ -27,6 +28,7 @@ from app.domain.value_objects import Money
 from app.infrastructure.api import serializers
 from app.infrastructure.api.dependencies import AdminDep, ContainerDep, LocaleDep
 from app.infrastructure.api.schemas.admin import (
+    AdminCategoryOut,
     AdminCreateLeadIn,
     AdminLeadListOut,
     AdminLeadStatusOut,
@@ -36,15 +38,18 @@ from app.infrastructure.api.schemas.admin import (
     AdminPurchaseOut,
     AdminUserListOut,
     AdminUserOut,
+    CreateCategoryIn,
+    CreateServiceIn,
     LeadPricingOut,
     MetricsTimeseriesOut,
     PurchaseReviewIn,
     PurchaseReviewOut,
     RejectionOut,
     RejectProfessionalIn,
-    SetCategoryPriceIn,
     SetLeadPriceIn,
     SetUserRoleIn,
+    UpdateCategoryIn,
+    UpdateServiceIn,
     UserRoleEventOut,
     VerificationDossierOut,
 )
@@ -54,7 +59,7 @@ from app.infrastructure.api.schemas.billing import (
     SetSubscriptionPriceIn,
     SubscriptionPriceOut,
 )
-from app.infrastructure.api.schemas.leads import CategoryOut, CreateLeadOut
+from app.infrastructure.api.schemas.leads import CreateLeadOut, PresignPhotoIn, PresignPhotoOut
 from app.infrastructure.api.schemas.professionals import ProfessionalOut
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -454,27 +459,148 @@ async def set_lead_price(
     return serializers.lead_pricing_out(pricing, locale)
 
 
-@router.put(
-    "/categories/{category_id}/suggested-price",
-    response_model=CategoryOut,
-    summary="Fijar el precio sugerido de un oficio",
-)
-async def set_category_suggested_price(
-    category_id: UUID,
-    payload: SetCategoryPriceIn,
-    container: ContainerDep,
-    locale: LocaleDep,
-    _: AdminDep,
-) -> CategoryOut:
-    """Cambia la referencia del oficio.
+# ------------------------------- Catalogo --------------------------------
+# Lo usado se desactiva (`active: false`); borrar solo vale para lo que nada usa.
+# Los nombres se renombran sin cambiar el slug: lo usan las URL publicas.
 
-    Los leads con precio propio no se ven afectados: el admin ya decidio sobre
-    ellos y una edicion del catalogo no debe deshacer esa decision.
-    """
-    category = await container.set_category_price.execute(
-        category_id=category_id,
-        price=Money(
-            payload.amount_cents, payload.currency or container.infra.settings.default_currency
-        ),
+
+async def _admin_category_out(category: Category, storage: StoragePort) -> AdminCategoryOut:
+    # Con GCS cada URL de imagen se firma por red (signBlob): fuera del event loop.
+    return await asyncio.to_thread(serializers.admin_category_out, category, storage)
+
+
+@router.get(
+    "/catalog",
+    response_model=list[AdminCategoryOut],
+    summary="Catalogo completo, tambien lo desactivado",
+)
+async def list_catalog(container: ContainerDep, _: AdminDep) -> list[AdminCategoryOut]:
+    categories = await container.list_catalog.execute()
+    return list(
+        await asyncio.gather(
+            *(_admin_category_out(category, container.infra.storage) for category in categories)
+        )
     )
-    return serializers.category_out(category, locale)
+
+
+@router.post(
+    "/categories",
+    response_model=AdminCategoryOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Crear una categoria de oficio",
+)
+async def create_category(
+    payload: CreateCategoryIn, container: ContainerDep, _: AdminDep
+) -> AdminCategoryOut:
+    category = await container.create_category.execute(
+        name_es=payload.name_es,
+        name_en=payload.name_en,
+        suggested_lead_price=Money(
+            payload.suggested_price_cents, container.infra.settings.default_currency
+        ),
+        sort_order=payload.sort_order,
+    )
+    return await _admin_category_out(category, container.infra.storage)
+
+
+@router.put(
+    "/categories/{category_id}",
+    response_model=AdminCategoryOut,
+    summary="Editar una categoria: nombres, orden, precio sugerido y si esta activa",
+)
+async def update_category(
+    category_id: UUID, payload: UpdateCategoryIn, container: ContainerDep, _: AdminDep
+) -> AdminCategoryOut:
+    category = await container.update_category.execute(
+        category_id=category_id,
+        name_es=payload.name_es,
+        name_en=payload.name_en,
+        suggested_price_cents=payload.suggested_price_cents,
+        sort_order=payload.sort_order,
+        active=payload.active,
+    )
+    return await _admin_category_out(category, container.infra.storage)
+
+
+@router.delete(
+    "/categories/{category_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Borrar una categoria que nada usa (si se usa, desactivala)",
+)
+async def delete_category(category_id: UUID, container: ContainerDep, _: AdminDep) -> None:
+    await container.delete_category.execute(category_id=category_id)
+
+
+@router.post(
+    "/categories/{category_id}/services",
+    response_model=AdminCategoryOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Anadir un servicio a una categoria",
+)
+async def create_service(
+    category_id: UUID, payload: CreateServiceIn, container: ContainerDep, _: AdminDep
+) -> AdminCategoryOut:
+    category = await container.create_service.execute(
+        category_id=category_id, name_es=payload.name_es, name_en=payload.name_en
+    )
+    return await _admin_category_out(category, container.infra.storage)
+
+
+@router.put(
+    "/categories/{category_id}/services/{service_id}",
+    response_model=AdminCategoryOut,
+    summary="Editar un servicio: nombres, orden y si esta activo",
+)
+async def update_service(
+    category_id: UUID,
+    service_id: UUID,
+    payload: UpdateServiceIn,
+    container: ContainerDep,
+    _: AdminDep,
+) -> AdminCategoryOut:
+    category = await container.update_service.execute(
+        category_id=category_id,
+        service_id=service_id,
+        name_es=payload.name_es,
+        name_en=payload.name_en,
+        sort_order=payload.sort_order,
+        active=payload.active,
+        featured=payload.featured,
+        image_key=payload.image_key,
+        landing_name_es=payload.landing_name_es,
+        landing_name_en=payload.landing_name_en,
+    )
+    return await _admin_category_out(category, container.infra.storage)
+
+
+@router.post(
+    "/categories/{category_id}/services/{service_id}/image-upload",
+    response_model=PresignPhotoOut,
+    summary="URL firmada para subir la foto de la tarjeta de un servicio",
+)
+async def request_service_image_upload(
+    category_id: UUID,
+    service_id: UUID,
+    payload: PresignPhotoIn,
+    container: ContainerDep,
+    _: AdminDep,
+) -> PresignPhotoOut:
+    upload = await container.request_catalog_image_upload.execute(
+        category_id=category_id,
+        service_id=service_id,
+        filename=payload.filename,
+        content_type=payload.content_type,
+        size_bytes=payload.size_bytes,
+    )
+    return serializers.presign_out(upload)
+
+
+@router.delete(
+    "/categories/{category_id}/services/{service_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Borrar un servicio que nada usa (si se usa, desactivalo)",
+)
+async def delete_service(
+    category_id: UUID, service_id: UUID, container: ContainerDep, _: AdminDep
+) -> None:
+    await container.delete_service.execute(category_id=category_id, service_id=service_id)

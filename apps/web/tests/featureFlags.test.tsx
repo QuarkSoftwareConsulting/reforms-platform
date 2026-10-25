@@ -30,13 +30,13 @@ describe("featureFlagsService", () => {
     requestMock.mockReset();
   });
 
-  it("reads them without a session and cached for a minute", async () => {
+  it("reads them without a session and cached for five minutes", async () => {
     requestMock.mockResolvedValue({ flags: { "new-checkout": true } });
 
     expect(await featureFlagsService.list()).toEqual({ "new-checkout": true });
     expect(requestMock).toHaveBeenCalledWith("/feature-flags", {
       anonymous: true,
-      revalidate: 60,
+      revalidate: 300,
     });
   });
 

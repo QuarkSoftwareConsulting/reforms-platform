@@ -1,13 +1,15 @@
 /** Endpoints de solicitudes. */
 
+import { CATALOG_TAG, DAILY_REVALIDATE_SECONDS, PRICING_TAG } from "@/helpers/cacheTags";
 import type { ProjectSchedule, PropertyType } from "@/helpers/leadOptions";
-import { request } from "@/services/api";
+import { apiBaseUrl, request } from "@/services/api";
 import type {
   CatalogCategory,
   CreatedLead,
   LeadDetail,
   LeadList,
   Locale,
+  Money,
   PostalCodeInfo,
   PresignedUpload,
 } from "@/types/api";
@@ -82,8 +84,28 @@ export const leadsService = {
   },
 
   categories(locale: Locale): Promise<CatalogCategory[]> {
-    // El catalogo cambia muy poco: se cachea 5 minutos para las paginas SSR.
-    return request<CatalogCategory[]>("/categories", { locale, anonymous: true, revalidate: 300 });
+    // Se regenera cuando el admin cambia el catalogo; un dia como respaldo.
+    return request<CatalogCategory[]>("/categories", {
+      locale,
+      anonymous: true,
+      revalidate: DAILY_REVALIDATE_SECONDS,
+      tags: [CATALOG_TAG],
+    });
+  },
+
+  /** Foto de la tarjeta de un servicio destacado: URL estable que redirige al bucket. */
+  serviceImageUrl(serviceId: string): string {
+    return `${apiBaseUrl}/catalog/services/${serviceId}/image`;
+  },
+
+  /** Mensualidad vigente, para anunciarla en la landing. `amount` null: aun sin fijar. */
+  subscriptionPrice(locale: Locale): Promise<{ amount: Money | null }> {
+    return request<{ amount: Money | null }>("/subscription-price", {
+      locale,
+      anonymous: true,
+      revalidate: DAILY_REVALIDATE_SECONDS,
+      tags: [PRICING_TAG],
+    });
   },
 
   postalCode(code: string): Promise<PostalCodeInfo> {

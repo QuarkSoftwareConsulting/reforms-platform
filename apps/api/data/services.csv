@@ -1,6 +1,6 @@
 # Segundo nivel del catalogo: servicios de cada categoria, en el orden del documento
-# del cliente (docs/etapa-1-cliente.md). Un servicio retirado se quita de aqui y la
-# semilla lo desactiva; no se borra porque los leads antiguos lo siguen nombrando.
+# del cliente (docs/etapa-1-cliente.md). Es solo la carga inicial: despues el catalogo
+# lo gestiona el admin desde el panel y la semilla no pisa sus cambios.
 category_slug,slug,name_es,name_en
 reformas,reformas-banos,Reformas de baños,Bathroom renovations
 reformas,reformas-cocinas,Reformas de cocinas,Kitchen renovations

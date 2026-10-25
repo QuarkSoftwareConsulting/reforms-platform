@@ -93,6 +93,10 @@ def category_to_domain(row: CategoryRow) -> Category:
                 name_en=s.name_en,
                 sort_order=s.sort_order,
                 active=s.active,
+                featured=s.featured,
+                image_key=s.image_key,
+                landing_name_es=s.landing_name_es,
+                landing_name_en=s.landing_name_en,
             )
             for s in sorted(row.services, key=lambda s: s.sort_order)
         ],
@@ -107,7 +111,7 @@ def apply_category(row: CategoryRow, category: Category) -> CategoryRow:
     row.currency = category.suggested_lead_price.currency
     row.active = category.active
     row.sort_order = category.sort_order
-    # Los servicios no se tocan aqui: el catalogo lo mantiene la semilla.
+    # Los servicios los sincroniza el repositorio: crear uno exige su propia fila.
     return row
 
 
@@ -155,6 +159,7 @@ def professional_to_domain(row: ProfessionalRow) -> Professional:
         legal_name=row.legal_name,
         tax_id=TaxId(row.tax_id) if row.tax_id else None,
         address=row.address,
+        billing_sync_pending=row.billing_sync_pending,
         profile_photo_key=row.profile_photo_key,
         logo_key=row.logo_key,
         work_photo_keys=[
@@ -191,6 +196,7 @@ def apply_professional(row: ProfessionalRow, professional: Professional) -> Prof
     row.legal_name = professional.legal_name
     row.tax_id = professional.tax_id.value if professional.tax_id else None
     row.address = professional.address
+    row.billing_sync_pending = professional.billing_sync_pending
     row.profile_photo_key = professional.profile_photo_key
     row.logo_key = professional.logo_key
     row.verification_status = professional.verification_status

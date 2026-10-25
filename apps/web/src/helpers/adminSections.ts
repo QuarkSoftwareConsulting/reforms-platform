@@ -11,6 +11,7 @@ export const ADMIN_SECTIONS = [
   { key: "leads", suffix: "/solicitudes" },
   { key: "purchases", suffix: "/compras" },
   { key: "pricing", suffix: "/precios" },
+  { key: "catalog", suffix: "/catalogo" },
 ] as const;
 
 export type AdminSection = (typeof ADMIN_SECTIONS)[number]["key"];

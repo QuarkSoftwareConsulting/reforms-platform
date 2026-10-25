@@ -17,6 +17,7 @@ from app.domain.models import (
     CreditEntryKind,
     FeatureFlag,
     FlagEnvironment,
+    Invoice,
     Lead,
     LeadSource,
     LeadStatus,
@@ -340,17 +341,57 @@ class CategoryRepositoryPort(ABC):
     async def list_active(self) -> list[Category]: ...
 
     @abstractmethod
+    async def list_all(self) -> list[Category]:
+        """Todo el catalogo, tambien lo desactivado: lo que gestiona el admin."""
+
+    @abstractmethod
     async def get(self, category_id: UUID) -> Category | None: ...
 
     @abstractmethod
     async def get_by_slug(self, slug: str) -> Category | None: ...
 
     @abstractmethod
+    async def get_for_update(self, category_id: UUID) -> Category | None:
+        """Bloquea la categoria hasta el final de la transaccion.
+
+        `update` reescribe todos sus servicios: sin el bloqueo, dos ediciones de la
+        misma categoria a la vez se pisarian. Tambien hace esperar a quien la anade a
+        un perfil, para que `is_in_use` lo vea antes de borrarla.
+        """
+
+    @abstractmethod
+    async def get_by_service(self, service_id: UUID) -> Category | None:
+        """La categoria a la que pertenece el servicio, con todos sus servicios."""
+
+    @abstractmethod
     async def get_many(self, category_ids: set[UUID]) -> list[Category]: ...
 
     @abstractmethod
+    async def add(self, category: Category) -> Category: ...
+
+    @abstractmethod
     async def update(self, category: Category) -> Category:
-        """Persiste cambios del catalogo (hoy solo el precio sugerido del oficio)."""
+        """Persiste la categoria y sus servicios: crea los nuevos y actualiza los demas.
+
+        Los servicios que ya no estan en la categoria no se borran aqui: borrar es
+        `delete_service`, solo para lo que nada usa.
+        """
+
+    @abstractmethod
+    async def delete(self, category_id: UUID) -> None:
+        """Borra la categoria y sus servicios. Solo si `is_in_use` es False."""
+
+    @abstractmethod
+    async def delete_service(self, service_id: UUID) -> None:
+        """Borra un servicio. Solo si `is_service_in_use` es False."""
+
+    @abstractmethod
+    async def is_in_use(self, category_id: UUID) -> bool:
+        """Si algun lead o profesional usa la categoria o alguno de sus servicios."""
+
+    @abstractmethod
+    async def is_service_in_use(self, service_id: UUID) -> bool:
+        """Si algun lead o profesional usa el servicio."""
 
 
 class PostalCodeRepositoryPort(ABC):
@@ -449,6 +490,17 @@ class CreditLedgerRepositoryPort(ABC):
     @abstractmethod
     async def daily_topups(self, *, start: datetime, end: datetime, tz: str) -> list[DailyCount]:
         """Recargas cobradas por dia en `[start, end)`, con su importe."""
+
+
+class InvoiceRepositoryPort(ABC):
+    """Facturas emitidas por la pasarela. Append-only."""
+
+    @abstractmethod
+    async def add_if_absent(self, invoice: Invoice) -> bool:
+        """Guarda la factura y devuelve True si no estaba ya guardada.
+
+        La identifica `gateway_invoice_id`: un webhook repetido no la duplica.
+        """
 
 
 class FeatureFlagRepositoryPort(ABC):

@@ -11,12 +11,13 @@ import json
 import logging
 import time
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import Any, Final, cast
 from uuid import UUID
 
 import stripe
 
 from app.application.ports import (
+    BillingDetails,
     ChargeOwner,
     CheckoutRequest,
     CheckoutSession,
@@ -27,7 +28,7 @@ from app.application.ports import (
     SubscriptionCheckoutRequest,
 )
 from app.domain.exceptions import AuthenticationError, DomainError, PaymentGatewayError
-from app.domain.models import SubscriptionStatus
+from app.domain.models import VAT_RATE_PERCENT, SubscriptionStatus
 from app.domain.value_objects import Money
 
 logger = logging.getLogger(__name__)
@@ -88,6 +89,15 @@ LIVE_SUBSCRIPTION_STATUSES = frozenset({"active", "trialing", "past_due", "unpai
 # SEPA (el primer cobro tarda unos dias en confirmarse).
 SUBSCRIPTION_PAYMENT_METHODS = ["card", "sepa_debit"]
 
+# Tipo de identificador fiscal de Stripe para Espana. Acepta NIF, NIE y CIF (comprobado
+# en modo test); `eu_vat` exigiria estar dado de alta en el VIES.
+SPAIN_TAX_ID_TYPE: Final = "es_cif"
+
+# Marca del tipo de IVA que crea la app en Stripe, para reencontrarlo en vez de crear otro.
+# El porcentaje sale del dominio (`VAT_RATE_PERCENT`): es el mismo en test y en live, solo
+# cambia el id que Stripe le asigna en cada cuenta.
+VAT_RATE_METADATA = {"managed_by": "reforma-hub", "purpose": "vat-inclusive"}
+
 # Stripe solo acepta estos codigos de idioma en el checkout.
 SUPPORTED_LOCALES = {"es", "en"}
 
@@ -100,6 +110,8 @@ class StripePaymentGateway(PaymentPort):
     def __init__(self, *, secret_key: str, webhook_secret: str) -> None:
         self._client = stripe.StripeClient(secret_key) if secret_key else None
         self._webhook_secret = webhook_secret
+        self._vat_tax_rate_id: str | None = None
+        self._vat_lock = asyncio.Lock()
 
     def _require_client(self) -> stripe.StripeClient:
         if self._client is None:
@@ -201,6 +213,7 @@ class StripePaymentGateway(PaymentPort):
 
         event_type = _classify(event.type, obj, purchase_id)
         is_subscription = event_type.concerns_subscription
+        is_invoice = obj.get("object") == "invoice"
         subscription_id = _subscription_id(obj) if is_subscription else None
         raw_status = obj.get("status") if obj.get("object") == "subscription" else None
         subscription_status = SUBSCRIPTION_STATUS_MAP.get(str(raw_status)) if raw_status else None
@@ -216,7 +229,7 @@ class StripePaymentGateway(PaymentPort):
             payment_intent_id=_as_id(obj.get("payment_intent")),
             amount_cents=(
                 obj.get("amount_paid")
-                if obj.get("object") == "invoice"
+                if is_invoice
                 else obj.get("amount_total") or obj.get("amount")
             ),
             currency=(obj.get("currency") or "").upper() or None,
@@ -225,12 +238,18 @@ class StripePaymentGateway(PaymentPort):
             payload={"id": event.id, "type": event.type},
             customer_id=_as_id(obj.get("customer")) if is_subscription else None,
             subscription_id=subscription_id,
-            invoice_id=obj.get("id") if obj.get("object") == "invoice" else None,
+            invoice_id=obj.get("id") if is_invoice else None,
             subscription_status=subscription_status,
             period_end=_period_end(obj) if is_subscription else None,
             occurred_at=_from_epoch(getattr(event, "created", None)),
             dispute_id=obj.get("id") if obj.get("object") == "dispute" else None,
             charge_id=_as_id(obj.get("charge")) if obj.get("object") == "dispute" else None,
+            invoice_number=obj.get("number") if is_invoice else None,
+            invoice_url=obj.get("hosted_invoice_url") if is_invoice else None,
+            invoice_pdf_url=obj.get("invoice_pdf") if is_invoice else None,
+            invoice_total_cents=_as_cents(obj.get("total")) if is_invoice else None,
+            tax_cents=_invoice_tax(obj) if is_invoice else None,
+            issued_at=_invoice_issued_at(obj) if is_invoice else None,
         )
 
     async def expire_checkout_session(self, session_id: str) -> None:
@@ -246,9 +265,13 @@ class StripePaymentGateway(PaymentPort):
         client = self._require_client()
         params: dict[str, Any] = {
             "email": request.email,
-            "name": request.name,
             "metadata": {"professional_id": str(request.professional_id)},
+            **_billing_params(request.billing),
         }
+        if request.billing.tax_id is not None:
+            params["tax_id_data"] = [
+                {"type": SPAIN_TAX_ID_TYPE, "value": str(request.billing.tax_id)}
+            ]
         try:
             customer = await asyncio.to_thread(client.customers.create, params=cast(Any, params))
         except stripe.StripeError as exc:
@@ -256,16 +279,64 @@ class StripePaymentGateway(PaymentPort):
             raise PaymentGatewayError() from exc
         return str(customer.id)
 
+    async def update_customer_billing(self, customer_id: str, billing: BillingDetails) -> None:
+        client = self._require_client()
+        try:
+            params = _billing_params(billing)
+            if "address" not in params:
+                # Stripe conserva lo que no se le envia: borrar el domicilio exige
+                # pedirlo con un valor vacio, o las facturas seguirian con el viejo.
+                params["address"] = ""
+            await asyncio.to_thread(
+                client.v1.customers.update, customer_id, params=cast(Any, params)
+            )
+            await self._sync_tax_id(client, customer_id, billing)
+        except stripe.StripeError as exc:
+            logger.error("stripe_datos_fiscales_fallidos: %s", exc, exc_info=True)
+            raise PaymentGatewayError() from exc
+
+    async def _sync_tax_id(
+        self, client: stripe.StripeClient, customer_id: str, billing: BillingDetails
+    ) -> None:
+        """Deja en el cliente solo el NIF vigente.
+
+        Stripe no edita un identificador fiscal: se crea el nuevo y se borra el viejo.
+        En ese orden: si falla la creacion, el cliente conserva el viejo en vez de
+        quedarse sin ninguno para la proxima renovacion. Las facturas ya emitidas
+        conservan el que tenian al emitirse.
+        """
+        wanted = str(billing.tax_id) if billing.tax_id is not None else None
+        current = await asyncio.to_thread(
+            client.v1.customers.tax_ids.list, customer_id, params={"limit": 100}
+        )
+        spanish = [t for t in current.data if t.type == SPAIN_TAX_ID_TYPE]
+        if wanted is not None and not any(t.value == wanted for t in spanish):
+            await asyncio.to_thread(
+                client.v1.customers.tax_ids.create,
+                customer_id,
+                params={"type": SPAIN_TAX_ID_TYPE, "value": wanted},
+            )
+        for tax_id in spanish:
+            if tax_id.value != wanted:
+                await asyncio.to_thread(client.v1.customers.tax_ids.delete, customer_id, tax_id.id)
+
     async def create_subscription_checkout(
         self, request: SubscriptionCheckoutRequest
     ) -> CheckoutSession:
         client = self._require_client()
         locale = request.locale if request.locale in SUPPORTED_LOCALES else "auto"
         metadata = {"professional_id": str(request.professional_id)}
+        line_item: dict[str, Any] = {
+            "price": request.price_id,
+            "quantity": 1,
+            # El tipo queda en la linea de la suscripcion: lo desglosan tambien las
+            # facturas de las renovaciones, no solo la primera.
+            "tax_rates": [await self._vat_tax_rate(client)],
+        }
         params: dict[str, Any] = {
             "mode": "subscription",
             "customer": request.customer_id,
-            "line_items": [{"price": request.price_id, "quantity": 1}],
+            "line_items": [line_item],
             "payment_method_types": SUBSCRIPTION_PAYMENT_METHODS,
             "success_url": request.success_url,
             "cancel_url": request.cancel_url,
@@ -285,6 +356,54 @@ class StripePaymentGateway(PaymentPort):
             logger.error("stripe_checkout_sin_url: session=%s", session.id)
             raise PaymentGatewayError()
         return CheckoutSession(id=session.id, url=session.url, expires_at_epoch=session.expires_at)
+
+    async def _vat_tax_rate(self, client: stripe.StripeClient) -> str:
+        """Id del IVA incluido en la cuenta de Stripe; lo crea la primera vez.
+
+        Se busca por sus metadatos y se guarda en memoria: una consulta por proceso. El
+        cerrojo evita que dos checkouts simultaneos creen dos; entre instancias lo evita
+        la clave de idempotencia (24 h), y pasado ese plazo ya se encuentra al buscar.
+        """
+        if self._vat_tax_rate_id is not None:
+            return self._vat_tax_rate_id
+        async with self._vat_lock:
+            if self._vat_tax_rate_id is not None:
+                return self._vat_tax_rate_id
+            try:
+                rates = await asyncio.to_thread(
+                    client.v1.tax_rates.list,
+                    params={"active": True, "inclusive": True, "limit": 100},
+                )
+                found = next(
+                    (
+                        rate.id
+                        for rate in rates.data
+                        if rate.percentage == VAT_RATE_PERCENT
+                        and _metadata_value(rate, "managed_by") == VAT_RATE_METADATA["managed_by"]
+                    ),
+                    None,
+                )
+                if found is None:
+                    created = await asyncio.to_thread(
+                        client.v1.tax_rates.create,
+                        params={
+                            "display_name": "IVA",
+                            "description": f"IVA general {VAT_RATE_PERCENT} % (incluido)",
+                            "percentage": VAT_RATE_PERCENT,
+                            "inclusive": True,
+                            "country": "ES",
+                            "jurisdiction": "ES",
+                            "tax_type": "vat",
+                            "metadata": VAT_RATE_METADATA,
+                        },
+                        options={"idempotency_key": f"reforma-hub-vat-{VAT_RATE_PERCENT}"},
+                    )
+                    found = str(created.id)
+            except stripe.StripeError as exc:
+                logger.error("stripe_tipo_iva_fallido: %s", exc, exc_info=True)
+                raise PaymentGatewayError() from exc
+            self._vat_tax_rate_id = found
+            return found
 
     async def create_recurring_price(self, *, amount: Money, product_name: str) -> str:
         client = self._require_client()
@@ -407,6 +526,41 @@ class StripePaymentGateway(PaymentPort):
         except stripe.StripeError as exc:
             logger.error("stripe_cancelacion_fallida: %s", exc, exc_info=True)
             raise PaymentGatewayError() from exc
+
+
+def _billing_params(billing: BillingDetails) -> dict[str, Any]:
+    """Nombre y domicilio del cliente: los que Stripe imprime en la factura."""
+    params: dict[str, Any] = {"name": billing.name}
+    if billing.address:
+        # El domicilio es texto libre en el perfil (incluye CP y localidad): va entero en
+        # la primera linea. El CP base del perfil es donde trabaja, no su domicilio fiscal.
+        params["address"] = {"line1": billing.address, "country": "ES"}
+    return params
+
+
+def _as_cents(value: Any) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+def _invoice_tax(obj: dict[str, Any]) -> int | None:
+    """Cuota de impuestos de la factura.
+
+    Desde la API 2025-03-31 va en `total_taxes`; antes, en `tax`. Sin ninguno de los
+    dos la factura no desglosa impuestos.
+    """
+    taxes = obj.get("total_taxes")
+    if isinstance(taxes, list):
+        amounts = [t.get("amount") for t in taxes if isinstance(t, dict)]
+        valid = [a for a in amounts if isinstance(a, int) and not isinstance(a, bool)]
+        return sum(valid) if valid else None
+    return _as_cents(obj.get("tax"))
+
+
+def _invoice_issued_at(obj: dict[str, Any]) -> datetime | None:
+    """Fecha de emision: cuando se numero (se finalizo), no cuando se creo el borrador."""
+    transitions = obj.get("status_transitions")
+    finalized = transitions.get("finalized_at") if isinstance(transitions, dict) else None
+    return _from_epoch(finalized) or _from_epoch(obj.get("created"))
 
 
 def _metadata_value(obj: Any, key: str) -> str | None:

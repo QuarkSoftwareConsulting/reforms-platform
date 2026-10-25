@@ -6,6 +6,7 @@ from datetime import datetime
 from uuid import UUID
 
 from app.application.ports import (
+    BillingDetails,
     ChargeOwner,
     CheckoutRequest,
     CheckoutSession,
@@ -34,6 +35,9 @@ class FakePaymentGateway(PaymentPort):
         self.sessions: dict[str, CheckoutRequest] = {}
         self.expired_sessions: list[str] = []
         self.customers: dict[str, CustomerRequest] = {}
+        # Ultimos datos fiscales enviados a cada cliente ya existente.
+        self.billing_updates: dict[str, BillingDetails] = {}
+        self.fail_on_billing_update = False
         self.subscription_checkouts: list[SubscriptionCheckoutRequest] = []
         self.portal_sessions: list[str] = []
         self.created_prices: dict[str, Money] = {}
@@ -89,6 +93,14 @@ class FakePaymentGateway(PaymentPort):
             ),
             dispute_id=data.get("dispute_id"),
             charge_id=data.get("charge_id"),
+            invoice_number=data.get("invoice_number"),
+            invoice_url=data.get("invoice_url"),
+            invoice_pdf_url=data.get("invoice_pdf_url"),
+            invoice_total_cents=data.get("invoice_total_cents"),
+            tax_cents=data.get("tax_cents"),
+            issued_at=(
+                datetime.fromisoformat(data["issued_at"]) if data.get("issued_at") else None
+            ),
         )
 
     async def describe_charge(self, charge_id: str) -> ChargeOwner:
@@ -106,6 +118,12 @@ class FakePaymentGateway(PaymentPort):
         customer_id = f"cus_test_{len(self.customers) + 1:04d}"
         self.customers[customer_id] = request
         return customer_id
+
+    async def update_customer_billing(self, customer_id: str, billing: BillingDetails) -> None:
+        await asyncio.sleep(0)
+        if self.fail_on_billing_update:
+            raise PaymentGatewayError("La pasarela no responde")
+        self.billing_updates[customer_id] = billing
 
     async def create_subscription_checkout(
         self, request: SubscriptionCheckoutRequest
@@ -208,6 +226,10 @@ class FakePaymentGateway(PaymentPort):
         subscription_status: SubscriptionStatus | None = None,
         period_end: datetime | None = None,
         occurred_at: datetime | None = None,
+        invoice_number: str | None = None,
+        invoice_total_cents: int | None = None,
+        tax_cents: int | None = None,
+        issued_at: datetime | None = None,
     ) -> bytes:
         return json.dumps(
             {
@@ -222,5 +244,11 @@ class FakePaymentGateway(PaymentPort):
                 "subscription_status": subscription_status.value if subscription_status else None,
                 "period_end": period_end.isoformat() if period_end else None,
                 "occurred_at": occurred_at.isoformat() if occurred_at else None,
+                "invoice_number": invoice_number,
+                "invoice_url": f"https://invoice.test/{invoice_id}" if invoice_id else None,
+                "invoice_pdf_url": f"https://invoice.test/{invoice_id}.pdf" if invoice_id else None,
+                "invoice_total_cents": invoice_total_cents,
+                "tax_cents": tax_cents,
+                "issued_at": issued_at.isoformat() if issued_at else None,
             }
         ).encode()

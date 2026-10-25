@@ -32,7 +32,7 @@ const LEAD: LeadPublic = {
     name: "Carpinteria",
     suggested_lead_price: { amount_cents: 500, currency: "EUR", formatted: "5.00 €" },
   },
-  services: [{ id: "svc-1", slug: "armarios", name: "Armarios a medida" }],
+  services: [{ id: "svc-1", slug: "armarios", name: "Armarios a medida", featured: false, landing_name: "Armarios a medida" }],
   property_type: "flat",
   schedule: "asap",
   photo_urls: ["https://cdn.test/a.jpg"],
