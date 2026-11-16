@@ -47,7 +47,10 @@ export const phoneNumber = z
   .string()
   .trim()
   .transform((value) => value.replace(/[\s\-().]/g, ""))
-  .refine((value) => /^(\+34)?[6789]\d{8}$/.test(value), "phoneFormat");
+  // TEMPORAL: se aceptan telefonos de fuera de Espana con prefijo (+57, +507...).
+  // Original: .refine((value) => /^(\+34)?[6789]\d{8}$/.test(value), "phoneFormat");
+  // El prefijo es obligatorio fuera de Espana: sin el, Twilio recibiria un numero falso.
+  .refine((value) => /^(\+34)?[6789]\d{8}$|^(\+|00)\d{8,15}$/.test(value), "phoneFormat");
 
 /** Movil espanol (6/7): el unico al que se puede verificar por SMS. */
 export const spanishMobile = z
