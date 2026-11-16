@@ -32,9 +32,7 @@ def parse_mobile(raw: str) -> PhoneNumber:
     # (pruebas desde Colombia y Panama). A que paises se envia SMS lo limita Twilio
     # (Verify > Geo permissions). Original: `if not phone.is_spanish_mobile: raise`.
     # Un numero espanol sigue teniendo que ser movil: a un fijo no llega el SMS.
-    foreign = phone.value.startswith(("+", "00")) and not phone.value.startswith(
-        ("+34", "0034")
-    )
+    foreign = phone.value.startswith(("+", "00")) and not phone.value.startswith(("+34", "0034"))
     if not foreign and not phone.is_spanish_mobile:
         raise PhoneNotMobileError()
     return phone

@@ -38,9 +38,7 @@ class TestStartVerification:
 
     # TEMPORAL: mientras se aceptan moviles de fuera de Espana (ver parse_mobile).
     @pytest.mark.parametrize("phone", ["+573001234567", "+50761234567", "00573001234567"])
-    async def test_a_foreign_number_with_prefix_is_accepted(
-        self, world: World, phone: str
-    ) -> None:
+    async def test_a_foreign_number_with_prefix_is_accepted(self, world: World, phone: str) -> None:
         result = await world.start_phone_verification.execute(phone)
         assert result.required is True
         assert world.phone_verifier.sent_to == [phone]
