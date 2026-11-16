@@ -9,9 +9,9 @@ from app.infrastructure.api.schemas.feature_flags import FeatureFlagsOut
 
 router = APIRouter(tags=["feature-flags"])
 
-# El frontend las cachea 5 min (ISR de Next); el navegador y una CDN, lo mismo. Es el
-# retraso maximo entre cambiar una flag en la BD y verlo en la web. No es menor porque
-# el layout las pide en todas las paginas: fija cada cuanto se regeneran todas.
+# Para una CDN delante del API: la web las pide en cada carga de pagina (sin cache del
+# navegador), y asi esas peticiones no llegan todas a la BD. Es el retraso maximo entre
+# cambiar una flag y verlo en la web cuando hay CDN.
 CACHE_SECONDS = 300
 
 

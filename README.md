@@ -246,11 +246,11 @@ VALUES ('new-checkout', '1.4.0', 'Checkout en una sola página', 'dev'),
 UPDATE feature_flags SET enabled = true WHERE name = 'new-checkout' AND environment = 'dev';
 ```
 
-La web tarda **hasta 5 minutos** en ver el cambio: el layout las lee en el servidor y las
-cachea ese tiempo, para que las páginas sigan siendo estáticas y no haya parpadeo. Como el
-layout está en todas las páginas, ese plazo marca cada cuánto se regeneran: bajarlo
-multiplica las regeneraciones y su coste en el hosting. Si el API no
-responde, todas cuentan como apagadas. En el frontend:
+La web las pide desde el navegador en cada carga de página, así que el cambio se ve al
+recargar. No se leen en el servidor a propósito: el layout está en todas las páginas y su
+caché marcaría cada cuánto se regeneran todas. A cambio, lo que va detrás de una flag
+aparece después de cargar (no lo indexa Google). Si el API no responde, todas cuentan como
+apagadas. En el frontend:
 
 ```tsx
 const showReports = useFeatureFlag("admin.reports"); // hooks/useFeatureFlag
@@ -306,9 +306,9 @@ cambiar el tipo, no solo olvidar un `del`.
 solicitudes con CP 28xxx (`COVERED_POSTAL_PREFIXES`). El catálogo de CP de Madrid está
 completo (323 códigos) y lo genera `scripts/import_postal_codes.py` a partir de
 [GeoNames](https://www.geonames.org) (CC BY 4.0: hay que citarlo en la web). Antes de
-publicar, el cliente confirma su móvil con un SMS (`PhoneVerificationPort`). Mientras no
-haya proveedor, `PHONE_VERIFICATION_BACKEND=disabled` publica sin código; en local,
-`console` escribe el código en el log del API.
+publicar, el cliente confirma su móvil con un SMS (`PhoneVerificationPort`). El proveedor es
+Twilio Verify (`PHONE_VERIFICATION_BACKEND=twilio` y las tres `TWILIO_*`); `disabled`
+publica sin código y, en local, `console` escribe el código en el log del API.
 
 **El catálogo tiene dos niveles** —categoría → servicios— y lo gestiona el admin desde el
 panel (`/admin/catalogo`): crear, renombrar, reordenar, cambiar el precio sugerido y
