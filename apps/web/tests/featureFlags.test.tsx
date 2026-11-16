@@ -2,10 +2,10 @@
  * Feature flags en el frontend.
  *
  * Lo que se vigila: una flag apagada o que no existe oculta lo que protege, y si el API
- * no responde la pagina (o el build) no se rompe: todo cuenta como apagado.
+ * no responde la pagina no se rompe: todo cuenta como apagado.
  */
 
-import { render, renderHook, screen } from "@testing-library/react";
+import { render, renderHook, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -19,25 +19,21 @@ const { featureFlagsService } = await import("@/services/featureFlags.service");
 const { FeatureFlagsProvider, useFeatureFlag } = await import("@/hooks/useFeatureFlag");
 const { Feature } = await import("@/components/features/Feature");
 
-function withFlags(flags: Record<string, boolean>) {
-  return function Wrapper({ children }: { children: ReactNode }) {
-    return <FeatureFlagsProvider flags={flags}>{children}</FeatureFlagsProvider>;
-  };
+function Wrapper({ children }: { children: ReactNode }) {
+  return <FeatureFlagsProvider>{children}</FeatureFlagsProvider>;
 }
 
-describe("featureFlagsService", () => {
-  beforeEach(() => {
-    requestMock.mockReset();
-  });
+beforeEach(() => {
+  requestMock.mockReset();
+});
 
-  it("reads them without a session and cached for five minutes", async () => {
+describe("featureFlagsService", () => {
+  it("reads them without a session and without the Next cache", async () => {
     requestMock.mockResolvedValue({ flags: { "new-checkout": true } });
 
     expect(await featureFlagsService.list()).toEqual({ "new-checkout": true });
-    expect(requestMock).toHaveBeenCalledWith("/feature-flags", {
-      anonymous: true,
-      revalidate: 300,
-    });
+    // Sin `revalidate`: si el layout volviera a pedirlas, regeneraria todas las paginas.
+    expect(requestMock).toHaveBeenCalledWith("/feature-flags", { anonymous: true });
   });
 
   it("treats every flag as off when the API does not answer", async () => {
@@ -48,13 +44,18 @@ describe("featureFlagsService", () => {
 });
 
 describe("useFeatureFlag", () => {
-  it("is on only when the flag is enabled", () => {
-    const wrapper = withFlags({ on: true, off: false });
+  it("is on only when the flag is enabled", async () => {
+    requestMock.mockResolvedValue({ flags: { on: true, off: false } });
 
-    expect(renderHook(() => useFeatureFlag("on"), { wrapper }).result.current).toBe(true);
-    expect(renderHook(() => useFeatureFlag("off"), { wrapper }).result.current).toBe(false);
-    // No existe en la tabla: lo nuevo nace oculto.
-    expect(renderHook(() => useFeatureFlag("missing"), { wrapper }).result.current).toBe(false);
+    const { result } = renderHook(
+      () => [useFeatureFlag("on"), useFeatureFlag("off"), useFeatureFlag("missing")],
+      { wrapper: Wrapper },
+    );
+
+    // Hasta que responde el API, todo apagado.
+    expect(result.current).toEqual([false, false, false]);
+    // "missing" no existe en la tabla: lo nuevo nace oculto.
+    await waitFor(() => expect(result.current).toEqual([true, false, false]));
   });
 
   it("is off outside the provider", () => {
@@ -63,9 +64,11 @@ describe("useFeatureFlag", () => {
 });
 
 describe("Feature", () => {
-  it("shows its content only with the flag on, and the fallback otherwise", () => {
+  it("shows its content only with the flag on, and the fallback otherwise", async () => {
+    requestMock.mockResolvedValue({ flags: { "admin.reports": true, "new-checkout": false } });
+
     render(
-      <FeatureFlagsProvider flags={{ "admin.reports": true, "new-checkout": false }}>
+      <FeatureFlagsProvider>
         <Feature name="admin.reports">
           <p>informes</p>
         </Feature>
@@ -75,7 +78,7 @@ describe("Feature", () => {
       </FeatureFlagsProvider>,
     );
 
-    expect(screen.queryByText("informes")).not.toBeNull();
+    expect(await screen.findByText("informes")).not.toBeNull();
     expect(screen.queryByText("checkout nuevo")).toBeNull();
     expect(screen.queryByText("checkout actual")).not.toBeNull();
   });

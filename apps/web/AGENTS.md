@@ -115,11 +115,15 @@ solo `lib/firebase.ts` y ese hook.
 
 ## Feature flags
 
-`FeatureFlagsProvider` (en el layout de idioma) recibe las flags que el servidor leyó con
-`featureFlagsService.list()`, cacheadas 5 min. En cliente: `useFeatureFlag("nombre")` o
-`<Feature name="nombre" fallback={…}>`. En un Server Component, llama a
-`featureFlagsService.list()` directamente (Next deduplica la petición).
+`FeatureFlagsProvider` (en el layout de idioma) pide las flags **desde el navegador**, una
+vez por carga de página. En cliente: `useFeatureFlag("nombre")` o
+`<Feature name="nombre" fallback={…}>`. Hasta que responde el API, todas cuentan como
+apagadas.
 
+- **No las leas en el servidor** (layout ni páginas): el fetch llevaría su caché a cada
+  página que lo use, y desde el layout son todas. Con 5 min, toda la web se regeneraba
+  cada 5 min aunque la landing pidiera un día.
+- Por eso no sirven para contenido que deba indexar Google: aparece después de cargar.
 - Una flag que no existe o con el API caído es `false`: lo nuevo nace oculto. No lo cambies
   a "encendida por defecto".
 - Es comodidad de interfaz, no autorización: lo que esté detrás se protege en el backend.
