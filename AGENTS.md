@@ -223,7 +223,8 @@ responda `POSTAL_CODE_NOT_COVERED` y no `UNKNOWN_POSTAL_CODE`. La zona es config
 El cliente publica como invitado: el SMS es lo único que prueba que el teléfono que
 vendemos existe y es suyo. Lo hace el puerto `PhoneVerificationPort`; el proveedor
 genera, caduca y limita los códigos, así que no guardamos ninguno. Con
-`PHONE_VERIFICATION_BACKEND=disabled` (hoy, sin proveedor) se publica sin código.
+`PHONE_VERIFICATION_BACKEND=disabled` se publica sin código; `twilio` usa Twilio Verify
+(`TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET`, `TWILIO_VERIFY_SERVICE_SID`).
 → El código se confirma **lo último**, después de validar todo lo demás: se consume al
 confirmarlo y un error en otro campo no debe obligar a pedir otro SMS.
 → `console` escribe el código en el log: `Settings` lo prohíbe fuera de development y test.
