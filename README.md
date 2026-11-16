@@ -306,9 +306,9 @@ cambiar el tipo, no solo olvidar un `del`.
 solicitudes con CP 28xxx (`COVERED_POSTAL_PREFIXES`). El catálogo de CP de Madrid está
 completo (323 códigos) y lo genera `scripts/import_postal_codes.py` a partir de
 [GeoNames](https://www.geonames.org) (CC BY 4.0: hay que citarlo en la web). Antes de
-publicar, el cliente confirma su móvil con un SMS (`PhoneVerificationPort`). Mientras no
-haya proveedor, `PHONE_VERIFICATION_BACKEND=disabled` publica sin código; en local,
-`console` escribe el código en el log del API.
+publicar, el cliente confirma su móvil con un SMS (`PhoneVerificationPort`). El proveedor es
+Twilio Verify (`PHONE_VERIFICATION_BACKEND=twilio` y las tres `TWILIO_*`); `disabled`
+publica sin código y, en local, `console` escribe el código en el log del API.
 
 **El catálogo tiene dos niveles** —categoría → servicios— y lo gestiona el admin desde el
 panel (`/admin/catalogo`): crear, renombrar, reordenar, cambiar el precio sugerido y

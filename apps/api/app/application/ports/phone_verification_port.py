@@ -1,6 +1,6 @@
 """Puerto de verificacion del telefono del cliente por SMS (F01).
 
-El proveedor esta sin decidir (Twilio Verify, MessageBird, Vonage...). El nucleo solo
+El proveedor real es Twilio Verify (adapters/sms/twilio_adapter.py). El nucleo solo
 pide "manda un codigo a este movil" y "es bueno este codigo": generar, guardar,
 caducar y limitar los codigos es cosa del proveedor, que ya lo hace mejor que
 nosotros. Asi no guardamos codigos ni telefonos en nuestra base de datos.
@@ -27,4 +27,6 @@ class PhoneVerificationPort(ABC):
         """True si el codigo es el ultimo enviado a ese movil y no ha caducado.
 
         Un codigo confirmado se consume: no vale para una segunda publicacion.
+        Lanza `PhoneVerificationUnavailableError` si el proveedor no responde: decir
+        "codigo incorrecto" entonces haria al cliente pedir SMS que no van a servir.
         """

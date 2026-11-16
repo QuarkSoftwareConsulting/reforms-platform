@@ -49,9 +49,10 @@ class Settings(BaseSettings):
     privacy_policy_version: str = "2026-09-v2"
     # Prefijos de CP donde se pueden publicar solicitudes. Etapa 1: Comunidad de Madrid.
     covered_postal_prefixes: str = "28"
-    # Verificacion del movil del cliente por SMS antes de publicar. "disabled" hasta
-    # que haya proveedor; "console" escribe el codigo en el log (solo desarrollo).
-    phone_verification_backend: Literal["disabled", "console"] = "disabled"
+    # Verificacion del movil del cliente por SMS antes de publicar. "disabled" publica
+    # sin codigo; "console" escribe el codigo en el log (solo desarrollo); "twilio"
+    # envia el SMS con Twilio Verify.
+    phone_verification_backend: Literal["disabled", "console", "twilio"] = "disabled"
     # Tope de SMS por IP y hora, contra el "SMS pumping". Holgado para una oficina o
     # una red movil con NAT compartido; el proveedor limita ademas por telefono.
     phone_verification_per_ip_hourly: int = Field(default=10, ge=1, le=1000)
@@ -64,6 +65,12 @@ class Settings(BaseSettings):
     # ------------------------------- Stripe ------------------------------
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
+
+    # ------------------------------- Twilio ------------------------------
+    # API Key (SID `SK...` + secreto) y el servicio de Verify (`VA...`).
+    twilio_api_key_sid: str = ""
+    twilio_api_key_secret: str = ""
+    twilio_verify_service_sid: str = ""
 
     # ------------------------------- Firebase ----------------------------
     firebase_project_id: str = ""
@@ -125,6 +132,14 @@ class Settings(BaseSettings):
                 "PHONE_VERIFICATION_BACKEND=console escribe los codigos en el log: "
                 "solo se permite en development y test"
             )
+        if self.phone_verification_backend == "twilio":
+            # Mejor no arrancar que descubrirlo cuando el primer cliente pide su SMS.
+            if not self.twilio_api_key_sid.strip().startswith("SK"):
+                raise ValueError("TWILIO_API_KEY_SID (SK...) es obligatorio con Twilio")
+            if _is_unset(self.twilio_api_key_secret):
+                raise ValueError("TWILIO_API_KEY_SECRET es obligatorio con Twilio")
+            if not self.twilio_verify_service_sid.strip().startswith("VA"):
+                raise ValueError("TWILIO_VERIFY_SERVICE_SID (VA...) es obligatorio con Twilio")
         return self
 
     @field_validator("log_level")

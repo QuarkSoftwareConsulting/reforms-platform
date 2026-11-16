@@ -26,7 +26,7 @@ app/
 │   ├── adapters/payments/  Stripe
 │   ├── adapters/auth/      Firebase Auth
 │   ├── adapters/storage/   S3 / MinIO / R2 y GCS (bucket publico y bucket privado)
-│   ├── adapters/sms/       Verificacion del movil (`console` en desarrollo)
+│   ├── adapters/sms/       Verificacion del movil (Twilio Verify; `console` en desarrollo)
 │   └── api/                Routers v1, schemas Pydantic, middlewares, dependencies
 ├── config/                 Settings (pydantic-settings) y logging estructurado
 ├── jobs/                   Comandos para cron
