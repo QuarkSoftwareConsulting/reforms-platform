@@ -100,7 +100,7 @@ from app.infrastructure.adapters.db.repositories import (
     SqlAlchemyUserRepository,
 )
 from app.infrastructure.adapters.db.session import SqlAlchemyUnitOfWork
-from app.infrastructure.adapters.sms import ConsolePhoneVerifier
+from app.infrastructure.adapters.sms import ConsolePhoneVerifier, TwilioPhoneVerifier
 from app.infrastructure.adapters.storage.gcs_adapter import GCSStorage
 from app.infrastructure.adapters.storage.s3_adapter import S3Storage
 
@@ -143,6 +143,12 @@ def create_phone_verifier(settings: Settings, clock: ClockPort) -> PhoneVerifica
     """`None` desactiva la verificacion por SMS: el formulario publica sin codigo."""
     if settings.phone_verification_backend == "console":
         return ConsolePhoneVerifier(clock=clock)
+    if settings.phone_verification_backend == "twilio":
+        return TwilioPhoneVerifier(
+            api_key_sid=settings.twilio_api_key_sid.strip(),
+            api_key_secret=settings.twilio_api_key_secret.strip(),
+            service_sid=settings.twilio_verify_service_sid.strip(),
+        )
     return None
 
 
