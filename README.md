@@ -246,11 +246,11 @@ VALUES ('new-checkout', '1.4.0', 'Checkout en una sola página', 'dev'),
 UPDATE feature_flags SET enabled = true WHERE name = 'new-checkout' AND environment = 'dev';
 ```
 
-La web tarda **hasta 5 minutos** en ver el cambio: el layout las lee en el servidor y las
-cachea ese tiempo, para que las páginas sigan siendo estáticas y no haya parpadeo. Como el
-layout está en todas las páginas, ese plazo marca cada cuánto se regeneran: bajarlo
-multiplica las regeneraciones y su coste en el hosting. Si el API no
-responde, todas cuentan como apagadas. En el frontend:
+La web las pide desde el navegador en cada carga de página, así que el cambio se ve al
+recargar. No se leen en el servidor a propósito: el layout está en todas las páginas y su
+caché marcaría cada cuánto se regeneran todas. A cambio, lo que va detrás de una flag
+aparece después de cargar (no lo indexa Google). Si el API no responde, todas cuentan como
+apagadas. En el frontend:
 
 ```tsx
 const showReports = useFeatureFlag("admin.reports"); // hooks/useFeatureFlag
