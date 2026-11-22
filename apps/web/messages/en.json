@@ -22,6 +22,9 @@
     "admin": "Admin",
     "howWeValidate": "How we validate",
     "pricing": "Pricing",
+    "language": "Language",
+    "languageEs": "Español",
+    "languageEn": "English",
     "menu": "Open menu",
     "subscription": "My monthly fee"
   },

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { LocaleSwitch } from "@/components/features/LocaleSwitch";
 import { Container } from "@/components/ui/Container";
 import { cn } from "@/helpers/cn";
 import { useAuth } from "@/hooks/useAuth";
@@ -78,6 +79,7 @@ export function SiteHeader() {
         </div>
 
         <div className="hidden items-center gap-3.5 lg:flex">
+          <LocaleSwitch />
           {auth.isAuthenticated ? (
             <button
               type="button"
@@ -128,6 +130,7 @@ export function SiteHeader() {
         className={cn("border-t border-white/10 bg-navy lg:hidden")}
       >
         <Container className="flex flex-col gap-1 py-3">
+          <LocaleSwitch onNavigate={close} className="min-h-12" />
           {links.map((link) => (
             <Link
               key={link.href}
