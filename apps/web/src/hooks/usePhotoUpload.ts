@@ -26,6 +26,8 @@ export interface PhotoUploadState {
   rejections: PhotoRejection[];
   addFiles: (files: File[]) => Promise<void>;
   remove: (storageKey: string) => void;
+  /** Vacia fotos y avisos: tras publicar, el siguiente lead no hereda las del anterior. */
+  reset: () => void;
   storageKeys: string[];
 }
 
@@ -81,6 +83,15 @@ export function usePhotoUpload(): PhotoUploadState {
     });
   }, []);
 
+  const reset = useCallback(() => {
+    setPhotos((current) => {
+      current.forEach((photo) => URL.revokeObjectURL(photo.previewUrl));
+      return [];
+    });
+    setError(null);
+    setRejections([]);
+  }, []);
+
   return {
     photos,
     uploading,
@@ -88,6 +99,7 @@ export function usePhotoUpload(): PhotoUploadState {
     rejections,
     addFiles,
     remove,
+    reset,
     storageKeys: photos.map((photo) => photo.storageKey),
   };
 }

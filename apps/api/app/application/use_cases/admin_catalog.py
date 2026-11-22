@@ -73,6 +73,19 @@ class ListCatalogForAdmin:
 
 
 @dataclass(slots=True)
+class GetCategoryForAdmin:
+    """Una categoria con todos sus servicios: lo que el panel pide al desplegarla."""
+
+    categories: CategoryRepositoryPort
+
+    async def execute(self, category_id: UUID) -> Category:
+        category = await self.categories.get(category_id)
+        if category is None:
+            raise CategoryNotFoundError()
+        return category
+
+
+@dataclass(slots=True)
 class CreateCategory:
     categories: CategoryRepositoryPort
     ids: IdGeneratorPort

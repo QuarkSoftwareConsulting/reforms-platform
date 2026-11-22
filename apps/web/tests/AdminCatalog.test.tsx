@@ -13,6 +13,7 @@ import { messages, renderWithIntl } from "./render";
 vi.mock("@/services/admin.service", () => ({
   adminService: {
     catalog: vi.fn(),
+    categoryServices: vi.fn(),
     createCategory: vi.fn(),
     updateCategory: vi.fn(),
     deleteCategory: vi.fn(),
@@ -31,7 +32,7 @@ const t = messages.admin.catalog;
 const eur = (cents: number) => ({ amount_cents: cents, currency: "EUR", formatted: "" });
 
 function category(overrides: Partial<AdminCatalogCategory> = {}): AdminCatalogCategory {
-  return {
+  const full: AdminCatalogCategory = {
     id: "cat-1",
     slug: "carpinteria",
     name_es: "Carpintería",
@@ -39,6 +40,7 @@ function category(overrides: Partial<AdminCatalogCategory> = {}): AdminCatalogCa
     suggested_lead_price: eur(500),
     sort_order: 1,
     active: true,
+    services_count: 0,
     services: [
       {
         id: "svc-1",
@@ -56,15 +58,25 @@ function category(overrides: Partial<AdminCatalogCategory> = {}): AdminCatalogCa
     ],
     ...overrides,
   };
+  return { ...full, services_count: full.services?.length ?? 0 };
 }
+
+/** Lo que devuelve el listado: sin servicios, solo cuantos hay. */
+const summary = (item: AdminCatalogCategory): AdminCatalogCategory => ({ ...item, services: null });
 
 // Las etiquetas llevan el asterisco de obligatorio detras: se busca por prefijo.
 const label = (text: string) => new RegExp(`^${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`);
 
 async function renderCatalog(items: AdminCatalogCategory[] = [category()]) {
-  vi.mocked(adminService.catalog).mockResolvedValue(items);
+  vi.mocked(adminService.catalog).mockResolvedValue(items.map(summary));
+  vi.mocked(adminService.categoryServices).mockImplementation(
+    async (id) => items.find((item) => item.id === id)?.services ?? [],
+  );
   renderWithIntl(<AdminCatalog />);
   if (items[0]) await screen.findByText(items[0].name_es);
+  // Las categorias nacen plegadas: se abren para trabajar con sus servicios.
+  for (const toggle of screen.queryAllByRole("button", { expanded: false })) fireEvent.click(toggle);
+  await waitFor(() => expect(screen.queryByText(t.loadingServices)).toBeNull());
 }
 
 describe("catalog helpers", () => {
@@ -101,6 +113,58 @@ describe("catalog helpers", () => {
 
 describe("AdminCatalog", () => {
   beforeEach(() => vi.clearAllMocks());
+
+  it("lists the active categories first and then by name", async () => {
+    await renderCatalog([
+      category({ id: "c1", name_es: "Zócalos", active: true, services: [] }),
+      category({ id: "c2", name_es: "Albañilería", active: false, services: [] }),
+      category({ id: "c3", name_es: "Pintura", active: true, services: [] }),
+      category({ id: "c4", name_es: "Cristalería", active: false, services: [] }),
+    ]);
+
+    const names = screen
+      .getAllByRole("heading", { level: 3 })
+      .map((heading) => heading.textContent?.split(" · ")[0]);
+    expect(names).toEqual(["Pintura", "Zócalos", "Albañilería", "Cristalería"]);
+  });
+
+  it("loads the services of a category only when it is opened, and keeps them", async () => {
+    vi.mocked(adminService.catalog).mockResolvedValue([summary(category())]);
+    vi.mocked(adminService.categoryServices).mockResolvedValue(category().services ?? []);
+    renderWithIntl(<AdminCatalog />);
+    await screen.findByText("Carpintería");
+
+    expect(adminService.categoryServices).not.toHaveBeenCalled();
+    expect(screen.queryByText("Puertas")).toBeNull();
+    const toggle = screen.getByRole("button", { name: /1 servicio/ });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(await screen.findByText("Puertas")).toBeTruthy();
+    expect(adminService.categoryServices).toHaveBeenCalledWith("cat-1", "es");
+    expect(screen.getByText(/Precio del contacto: .* es el de su categoría/)).toBeTruthy();
+
+    fireEvent.click(toggle);
+    expect(screen.queryByText("Puertas")).toBeNull();
+    fireEvent.click(toggle);
+    expect(await screen.findByText("Puertas")).toBeTruthy();
+    expect(adminService.categoryServices).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the API error when the services cannot be loaded", async () => {
+    vi.mocked(adminService.catalog).mockResolvedValue([summary(category())]);
+    vi.mocked(adminService.categoryServices).mockRejectedValue(
+      new ApiError(503, { code: "SERVICE_UNAVAILABLE", message: "x", details: null }),
+    );
+    renderWithIntl(<AdminCatalog />);
+    await screen.findByText("Carpintería");
+
+    fireEvent.click(screen.getByRole("button", { name: /1 servicio/ }));
+
+    expect(await screen.findByText(messages.errors.SERVICE_UNAVAILABLE)).toBeTruthy();
+    expect(screen.queryByText("Puertas")).toBeNull();
+  });
 
   it("lists categories with their services, slug and status", async () => {
     await renderCatalog([
@@ -203,7 +267,7 @@ describe("AdminCatalog", () => {
 
   it("adds a service to its category", async () => {
     const added = category();
-    added.services.push({
+    added.services?.push({
       id: "svc-2",
       slug: "tarimas",
       name_es: "Tarimas",
