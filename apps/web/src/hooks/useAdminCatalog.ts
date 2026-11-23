@@ -24,6 +24,10 @@ export interface AdminCatalogState {
   pending: string | null;
   error: string | null;
   notice: string | null;
+  /** Categorias cuyos servicios se estan pidiendo ahora mismo. */
+  loadingServices: ReadonlySet<string>;
+  /** Pide los servicios de una categoria si aun no los tiene; el error va a `error`. */
+  loadServices: (categoryId: string) => Promise<void>;
   createCategory: (payload: NewCategoryPayload) => Promise<boolean>;
   updateCategory: (categoryId: string, payload: CategoryPayload) => Promise<boolean>;
   deleteCategory: (categoryId: string) => Promise<boolean>;
@@ -34,8 +38,9 @@ export interface AdminCatalogState {
   uploadServiceImage: (categoryId: string, serviceId: string, file: File) => Promise<string | null>;
 }
 
+/** Primero las activas, despues por nombre: lo desactivado queda al final del panel. */
 function byCatalogOrder(a: AdminCatalogCategory, b: AdminCatalogCategory): number {
-  return a.sort_order - b.sort_order || a.name_es.localeCompare(b.name_es);
+  return Number(b.active) - Number(a.active) || a.name_es.localeCompare(b.name_es, "es");
 }
 
 export function useAdminCatalog(): AdminCatalogState {
@@ -47,13 +52,14 @@ export function useAdminCatalog(): AdminCatalogState {
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [loadingServices, setLoadingServices] = useState<ReadonlySet<string>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
     adminService
       .catalog(locale)
       .then((items) => {
-        if (!cancelled) setCategories(items);
+        if (!cancelled) setCategories([...items].sort(byCatalogOrder));
       })
       .catch((caught: unknown) => {
         if (!cancelled) setError(translateError(caught));
@@ -72,6 +78,30 @@ export function useAdminCatalog(): AdminCatalogState {
       [...current.filter((item) => item.id !== category.id), category].sort(byCatalogOrder),
     );
   }, []);
+
+  const loadServices = useCallback(
+    async (categoryId: string) => {
+      setLoadingServices((current) => new Set(current).add(categoryId));
+      setError(null);
+      try {
+        const services = await adminService.categoryServices(categoryId, locale);
+        setCategories((current) =>
+          current.map((item) =>
+            item.id === categoryId ? { ...item, services, services_count: services.length } : item,
+          ),
+        );
+      } catch (caught) {
+        setError(translateError(caught));
+      } finally {
+        setLoadingServices((current) => {
+          const next = new Set(current);
+          next.delete(categoryId);
+          return next;
+        });
+      }
+    },
+    [locale, translateError],
+  );
 
   const run = useCallback(
     async (key: string, action: () => Promise<void>, message: string): Promise<boolean> => {
@@ -101,6 +131,8 @@ export function useAdminCatalog(): AdminCatalogState {
     pending,
     error,
     notice,
+    loadingServices,
+    loadServices,
     createCategory: (payload) =>
       run("create", async () => upsert(await adminService.createCategory(payload, locale)), t("created")),
     updateCategory: (categoryId, payload) =>
@@ -163,7 +195,11 @@ export function useAdminCatalog(): AdminCatalogState {
           setCategories((current) =>
             current.map((item) =>
               item.id === categoryId
-                ? { ...item, services: item.services.filter((s) => s.id !== serviceId) }
+                ? {
+                    ...item,
+                    services: item.services?.filter((s) => s.id !== serviceId) ?? null,
+                    services_count: Math.max(0, item.services_count - 1),
+                  }
                 : item,
             ),
           );

@@ -22,6 +22,9 @@
     "admin": "Admin",
     "howWeValidate": "How we validate",
     "pricing": "Pricing",
+    "language": "Language",
+    "languageEs": "Español",
+    "languageEn": "English",
     "menu": "Open menu",
     "subscription": "My monthly fee"
   },
@@ -463,6 +466,7 @@
       "acceptedAt": "Consent accepted at",
       "campaign": "Campaign reference",
       "created": "Lead “{title}” published.",
+      "another": "Publish another lead",
       "submit": "Publish manual lead"
     },
     "categoryPricing": {
@@ -636,7 +640,9 @@
       "nameEs": "Name in Spanish",
       "nameEn": "Name in English",
       "price": "Suggested price per contact (€)",
-      "priceHint": "Charged for contacts in this category that have no price of their own.",
+      "priceHint": "This is the price for every service in this category. It is charged for contacts that have no price of their own.",
+      "inheritedPrice": "Contact price: {amount} · set by its category",
+      "loadingServices": "Loading services…",
       "sortOrder": "Order",
       "sortOrderHint": "Lower numbers come first.",
       "categoryActive": "Active: offered when posting a request and in the professional's profile",

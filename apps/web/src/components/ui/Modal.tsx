@@ -86,13 +86,17 @@ export function Modal({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="w-full max-w-md space-y-4 rounded-panel bg-surface p-6 shadow-floating outline-none"
+        // Tope de altura = pantalla menos el padding del velo: un contenido largo (p. ej. las
+        // compras de un lead) se desplaza dentro, con titulo y botones siempre a la vista.
+        className="flex max-h-full w-full max-w-md flex-col gap-4 rounded-panel bg-surface p-6 shadow-floating outline-none"
       >
-        <h2 id={titleId} className="text-card-title font-semibold text-ink">
+        <h2 id={titleId} className="shrink-0 text-card-title font-semibold text-ink">
           {title}
         </h2>
-        <div className="space-y-3 text-body text-secondary">{children}</div>
-        <div className="flex flex-wrap justify-end gap-3 pt-2">{actions}</div>
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto text-body text-secondary">
+          {children}
+        </div>
+        <div className="flex shrink-0 flex-wrap justify-end gap-3 pt-2">{actions}</div>
       </div>
     </div>
   );

@@ -29,7 +29,6 @@ const lead = {
     name: "Persianas",
     suggested_lead_price: { amount_cents: 500, currency: "EUR", formatted: "5,00 €" },
   },
-  photo_urls: [],
   created_at: "2026-03-01T12:00:00Z",
   status: "published" as const,
   source: "admin" as const,
@@ -145,6 +144,20 @@ describe("AdminLeads", () => {
     expect(screen.queryByText(messages.errors.VALIDATION_ERROR)).toBeNull();
     const acceptedAt = container.querySelector('[name="accepted_at"]');
     expect(acceptedAt?.getAttribute("aria-invalid")).toBe("true");
+  });
+
+  it("hides the form after publishing and lets the admin start another one", async () => {
+    vi.mocked(adminService.createLead).mockResolvedValueOnce({ id: "new-lead" } as never);
+
+    const container = await submitManualLead();
+
+    const created = messages.admin.manual.created.replace("{title}", MANUAL_LEAD.title!);
+    expect(await screen.findByText(created)).toBeDefined();
+    expect(container.querySelector("form")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: messages.admin.manual.another }));
+    expect(container.querySelector("form")).not.toBeNull();
+    expect(screen.queryByText(created)).toBeNull();
   });
 
   it("confirms a created lead next to the button instead of a connection error", async () => {

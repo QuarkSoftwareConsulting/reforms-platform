@@ -35,8 +35,11 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
 
   useEffect(() => {
     if (!auth.isAuthenticated || auth.loading) return;
-    router.replace(path(locale, auth.hasProfile ? "projects" : "profile"));
-  }, [auth.isAuthenticated, auth.loading, auth.hasProfile, router, locale]);
+    // Un admin no tiene perfil profesional: sin esta rama el login lo mandaba al
+    // onboarding de perfil cada vez.
+    const isAdmin = auth.me?.role === "admin";
+    router.replace(path(locale, isAdmin ? "admin" : auth.hasProfile ? "projects" : "profile"));
+  }, [auth.isAuthenticated, auth.loading, auth.hasProfile, auth.me?.role, router, locale]);
 
   const run = async (action: () => Promise<void>) => {
     setError(null);

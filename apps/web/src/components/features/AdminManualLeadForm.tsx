@@ -39,6 +39,9 @@ export function AdminManualLeadForm({
   const photosErrorId = useId();
   // Casi siempre se ingresa el lead el mismo dia: se propone "ahora" y se corrige si no.
   const [defaultAcceptedAt] = useState(() => toDatetimeLocal(new Date()));
+  // Publicado el lead, el formulario se oculta y se confirma: con el boton al final de un
+  // formulario largo, un aviso junto a el pasaba desapercibido y el admin podia reenviarlo.
+  const [published, setPublished] = useState(false);
 
   const labels: Record<ManualLeadField, string> = {
     category_id: t("manual.category"),
@@ -66,6 +69,17 @@ export function AdminManualLeadForm({
     error: form.errors[name],
   });
 
+  if (published) {
+    return (
+      <Card className="space-y-4">
+        <Alert tone="success">{t("manual.created", { title: form.createdTitle ?? "" })}</Alert>
+        <Button type="button" onClick={() => setPublished(false)}>
+          {t("manual.another")}
+        </Button>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <h2 className="mb-4 text-card-title font-bold text-ink">{t("manual.title")}</h2>
@@ -80,11 +94,10 @@ export function AdminManualLeadForm({
         }}
         onSubmit={(event) => {
           event.preventDefault();
-          // `currentTarget` es null tras el primer `await`: se guarda antes.
-          const element = event.currentTarget;
-          void form.submit(new FormData(element), photoUpload.storageKeys).then((created) => {
+          void form.submit(new FormData(event.currentTarget), photoUpload.storageKeys).then((created) => {
             if (!created) return;
-            element.reset();
+            photoUpload.reset();
+            setPublished(true);
             onCreated();
           });
         }}
@@ -132,9 +145,6 @@ export function AdminManualLeadForm({
             onSelect={(key) => focusField(formRef.current, key)}
           />
           {form.error && <Alert tone="error">{form.error}</Alert>}
-          {form.createdTitle && (
-            <Alert tone="success">{t("manual.created", { title: form.createdTitle })}</Alert>
-          )}
           <Button loading={form.saving} type="submit">
             {t("manual.submit")}
           </Button>
