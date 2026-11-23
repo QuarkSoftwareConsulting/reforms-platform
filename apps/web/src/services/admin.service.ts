@@ -5,6 +5,7 @@ import { request } from "@/services/api";
 import type {
   AdminAccount,
   AdminCatalogCategory,
+  AdminCatalogService,
   AdminLeadList,
   AdminMetrics,
   AdminProfessionalList,
@@ -111,9 +112,14 @@ export const adminService = {
     return request<AdminMetrics>("/admin/metrics", { locale });
   },
 
-  /** Todo el catalogo, tambien lo desactivado. */
+  /** Todas las categorias, tambien lo desactivado, con su numero de servicios. */
   catalog(locale: Locale): Promise<AdminCatalogCategory[]> {
     return request<AdminCatalogCategory[]>("/admin/catalog", { locale });
+  },
+
+  /** Servicios de una categoria (con foto firmada): se piden al desplegarla. */
+  categoryServices(categoryId: string, locale: Locale): Promise<AdminCatalogService[]> {
+    return request<AdminCatalogService[]>(`/admin/categories/${categoryId}/services`, { locale });
   },
 
   createCategory(payload: NewCategoryPayload, locale: Locale): Promise<AdminCatalogCategory> {

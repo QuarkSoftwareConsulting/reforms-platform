@@ -36,6 +36,7 @@ from app.infrastructure.api.schemas.admin import (
     AdminProfessionalListOut,
     AdminPurchaseListOut,
     AdminPurchaseOut,
+    AdminServiceOut,
     AdminUserListOut,
     AdminUserOut,
     CreateCategoryIn,
@@ -106,9 +107,7 @@ async def list_admin_leads(
             offset=offset,
         )
     )
-    return await asyncio.to_thread(
-        serializers.admin_lead_list_out, result, storage=container.infra.storage, locale=locale
-    )
+    return serializers.admin_lead_list_out(result, locale=locale)
 
 
 @router.post(
@@ -475,11 +474,24 @@ async def _admin_category_out(category: Category, storage: StoragePort) -> Admin
     summary="Catalogo completo, tambien lo desactivado",
 )
 async def list_catalog(container: ContainerDep, _: AdminDep) -> list[AdminCategoryOut]:
+    """Categorias con su numero de servicios. Los servicios (y sus fotos firmadas) se
+    piden al desplegar cada una."""
     categories = await container.list_catalog.execute()
-    return list(
-        await asyncio.gather(
-            *(_admin_category_out(category, container.infra.storage) for category in categories)
-        )
+    return [serializers.admin_category_summary_out(category) for category in categories]
+
+
+@router.get(
+    "/categories/{category_id}/services",
+    response_model=list[AdminServiceOut],
+    summary="Servicios de una categoria, tambien los desactivados",
+)
+async def list_category_services(
+    category_id: UUID, container: ContainerDep, _: AdminDep
+) -> list[AdminServiceOut]:
+    category = await container.get_category_for_admin.execute(category_id)
+    # Con GCS cada URL de imagen se firma por red (signBlob): fuera del event loop.
+    return await asyncio.to_thread(
+        serializers.admin_services_out, category, container.infra.storage
     )
 
 

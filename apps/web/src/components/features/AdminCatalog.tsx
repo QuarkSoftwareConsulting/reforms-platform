@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useId, useState, type ChangeEvent, type FormEvent } from "react";
 
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -205,6 +205,19 @@ function CategoryCard({
   const locale = useLocale() as AppLocale;
   const t = useTranslations("admin.catalog");
   const [editing, setEditing] = useState(false);
+  // Plegada por defecto: con decenas de oficios, ver todos sus servicios a la vez es una
+  // lista bajo otra lista. Se abre solo la categoria que se esta trabajando.
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
+  const loadingServices = catalog.loadingServices.has(category.id);
+  const services = category.services;
+
+  function toggle() {
+    const next = !open;
+    setOpen(next);
+    // Los servicios (y sus fotos firmadas) solo se piden la primera vez que se despliega.
+    if (next && services === null && !loadingServices) void catalog.loadServices(category.id);
+  }
   const busy = catalog.pending === `category:${category.id}`;
 
   return (
@@ -250,28 +263,44 @@ function CategoryCard({
         />
       )}
 
-      <section className="space-y-3 border-t border-divider pt-4">
-        <h4 className="text-label font-semibold text-ink">
-          {t("services", { count: category.services.length })}
-        </h4>
-        {category.services.length === 0 ? (
-          <p className="text-help text-muted">{t("noServices")}</p>
-        ) : (
-          <ul className="space-y-2">
-            {category.services.map((service) => (
-              <li key={service.id}>
-                <ServiceRow
-                  category={category}
-                  service={service}
-                  catalog={catalog}
-                  onDelete={() => onDelete({ kind: "service", category, service })}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
-        <NewServiceForm category={category} catalog={catalog} />
-      </section>
+      <div className="border-t border-divider pt-3">
+        <button
+          type="button"
+          className="flex w-full items-center gap-2 rounded-control py-1 text-left text-label font-semibold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
+          aria-expanded={open}
+          aria-controls={panelId}
+          onClick={toggle}
+        >
+          <span aria-hidden className="inline-block w-4 text-muted">
+            {open ? "▾" : "▸"}
+          </span>
+          {t("services", { count: category.services_count })}
+        </button>
+      </div>
+
+      {open && (
+        <section id={panelId} className="space-y-3" aria-busy={loadingServices}>
+          {services === null ? (
+            <p className="text-help text-muted">{loadingServices ? t("loadingServices") : null}</p>
+          ) : services.length === 0 ? (
+            <p className="text-help text-muted">{t("noServices")}</p>
+          ) : (
+            <ul className="space-y-2">
+              {services.map((service) => (
+                <li key={service.id}>
+                  <ServiceRow
+                    category={category}
+                    service={service}
+                    catalog={catalog}
+                    onDelete={() => onDelete({ kind: "service", category, service })}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+          {services !== null && <NewServiceForm category={category} catalog={catalog} />}
+        </section>
+      )}
     </Card>
   );
 }
@@ -476,6 +505,11 @@ function ServiceRow({
   const message = (key: CatalogFieldError | undefined) =>
     key ? tValidation(key, { max: SERVICE_NAME_MAX }) : undefined;
 
+  const locale = useLocale() as AppLocale;
+  const inheritedPrice = t("inheritedPrice", {
+    amount: formatMoney(category.suggested_lead_price, locale),
+  });
+
   if (!editing) {
     return (
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-option border border-line px-4 py-3">
@@ -491,6 +525,7 @@ function ServiceRow({
               {t("featuredTag")}
             </Tag>
           )}
+          <span className="mt-0.5 block text-help text-muted">{inheritedPrice}</span>
         </p>
         <Button
           type="button"
@@ -533,6 +568,7 @@ function ServiceRow({
         inputMode="numeric"
         required
       />
+      <p className="text-help text-muted md:col-span-3">{inheritedPrice}</p>
       <div className="space-y-3 md:col-span-3">
         <CheckboxField
           label={t("serviceActive")}

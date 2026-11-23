@@ -6,6 +6,9 @@ dos cosas que no pertenecen al dominio.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+from concurrent.futures import ThreadPoolExecutor
+
 from app.application.dto import (
     AccountSummary,
     AdminLeadItem,
@@ -125,7 +128,30 @@ def service_out(service: Service, locale: str) -> ServiceOut:
     )
 
 
-def admin_category_out(category: Category, storage: StoragePort) -> AdminCategoryOut:
+def admin_services_out(category: Category, storage: StoragePort) -> list[AdminServiceOut]:
+    """Servicios para el panel. Las fotos se firman todas a la vez (llamada de red por foto)."""
+    ordered = sorted(category.services, key=lambda s: s.sort_order)
+    urls = public_urls(storage, (s.image_key for s in ordered if s.image_key))
+    return [
+        AdminServiceOut(
+            id=s.id,
+            slug=s.slug,
+            name_es=s.name_es,
+            name_en=s.name_en,
+            sort_order=s.sort_order,
+            active=s.active,
+            featured=s.featured,
+            image_key=s.image_key,
+            landing_name_es=s.landing_name_es,
+            landing_name_en=s.landing_name_en,
+            image_url=urls[s.image_key] if s.image_key else None,
+        )
+        for s in ordered
+    ]
+
+
+def admin_category_summary_out(category: Category) -> AdminCategoryOut:
+    """Sin servicios ni URLs firmadas: solo cuantos tiene."""
     return AdminCategoryOut(
         id=category.id,
         slug=category.slug,
@@ -134,22 +160,13 @@ def admin_category_out(category: Category, storage: StoragePort) -> AdminCategor
         suggested_lead_price=money_out(category.suggested_lead_price),
         sort_order=category.sort_order,
         active=category.active,
-        services=[
-            AdminServiceOut(
-                id=s.id,
-                slug=s.slug,
-                name_es=s.name_es,
-                name_en=s.name_en,
-                sort_order=s.sort_order,
-                active=s.active,
-                featured=s.featured,
-                image_key=s.image_key,
-                landing_name_es=s.landing_name_es,
-                landing_name_en=s.landing_name_en,
-                image_url=storage.public_url(s.image_key) if s.image_key else None,
-            )
-            for s in sorted(category.services, key=lambda s: s.sort_order)
-        ],
+        services_count=len(category.services),
+    )
+
+
+def admin_category_out(category: Category, storage: StoragePort) -> AdminCategoryOut:
+    return admin_category_summary_out(category).model_copy(
+        update={"services": admin_services_out(category, storage)}
     )
 
 
@@ -158,6 +175,20 @@ def catalog_category_out(category: Category, locale: str) -> CatalogCategoryOut:
         **category_out(category, locale).model_dump(),
         services=[service_out(s, locale) for s in category.active_services],
     )
+
+
+# La firma de una URL de GCS es una llamada de red (~0,5 s). Es espera de I/O, no de CPU:
+# unos pocos hilos bastan aunque el servidor tenga 1 o 2 cores. Pool propio y acotado para
+# no competir con el executor por defecto de asyncio.
+_URL_SIGNING_POOL = ThreadPoolExecutor(max_workers=8, thread_name_prefix="sign-url")
+
+
+def public_urls(storage: StoragePort, keys: Iterable[str]) -> dict[str, str]:
+    """Resuelve varias claves a la vez; se llama desde un hilo, nunca desde el event loop."""
+    unique = list(dict.fromkeys(keys))
+    if len(unique) <= 1:
+        return {key: storage.public_url(key) for key in unique}
+    return dict(zip(unique, _URL_SIGNING_POOL.map(storage.public_url, unique), strict=True))
 
 
 def lead_public_out(
@@ -169,7 +200,9 @@ def lead_public_out(
     locale: str,
     distance_km: float | None = None,
     already_purchased: bool = False,
+    urls: dict[str, str] | None = None,
 ) -> LeadPublicOut:
+    resolve = urls.__getitem__ if urls is not None else storage.public_url
     return LeadPublicOut(
         id=view.id,
         title=view.title,
@@ -183,7 +216,7 @@ def lead_public_out(
         services=[service_out(s, locale) for s in category.services_named(view.service_ids)],
         property_type=view.property_type,
         schedule=view.schedule,
-        photo_urls=[storage.public_url(key) for key in view.photo_keys],
+        photo_urls=[resolve(key) for key in view.photo_keys],
         created_at=view.created_at,
         remaining_slots=view.remaining_slots,
         purchases_count=view.purchases_count,
@@ -206,7 +239,13 @@ def vat_breakdown_out(breakdown: VatBreakdown) -> VatBreakdownOut:
     )
 
 
-def lead_list_item_out(item: LeadListItem, *, storage: StoragePort, locale: str) -> LeadPublicOut:
+def lead_list_item_out(
+    item: LeadListItem,
+    *,
+    storage: StoragePort,
+    locale: str,
+    urls: dict[str, str] | None = None,
+) -> LeadPublicOut:
     return lead_public_out(
         item.lead,
         item.category,
@@ -215,12 +254,17 @@ def lead_list_item_out(item: LeadListItem, *, storage: StoragePort, locale: str)
         locale=locale,
         distance_km=item.distance_km,
         already_purchased=item.already_purchased,
+        urls=urls,
     )
 
 
 def lead_list_out(result: LeadListResult, *, storage: StoragePort, locale: str) -> LeadListOut:
+    urls = public_urls(storage, (k for item in result.items for k in item.lead.photo_keys))
     return LeadListOut(
-        items=[lead_list_item_out(item, storage=storage, locale=locale) for item in result.items],
+        items=[
+            lead_list_item_out(item, storage=storage, locale=locale, urls=urls)
+            for item in result.items
+        ],
         total=result.total,
         limit=result.limit,
         offset=result.offset,
@@ -378,8 +422,12 @@ def lead_pricing_out(pricing: LeadPricing, locale: str) -> LeadPricingOut:
     )
 
 
-def admin_lead_out(item: AdminLeadItem, *, storage: StoragePort, locale: str) -> AdminLeadOut:
-    """Serializa el inventario admin sin abrir campos de contacto del cliente."""
+def admin_lead_out(item: AdminLeadItem, *, locale: str) -> AdminLeadOut:
+    """Serializa el inventario admin sin abrir campos de contacto del cliente.
+
+    Sin fotos a proposito: el panel no las muestra y firmar cada URL de GCS es una
+    llamada de red por foto.
+    """
     view = item.lead
     return AdminLeadOut(
         id=view.id,
@@ -389,7 +437,6 @@ def admin_lead_out(item: AdminLeadItem, *, storage: StoragePort, locale: str) ->
         province=view.province,
         postal_code_prefix=view.postal_code_prefix,
         category=category_out(item.category, locale),
-        photo_urls=[storage.public_url(key) for key in view.photo_keys],
         created_at=view.created_at,
         status=item.status.value,
         source=item.source.value,
@@ -400,11 +447,9 @@ def admin_lead_out(item: AdminLeadItem, *, storage: StoragePort, locale: str) ->
     )
 
 
-def admin_lead_list_out(
-    result: AdminLeadListResult, *, storage: StoragePort, locale: str
-) -> AdminLeadListOut:
+def admin_lead_list_out(result: AdminLeadListResult, *, locale: str) -> AdminLeadListOut:
     return AdminLeadListOut(
-        items=[admin_lead_out(item, storage=storage, locale=locale) for item in result.items],
+        items=[admin_lead_out(item, locale=locale) for item in result.items],
         total=result.total,
         limit=result.limit,
         offset=result.offset,

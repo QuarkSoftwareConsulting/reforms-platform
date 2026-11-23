@@ -40,6 +40,7 @@ from app.application.use_cases import (
     DeleteCategory,
     DeleteService,
     GetAdminMetrics,
+    GetCategoryForAdmin,
     GetLandingServiceImage,
     GetLeadDetail,
     GetLeadPricing,
@@ -321,6 +322,10 @@ class RequestContainer:
     @property
     def list_catalog(self) -> ListCatalogForAdmin:
         return ListCatalogForAdmin(categories=self.categories)
+
+    @property
+    def get_category_for_admin(self) -> GetCategoryForAdmin:
+        return GetCategoryForAdmin(categories=self.categories)
 
     @property
     def create_category(self) -> CreateCategory:

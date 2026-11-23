@@ -59,7 +59,10 @@ export interface AdminCatalogService {
   image_url: string | null;
 }
 
-/** Categoria tal como la edita el admin, con todos sus servicios (tambien desactivados). */
+/**
+ * Categoria tal como la edita el admin. El listado trae solo `services_count`; los servicios
+ * (tambien los desactivados) se piden al desplegarla y hasta entonces `services` es `null`.
+ */
 export interface AdminCatalogCategory {
   id: string;
   /** Sale del nombre al crearla y no cambia al renombrar: lo usan las URL. */
@@ -69,7 +72,8 @@ export interface AdminCatalogCategory {
   suggested_lead_price: Money;
   sort_order: number;
   active: boolean;
-  services: AdminCatalogService[];
+  services_count: number;
+  services: AdminCatalogService[] | null;
 }
 
 /** Categoria del catalogo con los servicios que hoy se ofrecen en el formulario. */
@@ -301,7 +305,6 @@ export interface AdminLead {
   province: string;
   postal_code_prefix: string;
   category: Category;
-  photo_urls: string[];
   created_at: string;
   status: "published" | "exhausted" | "disabled";
   source: "organic" | "admin";

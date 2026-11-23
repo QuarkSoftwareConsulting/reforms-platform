@@ -66,8 +66,13 @@ class AdminServiceOut(ApiModel):
 
 
 class AdminCategoryOut(ApiModel):
-    """Categoria con sus nombres en los dos idiomas y todos sus servicios, tambien los
-    desactivados: es lo que el admin edita."""
+    """Categoria con sus nombres en los dos idiomas: es lo que el admin edita.
+
+    `services` trae todos sus servicios, tambien los desactivados, salvo en el listado del
+    catalogo: ahi es `None` y solo va `services_count`. Los servicios se piden al
+    desplegar la categoria (`GET /admin/categories/{id}/services`): cada foto es una URL
+    firmada por red y el listado no las usa.
+    """
 
     id: UUID
     slug: str
@@ -76,7 +81,8 @@ class AdminCategoryOut(ApiModel):
     suggested_lead_price: MoneyOut
     sort_order: int
     active: bool
-    services: list[AdminServiceOut]
+    services_count: int
+    services: list[AdminServiceOut] | None = None
 
 
 class CreateCategoryIn(ApiModel):
@@ -166,7 +172,6 @@ class AdminLeadOut(ApiModel):
     province: str
     postal_code_prefix: str
     category: CategoryOut
-    photo_urls: list[str]
     created_at: datetime
     status: str
     source: str

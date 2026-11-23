@@ -31,6 +31,7 @@ class TestCatalogApi:
         category_id = carpentry_category.id
         for method, url in (
             ("GET", "/admin/catalog"),
+            ("GET", f"/admin/categories/{category_id}/services"),
             ("POST", "/admin/categories"),
             ("PUT", f"/admin/categories/{category_id}"),
             ("DELETE", f"/admin/categories/{category_id}"),
@@ -145,6 +146,26 @@ class TestCatalogApi:
         gone = await api.delete(url, headers=admin_auth)
         assert gone.status_code == 404
         assert gone.json()["code"] == "SERVICE_NOT_FOUND"
+
+    async def test_the_listing_only_counts_services_and_they_load_on_demand(
+        self, api: AsyncClient, carpentry_category: Category, admin_auth: dict[str, str]
+    ) -> None:
+        catalog = (await api.get("/admin/catalog", headers=admin_auth)).json()
+        listed = next(c for c in catalog if c["id"] == str(carpentry_category.id))
+        assert listed["services_count"] == len(carpentry_category.services)
+        assert listed["services"] is None
+
+        loaded = await api.get(
+            f"/admin/categories/{carpentry_category.id}/services", headers=admin_auth
+        )
+        assert loaded.status_code == 200, loaded.text
+        assert {s["id"] for s in loaded.json()} == {str(s.id) for s in carpentry_category.services}
+
+        missing = await api.get(
+            "/admin/categories/00000000-0000-0000-0000-000000000000/services", headers=admin_auth
+        )
+        assert missing.status_code == 404
+        assert missing.json()["code"] == "CATEGORY_NOT_FOUND"
 
     async def test_featured_service_reaches_the_landing_with_a_stable_image_url(
         self, api: AsyncClient, carpentry_category: Category, admin_auth: dict[str, str]

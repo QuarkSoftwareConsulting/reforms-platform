@@ -28,6 +28,7 @@ from app.application.use_cases import (
     DeleteCategory,
     DeleteService,
     GetAdminMetrics,
+    GetCategoryForAdmin,
     GetLandingServiceImage,
     GetLeadDetail,
     GetLeadPricing,
@@ -182,6 +183,7 @@ class World:
     lead_pricing: GetLeadPricing = field(init=False)
     set_lead_price: SetLeadPrice = field(init=False)
     list_catalog: ListCatalogForAdmin = field(init=False)
+    get_category_for_admin: GetCategoryForAdmin = field(init=False)
     create_category: CreateCategory = field(init=False)
     update_category: UpdateCategory = field(init=False)
     delete_category: DeleteCategory = field(init=False)
@@ -363,6 +365,7 @@ class World:
             leads=self.leads, categories=self.categories, uow=self.uow
         )
         self.list_catalog = ListCatalogForAdmin(categories=self.categories)
+        self.get_category_for_admin = GetCategoryForAdmin(categories=self.categories)
         self.create_category = CreateCategory(
             categories=self.categories, ids=self.ids, uow=self.uow
         )
