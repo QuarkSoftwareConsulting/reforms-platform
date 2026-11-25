@@ -170,6 +170,28 @@ class TestMetricsTimeseries:
         assert mar.topups == 1
         assert mar.topup_revenue_by_currency == {"EUR": 1800}
 
+    async def test_paid_purchase_without_paid_at_counts_on_its_creation_day(
+        self, world: World, carpentry
+    ) -> None:
+        # Una compra `paid` escrita fuera de la app puede no traer `paid_at`: cuenta en el
+        # total del Resumen, asi que tambien debe salir en la grafica.
+        lead = make_lead(category_id=carpentry.id)
+        world.leads.items[lead.id] = lead
+        orphan = make_purchase(
+            lead_id=lead.id,
+            status=PurchaseStatus.PAID,
+            price=Money(4600, "EUR"),
+            paid_at=None,
+            created_at=NOW,
+        )
+        world.purchases.items[orphan.id] = orphan
+
+        result = await world.metrics_timeseries.execute(start=None, end=None)
+        metrics = await world.admin_metrics.execute()
+
+        assert sum(point.paid_purchases for point in result.points) == metrics.paid_purchases
+        assert result.points[-1].revenue_by_currency == metrics.revenue_by_currency
+
     async def test_rejects_inverted_or_too_long_ranges(self, world: World) -> None:
         with pytest.raises(ValidationError):
             await world.metrics_timeseries.execute(start=date(2026, 3, 2), end=date(2026, 3, 1))

@@ -168,7 +168,9 @@ class SqlAlchemyPurchaseRepository(PurchaseRepositoryPort):
     async def daily_paid(self, *, start: datetime, end: datetime, tz: str) -> list[DailyCount]:
         return await daily_counts(
             self._session,
-            at=LeadPurchaseRow.paid_at,
+            # Una compra `paid` sin `paid_at` (escrita fuera de la app) desapareceria de
+            # la grafica aunque cuente en el total: se fecha entonces por su creacion.
+            at=func.coalesce(LeadPurchaseRow.paid_at, LeadPurchaseRow.created_at),
             start=start,
             end=end,
             tz=tz,

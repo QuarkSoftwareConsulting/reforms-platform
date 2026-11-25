@@ -64,21 +64,16 @@ export function AdminDashboard() {
 
   return (
     <section className="space-y-4">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <h2 className="text-h2 font-bold text-ink">{t("dashboard.title")}</h2>
-        <ChipGroup
-          label={t("dashboard.range")}
-          name="dashboard-range"
-          options={RANGE_PRESETS.map((days) => ({
-            value: String(days),
-            label: t("dashboard.lastDays", { days }),
-          }))}
-          selected={[String(dashboard.days)]}
-          onToggle={(value) => dashboard.setDays(Number(value) as RangePreset)}
-        />
-      </header>
+      <h2 className="text-h2 font-bold text-ink">{t("dashboard.title")}</h2>
 
       {dashboard.error && <Alert tone="error">{dashboard.error}</Alert>}
+
+      {/* Los totales cuentan todo el historico y el periodo solo filtra las graficas: sin
+          este rotulo parecia que una grafica en 0 contradecia un total de 46 EUR. */}
+      <header>
+        <h3 className="text-card-title font-bold text-ink">{t("dashboard.totalsTitle")}</h3>
+        <p className="text-help text-secondary">{t("dashboard.totalsHint")}</p>
+      </header>
 
       {!metrics ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -95,7 +90,11 @@ export function AdminDashboard() {
           <Metric label={t("metrics.paidPurchases")} value={String(metrics.paid_purchases)} />
           <Metric label={t("dashboard.paidLeads")} value={String(metrics.paid_leads)} />
           <Metric label={t("metrics.coverage")} value={formatPercent(metrics.coverage_rate)} />
-          <Metric label={t("metrics.liquidity")} value={metrics.liquidity.toFixed(2)} />
+          <Metric
+            label={t("metrics.liquidity")}
+            value={metrics.liquidity.toFixed(2)}
+            hint={t("metrics.liquidityHint")}
+          />
           <Metric
             label={t("metrics.revenue")}
             value={joinMoney(metrics.revenue_by_currency, locale) || t("metrics.none")}
@@ -109,6 +108,20 @@ export function AdminDashboard() {
           <Metric label={t("metrics.manual")} value={String(metrics.leads_admin)} />
         </div>
       )}
+
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <h3 className="text-card-title font-bold text-ink">{t("dashboard.activityTitle")}</h3>
+        <ChipGroup
+          label={t("dashboard.range")}
+          name="dashboard-range"
+          options={RANGE_PRESETS.map((days) => ({
+            value: String(days),
+            label: t("dashboard.lastDays", { days }),
+          }))}
+          selected={[String(dashboard.days)]}
+          onToggle={(value) => dashboard.setDays(Number(value) as RangePreset)}
+        />
+      </header>
 
       {series && (
         // Al recargar se conserva el dibujo anterior atenuado: sin saltos de maquetacion.
@@ -156,11 +169,12 @@ export function AdminDashboard() {
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <Card>
       <p className="text-sm text-secondary">{label}</p>
       <p className="mt-1 text-h2 font-bold text-ink">{value}</p>
+      {hint && <p className="mt-1 text-help text-secondary">{hint}</p>}
     </Card>
   );
 }

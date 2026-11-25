@@ -445,6 +445,7 @@
       "professionals": "Professionals",
       "coverage": "Lead coverage",
       "liquidity": "Lead liquidity",
+      "liquidityHint": "Average contacts sold per request (maximum 5).",
       "paidPurchases": "Paid purchases",
       "revenue": "Confirmed revenue",
       "none": "No revenue yet",
@@ -567,7 +568,10 @@
       "published": "Published",
       "exhausted": "Sold out",
       "paidLeads": "Leads with at least one sale",
-      "topupRevenue": "Top-ups collected"
+      "topupRevenue": "Top-ups collected",
+      "totalsTitle": "All-time totals",
+      "totalsHint": "Since the platform launched. The selected period only filters the charts.",
+      "activityTitle": "Daily activity"
     },
     "users": {
       "title": "Users",
