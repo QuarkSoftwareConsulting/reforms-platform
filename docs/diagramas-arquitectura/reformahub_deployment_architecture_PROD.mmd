@@ -1,0 +1,70 @@
+%%{init: {
+  "flowchart": {
+    "htmlLabels": true,
+    "nodeSpacing": 30,
+    "rankSpacing": 40,
+    "curve": "basis"
+  },
+  "themeVariables": {
+    "fontSize": "13px"
+  }
+}}%%
+
+flowchart TB
+
+    DEV["Dev Team"]
+    GH["GitHub<br/>develop → main"]
+    CI["GHA CI/CD<br/>lint · test · build · deploy"]
+
+    DEV -->|"PR"| GH
+    GH -->|"merge main"| CI
+
+    subgraph VERCEL["Vercel Pro · PROD"]
+        WEB["Next.js<br/>PROD"]
+        EDGE["CDN · SSL<br/>WAF · DDoS"]
+        WEB --> EDGE
+    end
+
+    GH -->|"main"| WEB
+
+    subgraph GCP["Google Cloud · PROD"]
+        AR["Artifact Registry<br/>API image"]
+        API["Cloud Run<br/>FastAPI<br/>min=1"]
+        DB["Cloud SQL<br/>Postgres + PostGIS<br/>db-f1-micro"]
+        FF["Feature Flags<br/>DB tables"]
+        SM["Secret Manager<br/>PROD secrets"]
+        GCS["GCS<br/>prod bucket"]
+        ARMOR["Future<br/>LB + Armor"]
+    end
+
+    CI -->|"build + push"| AR
+    AR -->|"deploy PROD"| API
+
+    API -->|"SQL"| DB
+    DB --- FF
+    API -->|"read flags"| FF
+
+    SM -->|"runtime secrets"| API
+    API -->|"objects"| GCS
+
+    subgraph FB["Firebase · PROD"]
+        AUTH["Auth<br/>users · claims"]
+    end
+
+    EDGE -->|"REST + ID token"| API
+    EDGE -->|"login"| AUTH
+    API -->|"verify token"| AUTH
+
+    subgraph EXT["External"]
+        STRIPE["Stripe Live<br/>Checkout · Webhooks"]
+    end
+
+    API -->|"Checkout API"| STRIPE
+    STRIPE -->|"signed webhook"| API
+
+    USER["Usuarios"]
+    USER -->|"HTTPS"| EDGE
+
+    ARMOR -.->|"optional"| API
+
+    NOTE["PROD<br/>Pro · min=1 · Stripe Live<br/>Flags enable released features"]

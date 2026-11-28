@@ -19,6 +19,25 @@ def test_expired_reservation_frees_the_slot() -> None:
     assert purchase.occupies_slot_at(NOW) is False
 
 
+@pytest.mark.parametrize(
+    ("status", "reserved_until", "shown"),
+    [
+        (PurchaseStatus.PAID, None, True),
+        (PurchaseStatus.RESERVED, NOW + timedelta(minutes=30), True),
+        (PurchaseStatus.RESERVED, None, True),
+        (PurchaseStatus.RESERVED, NOW - timedelta(minutes=1), False),
+        (PurchaseStatus.EXPIRED, None, False),
+        (PurchaseStatus.FAILED, None, False),
+        (PurchaseStatus.REFUNDED, None, False),
+    ],
+)
+def test_history_shows_only_paid_and_live_reservations(
+    status: PurchaseStatus, reserved_until: object, shown: bool
+) -> None:
+    purchase = make_purchase(status=status, reserved_until=reserved_until)
+    assert purchase.shows_in_history_at(NOW) is shown
+
+
 def test_mark_paid_unlocks_contact_and_clears_reservation() -> None:
     purchase = make_purchase(reserved_until=NOW + timedelta(minutes=30))
     purchase.mark_paid(now=NOW, payment_intent_id="pi_123")

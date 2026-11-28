@@ -298,7 +298,10 @@ class World:
             ),
         )
         self.my_purchases = ListMyPurchases(
-            purchases=self.purchases, leads=self.leads, categories=self.categories
+            purchases=self.purchases,
+            leads=self.leads,
+            categories=self.categories,
+            clock=self.clock,
         )
         self.release_reservations = ReleaseExpiredReservations(
             purchases=self.purchases,

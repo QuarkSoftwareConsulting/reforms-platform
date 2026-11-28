@@ -337,6 +337,21 @@ class InMemoryPurchaseRepository(PurchaseRepositoryPort):
         )
         return rows[offset : offset + limit]
 
+    async def list_history_for_professional(
+        self, professional_id: UUID, *, now: datetime, limit: int = 50, offset: int = 0
+    ) -> list[Purchase]:
+        await _round_trip()
+        rows = sorted(
+            (
+                p
+                for p in self.items.values()
+                if p.professional_id == professional_id and p.shows_in_history_at(now)
+            ),
+            key=lambda p: p.created_at,
+            reverse=True,
+        )
+        return rows[offset : offset + limit]
+
     async def list_expired_reservations(self, *, now: datetime, limit: int = 100) -> list[Purchase]:
         await _round_trip()
         return [p for p in self.items.values() if p.is_reservation_expired(now)][:limit]
