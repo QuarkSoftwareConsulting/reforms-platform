@@ -26,7 +26,8 @@
     "languageEs": "Español",
     "languageEn": "English",
     "menu": "Abrir menú",
-    "subscription": "Mi mensualidad"
+    "subscription": "Mi mensualidad",
+    "balance": "Saldo: {balance}"
   },
   "footer": {
     "tagline": "Tus ideas. Los mejores profesionales.",
@@ -305,6 +306,7 @@
       "chargeback_reversal": "Devolución anulada: importe recuperado"
     },
     "bannerActive": "Cuenta activa · Saldo: {balance}",
+    "bannerBalance": "Saldo: {balance}",
     "bannerInactive": "Cuenta inactiva: puedes ver las solicitudes, pero para comprar contactos necesitas la recarga mensual al día.",
     "bannerCta": "Activar mensualidad",
     "bannerManage": "Ver mi mensualidad",

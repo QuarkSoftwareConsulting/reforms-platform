@@ -153,3 +153,61 @@ describe("SubscriptionPanel: sin mensualidad fijada por el admin", () => {
     expect(startCheckout).not.toHaveBeenCalled();
   });
 });
+
+/** Lo que hace el navegador al volver con "Atras" a una pagina de su cache (bfcache). */
+function restoreFromBackForwardCache(persisted = true): void {
+  const event = new Event("pageshow");
+  Object.defineProperty(event, "persisted", { value: persisted });
+  act(() => {
+    window.dispatchEvent(event);
+  });
+}
+
+describe("SubscriptionPanel: volver de Stripe con el boton Atras", () => {
+  const assign = vi.fn();
+  const originalLocation = window.location;
+
+  beforeEach(() => {
+    accountMock.mockReset();
+    startCheckout.mockReset();
+    assign.mockReset();
+    search = new URLSearchParams();
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { assign, href: "http://localhost/" },
+    });
+  });
+  afterEach(() => {
+    Object.defineProperty(window, "location", { configurable: true, value: originalLocation });
+  });
+
+  it("unlocks the button and reloads the balance when the page is restored", async () => {
+    accountMock.mockResolvedValue(account());
+    startCheckout.mockResolvedValue({ checkout_url: "https://checkout.stripe.test/cs_1" });
+    const user = userEvent.setup();
+    renderWithIntl(<SubscriptionPanel />);
+
+    await user.click(await screen.findByRole("button", { name: /Activar mensualidad/ }));
+    expect(assign).toHaveBeenCalledWith("https://checkout.stripe.test/cs_1");
+    expect(screen.getByRole("button", { name: t.redirecting })).toBeDefined();
+
+    const calls = accountMock.mock.calls.length;
+    restoreFromBackForwardCache();
+
+    expect(await screen.findByRole("button", { name: /Activar mensualidad/ })).toBeDefined();
+    expect(screen.queryByRole("button", { name: t.redirecting })).toBeNull();
+    expect(accountMock.mock.calls.length).toBe(calls + 1);
+  });
+
+  it("ignores a normal page show", async () => {
+    accountMock.mockResolvedValue(account());
+    startCheckout.mockResolvedValue({ checkout_url: "https://checkout.stripe.test/cs_1" });
+    const user = userEvent.setup();
+    renderWithIntl(<SubscriptionPanel />);
+
+    await user.click(await screen.findByRole("button", { name: /Activar mensualidad/ }));
+    restoreFromBackForwardCache(false);
+
+    expect(screen.getByRole("button", { name: t.redirecting })).toBeDefined();
+  });
+});

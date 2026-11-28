@@ -6,6 +6,7 @@ import { useLocale } from "next-intl";
 import { useCallback, useState } from "react";
 
 import { useApiError } from "@/hooks/useApiError";
+import { usePageRestored } from "@/hooks/usePageRestored";
 import { path } from "@/i18n/routing";
 import { paymentService } from "@/services/payment.service";
 import type { Locale } from "@/types/api";
@@ -32,6 +33,11 @@ export function useLeadPurchase({ onUnlocked }: LeadPurchaseOptions = {}): LeadP
   const translateError = useApiError();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Volver del checkout con "Atras" restaura la pagina con `pending` aun activo y el
+  // boton quedaba bloqueado. Habilitarlo no permite una segunda reserva: mientras la
+  // primera siga viva el backend responde LEAD_ALREADY_PURCHASED.
+  usePageRestored(() => setPending(false));
 
   const start = useCallback(
     async (leadId: string) => {

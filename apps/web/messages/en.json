@@ -26,7 +26,8 @@
     "languageEs": "Español",
     "languageEn": "English",
     "menu": "Open menu",
-    "subscription": "My monthly fee"
+    "subscription": "My monthly fee",
+    "balance": "Balance: {balance}"
   },
   "footer": {
     "tagline": "Your ideas. The best professionals.",
@@ -305,6 +306,7 @@
       "chargeback_reversal": "Return reversed: amount recovered"
     },
     "bannerActive": "Active account · Balance: {balance}",
+    "bannerBalance": "Balance: {balance}",
     "bannerInactive": "Inactive account: you can browse requests, but to buy contacts you need an up-to-date monthly top-up.",
     "bannerCta": "Activate monthly fee",
     "bannerManage": "View my monthly fee",

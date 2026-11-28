@@ -37,3 +37,6 @@ ui-debug.log
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Otros
+arquitectura.md

@@ -1,0 +1,70 @@
+%%{init: {
+  "flowchart": {
+    "htmlLabels": true,
+    "nodeSpacing": 30,
+    "rankSpacing": 40,
+    "curve": "basis"
+  },
+  "themeVariables": {
+    "fontSize": "13px"
+  }
+}}%%
+
+flowchart TB
+
+    DEV["Dev Team"]
+    GH["GitHub<br/>feature/* → develop"]
+    CI["GHA CI/CD<br/>lint · test · build"]
+
+    DEV -->|"push / PR"| GH
+    GH -->|"PR / merge develop"| CI
+
+    subgraph VERCEL["Vercel Hobby · DEV"]
+        VP["Preview<br/>PRs"]
+        WEB["Next.js<br/>DEV"]
+        EDGE["CDN · SSL"]
+        VP --> EDGE
+        WEB --> EDGE
+    end
+
+    GH -->|"PR"| VP
+    GH -->|"develop"| WEB
+
+    subgraph GCP["Google Cloud · DEV"]
+        AR["Artifact Registry<br/>API image"]
+        API["Cloud Run<br/>FastAPI<br/>min=0"]
+        DB["Cloud SQL<br/>Postgres + PostGIS<br/>db-f1-micro"]
+        FF["Feature Flags<br/>DB tables"]
+        SM["Secret Manager<br/>DEV secrets"]
+        GCS["GCS<br/>dev bucket"]
+    end
+
+    CI -->|"build + push"| AR
+    AR -->|"deploy DEV"| API
+
+    API -->|"SQL"| DB
+    DB --- FF
+    API -->|"read flags"| FF
+
+    SM -->|"runtime secrets"| API
+    API -->|"objects"| GCS
+
+    subgraph FB["Firebase · DEV"]
+        AUTH["Auth<br/>users · claims"]
+    end
+
+    EDGE -->|"REST + ID token"| API
+    EDGE -->|"login"| AUTH
+    API -->|"verify token"| AUTH
+
+    subgraph EXT["External"]
+        STRIPE["Stripe Test<br/>Checkout · Webhooks"]
+    end
+
+    API -->|"Checkout API"| STRIPE
+    STRIPE -->|"signed webhook"| API
+
+    USER["QA / Cliente / Equipo"]
+    USER -->|"HTTPS"| EDGE
+
+    NOTE["DEV<br/>Hobby · min=0 · Stripe Test<br/>Flags hide incomplete features"]

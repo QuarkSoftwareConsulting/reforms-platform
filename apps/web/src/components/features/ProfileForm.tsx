@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useId, useRef } from "react";
 
 import { CategoryPicker } from "@/components/features/CategoryPicker";
+import { BalanceCard } from "@/components/features/profile/BalanceCard";
 import { DocumentsSection } from "@/components/features/profile/DocumentsSection";
 import { MediaFields } from "@/components/features/profile/MediaFields";
 import { ReviewConfirmDialog } from "@/components/features/profile/ReviewConfirmDialog";
@@ -18,6 +19,7 @@ import { FormErrorSummary, type SummaryIssue } from "@/components/ui/FormErrorSu
 import { OptionCard } from "@/components/ui/OptionCard";
 import { focusField } from "@/helpers/formErrors";
 import { PROFESSIONAL_TYPES } from "@/helpers/professionalOptions";
+import { useAuth } from "@/hooks/useAuth";
 import { useProfessionalFiles } from "@/hooks/useProfessionalFiles";
 import { useProfessionalProfile, type ProfileValues } from "@/hooks/useProfessionalProfile";
 import { path, type AppLocale } from "@/i18n/routing";
@@ -58,6 +60,7 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
   const formRef = useRef<HTMLFormElement>(null);
   const uid = useId();
   const { values, professional } = form;
+  const account = useAuth().me?.account ?? null;
 
   const error = (field: keyof ProfileValues): string | undefined => form.errors[field];
 
@@ -114,6 +117,7 @@ export function ProfileForm({ categories }: { categories: CatalogCategory[] }) {
       </header>
 
       {professional && <VerificationCard verification={professional.verification} />}
+      {account && <BalanceCard account={account} />}
 
       <Card className="space-y-5">
         <h2 className="text-card-title font-semibold text-ink">{t("sections.business")}</h2>

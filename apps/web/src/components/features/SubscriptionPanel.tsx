@@ -12,6 +12,7 @@ import { formatDate } from "@/helpers/date";
 import { useApiError } from "@/hooks/useApiError";
 import { ApiError } from "@/services/api";
 import { useAuth } from "@/hooks/useAuth";
+import { usePageRestored } from "@/hooks/usePageRestored";
 import type { AppLocale } from "@/i18n/routing";
 import { subscriptionService } from "@/services/subscription.service";
 import type { Account } from "@/types/api";
@@ -51,6 +52,13 @@ export function SubscriptionPanel() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Al volver de Stripe con "Atras" el navegador restaura la pagina tal cual se dejo:
+  // con el boton en "Redirigiendo..." y el saldo de antes de pagar.
+  usePageRestored(() => {
+    setRedirecting(false);
+    void load();
+  });
 
   const waitingForWebhook = returnStatus === "success" || alreadyInStripe;
 
