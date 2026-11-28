@@ -207,7 +207,18 @@ class PurchaseRepositoryPort(ABC):
     @abstractmethod
     async def list_for_professional(
         self, professional_id: UUID, *, limit: int = 50, offset: int = 0
-    ) -> list[Purchase]: ...
+    ) -> list[Purchase]:
+        """Todas las compras del profesional, en cualquier estado."""
+
+    @abstractmethod
+    async def list_history_for_professional(
+        self, professional_id: UUID, *, now: datetime, limit: int = 50, offset: int = 0
+    ) -> list[Purchase]:
+        """Historial "Mis contactos": solo las compras que `shows_in_history_at(now)`.
+
+        Deja fuera reservas caducadas, pagos fallidos y reembolsos, que repetian el
+        lead junto a su compra pagada. Mas recientes primero.
+        """
 
     @abstractmethod
     async def list_expired_reservations(self, *, now: datetime, limit: int = 100) -> list[Purchase]:

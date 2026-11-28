@@ -1,7 +1,7 @@
 """Tests del explorador, el detalle y el historial: la PII nunca se filtra."""
 
 from datetime import timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -303,6 +303,72 @@ class TestPurchaseHistory:
 
         assert await world.my_purchases.execute(professional_id=madrid_carpenter.id) == []
         assert len(await world.my_purchases.execute(professional_id=other.id)) == 1
+
+    async def _send(
+        self, world: World, event_type: PaymentEventType, purchase_id: UUID, event_id: str
+    ) -> None:
+        await world.handle_event.execute(
+            payload=FakePaymentGateway.event_payload(
+                event_id=event_id, event_type=event_type, purchase_id=purchase_id
+            ),
+            signature=VALID_SIGNATURE,
+        )
+
+    async def test_one_entry_per_lead_after_abandoned_and_failed_checkouts(
+        self, world: World, carpentry: Category, madrid_carpenter: Professional
+    ) -> None:
+        lead = add_lead(world, carpentry)
+        # Primer intento: checkout abandonado que caduca y se libera.
+        await world.start_purchase.execute(lead_id=lead.id, professional_id=madrid_carpenter.id)
+        world.clock.advance(minutes=31)
+        assert await world.release_reservations.execute() == 1
+        # Segundo intento: la tarjeta falla.
+        failed = await world.start_purchase.execute(
+            lead_id=lead.id, professional_id=madrid_carpenter.id
+        )
+        await self._send(world, PaymentEventType.PAYMENT_FAILED, failed.purchase_id, "evt_fail")
+        # Tercer intento: pagado.
+        paid = await world.start_purchase.execute(
+            lead_id=lead.id, professional_id=madrid_carpenter.id
+        )
+        await self._send(world, PaymentEventType.CHECKOUT_COMPLETED, paid.purchase_id, "evt_ok")
+        statuses = sorted(p.status.value for p in world.purchases.items.values())
+        assert statuses == ["expired", "failed", "paid"]
+
+        history = await world.my_purchases.execute(professional_id=madrid_carpenter.id)
+
+        assert [entry.purchase.id for entry in history] == [paid.purchase_id]
+        assert history[0].contact is not None
+
+    async def test_failed_and_expired_purchases_alone_are_not_listed(
+        self, world: World, carpentry: Category, madrid_carpenter: Professional
+    ) -> None:
+        failed_lead = add_lead(world, carpentry)
+        expired_lead = add_lead(world, carpentry)
+        failed = await world.start_purchase.execute(
+            lead_id=failed_lead.id, professional_id=madrid_carpenter.id
+        )
+        await self._send(world, PaymentEventType.PAYMENT_FAILED, failed.purchase_id, "evt_fail")
+        await world.start_purchase.execute(
+            lead_id=expired_lead.id, professional_id=madrid_carpenter.id
+        )
+        world.clock.advance(minutes=31)
+        await world.release_reservations.execute()
+
+        assert await world.my_purchases.execute(professional_id=madrid_carpenter.id) == []
+
+    async def test_live_reservation_stays_visible_until_its_ttl(
+        self, world: World, carpentry: Category, madrid_carpenter: Professional
+    ) -> None:
+        lead = add_lead(world, carpentry)
+        await world.start_purchase.execute(lead_id=lead.id, professional_id=madrid_carpenter.id)
+
+        world.clock.advance(minutes=29)
+        assert len(await world.my_purchases.execute(professional_id=madrid_carpenter.id)) == 1
+
+        # Caducada por TTL aunque ni el webhook ni el job la hayan marcado aun.
+        world.clock.advance(minutes=2)
+        assert await world.my_purchases.execute(professional_id=madrid_carpenter.id) == []
 
 
 class TestPhotoUpload:

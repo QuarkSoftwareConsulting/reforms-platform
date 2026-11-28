@@ -74,6 +74,17 @@ class Purchase:
             return False
         return self.status.occupies_slot
 
+    def shows_in_history_at(self, now: datetime) -> bool:
+        """Si la compra aparece en "Mis contactos".
+
+        Solo la venta cerrada y el pago en curso (reserva vigente). Una reserva
+        caducada, un pago fallido o una compra reembolsada no dan ningun contacto
+        y, junto a la pagada del mismo lead, solo repetian tarjetas.
+        """
+        if self.status is PurchaseStatus.PAID:
+            return True
+        return self.status is PurchaseStatus.RESERVED and not self.is_reservation_expired(now)
+
     # ----------------------------- Transiciones --------------------------
 
     def attach_checkout_session(self, session_id: str) -> None:

@@ -295,6 +295,63 @@ class TestSlotCounting:
         assert await purchases.count_occupied_slots(lead.id, now=now) == 1
 
 
+class TestPurchaseHistory:
+    async def test_lists_only_paid_and_live_reservations_once_per_lead(
+        self, session: AsyncSession, carpentry: Category, madrid_carpenter: Professional
+    ) -> None:
+        """«Mis contactos» no repite el lead con los intentos caducados o fallidos."""
+        leads = SqlAlchemyLeadRepository(session)
+        purchases = SqlAlchemyPurchaseRepository(session)
+        now = datetime.now(UTC)
+        bought, abandoned, in_progress, refunded = [
+            await leads.add(make_lead(category_id=carpentry.id)) for _ in range(4)
+        ]
+
+        def build(lead_id: UUID, status: PurchaseStatus, minutes_ago: int, **kw: object):
+            return Purchase(
+                id=uuid4(),
+                lead_id=lead_id,
+                professional_id=madrid_carpenter.id,
+                price=Money(500, "EUR"),
+                status=status,
+                created_at=now - timedelta(minutes=minutes_ago),
+                **kw,  # type: ignore[arg-type]
+            )
+
+        # El mismo lead: checkout abandonado, pago fallido y por fin pagado.
+        await purchases.add(build(bought.id, PurchaseStatus.EXPIRED, 90))
+        await purchases.add(build(bought.id, PurchaseStatus.FAILED, 60))
+        paid = await purchases.add(build(bought.id, PurchaseStatus.PAID, 30, paid_at=now))
+        # Reserva caducada por TTL que nadie ha marcado aun como EXPIRED.
+        await purchases.add(
+            build(
+                abandoned.id,
+                PurchaseStatus.RESERVED,
+                45,
+                reserved_until=now - timedelta(minutes=15),
+            )
+        )
+        live = await purchases.add(
+            build(
+                in_progress.id,
+                PurchaseStatus.RESERVED,
+                5,
+                reserved_until=now + timedelta(minutes=25),
+            )
+        )
+        await purchases.add(build(refunded.id, PurchaseStatus.REFUNDED, 120, paid_at=now))
+        await session.commit()
+
+        history = await purchases.list_history_for_professional(madrid_carpenter.id, now=now)
+
+        assert [p.id for p in history] == [live.id, paid.id]
+        # Paginar sobre el historial filtrado, no sobre todas las filas.
+        page = await purchases.list_history_for_professional(
+            madrid_carpenter.id, now=now, limit=1, offset=1
+        )
+        assert [p.id for p in page] == [paid.id]
+
+
 class TestEndToEndPurchase:
     async def test_full_flow_reserves_pays_and_exhausts_the_lead(
         self, session: AsyncSession, carpentry: Category

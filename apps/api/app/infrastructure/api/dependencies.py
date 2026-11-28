@@ -458,7 +458,10 @@ class RequestContainer:
     @property
     def my_purchases(self) -> ListMyPurchases:
         return ListMyPurchases(
-            purchases=self.purchases, leads=self.leads, categories=self.categories
+            purchases=self.purchases,
+            leads=self.leads,
+            categories=self.categories,
+            clock=self.infra.clock,
         )
 
     @property

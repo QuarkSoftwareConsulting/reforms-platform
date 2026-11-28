@@ -108,6 +108,33 @@ class SqlAlchemyPurchaseRepository(PurchaseRepositoryPort):
         rows = (await self._session.execute(stmt)).scalars().all()
         return [purchase_to_domain(row) for row in rows]
 
+    async def list_history_for_professional(
+        self, professional_id: UUID, *, now: datetime, limit: int = 50, offset: int = 0
+    ) -> list[Purchase]:
+        # Mismo criterio que `Purchase.shows_in_history_at`. El TTL se mira aqui
+        # porque el webhook o el job pueden no haber pasado aun la reserva a EXPIRED.
+        # No hace falta deduplicar: `uq_lead_purchases_active` ya impide dos compras
+        # en `reserved`/`paid` del mismo profesional sobre el mismo lead.
+        stmt = (
+            select(LeadPurchaseRow)
+            .where(
+                LeadPurchaseRow.professional_id == professional_id,
+                or_(
+                    LeadPurchaseRow.status == PurchaseStatus.PAID,
+                    (LeadPurchaseRow.status == PurchaseStatus.RESERVED)
+                    & (
+                        LeadPurchaseRow.reserved_until.is_(None)
+                        | (LeadPurchaseRow.reserved_until > now)
+                    ),
+                ),
+            )
+            .order_by(LeadPurchaseRow.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        rows = (await self._session.execute(stmt)).scalars().all()
+        return [purchase_to_domain(row) for row in rows]
+
     async def list_expired_reservations(self, *, now: datetime, limit: int = 100) -> list[Purchase]:
         stmt = (
             select(LeadPurchaseRow)
