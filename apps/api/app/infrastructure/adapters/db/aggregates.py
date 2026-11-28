@@ -16,7 +16,11 @@ from app.application.ports import DailyCount
 async def daily_counts(
     session: AsyncSession,
     *,
-    at: InstrumentedAttribute[datetime] | InstrumentedAttribute[datetime | None],
+    at: (
+        InstrumentedAttribute[datetime]
+        | InstrumentedAttribute[datetime | None]
+        | ColumnElement[datetime | None]
+    ),
     start: datetime,
     end: datetime,
     tz: str,

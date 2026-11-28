@@ -555,3 +555,33 @@ class TestChargebackAgainstPostgres:
                 {"pid": buyer.id},
             )
         await session.rollback()
+
+
+async def test_daily_paid_dates_purchases_without_paid_at_by_creation(
+    session: AsyncSession, carpentry: Category, madrid_carpenter: Professional
+) -> None:
+    """Una compra `paid` sin `paid_at` (escrita fuera de la app) sigue saliendo en la serie."""
+    leads = SqlAlchemyLeadRepository(session)
+    purchases = SqlAlchemyPurchaseRepository(session)
+    lead = await leads.add(make_lead(category_id=carpentry.id))
+    created = datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
+    await purchases.add(
+        Purchase(
+            id=uuid4(),
+            lead_id=lead.id,
+            professional_id=madrid_carpenter.id,
+            price=Money(4600, "EUR"),
+            status=PurchaseStatus.PAID,
+            created_at=created,
+            paid_at=None,
+        )
+    )
+    await session.commit()
+
+    rows = await purchases.daily_paid(
+        start=created - timedelta(days=1), end=created + timedelta(days=1), tz="Europe/Madrid"
+    )
+
+    assert [(row.day, row.count, row.amount_by_currency) for row in rows] == [
+        (created.date(), 1, {"EUR": 4600})
+    ]

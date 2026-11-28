@@ -226,7 +226,10 @@ class PurchaseRepositoryPort(ABC):
 
     @abstractmethod
     async def daily_paid(self, *, start: datetime, end: datetime, tz: str) -> list[DailyCount]:
-        """Compras pagadas por dia de `paid_at` en `[start, end)`, con su importe."""
+        """Compras pagadas por dia de pago en `[start, end)`, con su importe.
+
+        El dia es `paid_at`, o `created_at` si falta: toda compra del total sale en la serie.
+        """
 
     @abstractmethod
     async def list_admin(self, filters: AdminPurchaseFilters) -> list[Purchase]:

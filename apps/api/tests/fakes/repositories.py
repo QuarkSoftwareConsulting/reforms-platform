@@ -365,9 +365,13 @@ class InMemoryPurchaseRepository(PurchaseRepositoryPort):
         await _round_trip()
         return _daily(
             (
-                (purchase.paid_at, purchase.price.currency, purchase.price.amount_cents)
+                (
+                    purchase.paid_at or purchase.created_at,
+                    purchase.price.currency,
+                    purchase.price.amount_cents,
+                )
                 for purchase in self.items.values()
-                if purchase.status is PurchaseStatus.PAID and purchase.paid_at is not None
+                if purchase.status is PurchaseStatus.PAID
             ),
             start=start,
             end=end,
