@@ -25,6 +25,12 @@ const { ApiError } = await import("@/services/api");
 
 const assign = vi.fn();
 
+function pageshow(persisted: boolean): Event {
+  const event = new Event("pageshow");
+  Object.defineProperty(event, "persisted", { value: persisted });
+  return event;
+}
+
 function wrapper({ children }: { children: ReactNode }) {
   return (
     <NextIntlClientProvider locale="es" messages={messages}>
@@ -124,6 +130,28 @@ describe("useLeadPurchase", () => {
 
     expect(result.current.pending).toBe(true);
     expect(result.current.error).toBeNull();
+  });
+
+  it("unlocks the button when the browser restores the page after the checkout", async () => {
+    startPurchase.mockResolvedValue({
+      purchase_id: "purchase-1",
+      checkout_url: "https://checkout.stripe.test/cs_123",
+      amount: { amount_cents: 500, currency: "EUR", formatted: "5.00 €" },
+      expires_at: null,
+    });
+
+    const { result } = renderHook(() => useLeadPurchase(), { wrapper });
+    await act(async () => {
+      await result.current.start("lead-1");
+    });
+    expect(result.current.pending).toBe(true);
+
+    // "Atras" desde Stripe: el navegador devuelve la pagina de su cache con el estado
+    // tal cual. Un `pageshow` normal (sin `persisted`) no es una vuelta y no toca nada.
+    act(() => window.dispatchEvent(pageshow(false)));
+    expect(result.current.pending).toBe(true);
+    act(() => window.dispatchEvent(pageshow(true)));
+    expect(result.current.pending).toBe(false);
   });
 
   it("translates the cap-reached error into the user's language", async () => {

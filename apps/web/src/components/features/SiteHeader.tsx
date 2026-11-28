@@ -8,6 +8,7 @@ import { useState } from "react";
 import { LocaleSwitch } from "@/components/features/LocaleSwitch";
 import { Container } from "@/components/ui/Container";
 import { cn } from "@/helpers/cn";
+import { formatMoney } from "@/helpers/currency";
 import { useAuth } from "@/hooks/useAuth";
 import { splitBrand } from "@/helpers/brand";
 import { ISOTYPE_PATH } from "@/helpers/site";
@@ -63,6 +64,14 @@ export function SiteHeader() {
   ];
 
   const links = auth.isAuthenticated ? privateLinks : publicLinks;
+  // Siempre a la vista, tambien a 0 y con la recarga caducada: el saldo se conserva.
+  const account = auth.isAuthenticated ? auth.me?.account : null;
+  const balance = account
+    ? {
+        href: path(locale, "subscription"),
+        label: t("balance", { balance: formatMoney(account.balance, locale) }),
+      }
+    : null;
 
   return (
     <header className="sticky top-0 z-20 bg-navy">
@@ -80,6 +89,14 @@ export function SiteHeader() {
 
         <div className="hidden items-center gap-3.5 lg:flex">
           <LocaleSwitch />
+          {balance && (
+            <Link
+              href={balance.href}
+              className="text-[14.5px] font-semibold text-accent hover:underline"
+            >
+              {balance.label}
+            </Link>
+          )}
           {auth.isAuthenticated ? (
             <button
               type="button"
@@ -141,6 +158,15 @@ export function SiteHeader() {
               {link.label}
             </Link>
           ))}
+          {balance && (
+            <Link
+              href={balance.href}
+              onClick={close}
+              className="flex min-h-12 items-center text-[15px] font-semibold text-accent"
+            >
+              {balance.label}
+            </Link>
+          )}
           {auth.isAuthenticated ? (
             <button
               type="button"

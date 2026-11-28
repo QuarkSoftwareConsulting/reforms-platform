@@ -90,6 +90,29 @@ describe("AccountStatusBanner", () => {
     expect(text).toContain("13,00");
   });
 
+  it("shows a zero balance instead of hiding it", () => {
+    renderWithIntl(<AccountStatusBanner account={account()} />);
+    expect(screen.getByRole("status").textContent).toContain("0,00");
+  });
+
+  it("shows the balance kept by an inactive account", () => {
+    renderWithIntl(
+      <AccountStatusBanner
+        account={account({ status: "canceled", is_active: false, balance: eur(2500) })}
+      />,
+    );
+    const text = screen.getByRole("alert").textContent ?? "";
+    expect(text).toContain(messages.subscription.bannerBalance.split("{balance}")[0]);
+    expect(text).toContain("25,00");
+  });
+
+  it("shows the balance next to the debt", () => {
+    renderWithIntl(<AccountStatusBanner account={account({ debt: eur(1300), balance: eur(0) })} />);
+    const text = screen.getByRole("alert").textContent ?? "";
+    expect(text).toContain(messages.subscription.bannerBalance.split("{balance}")[0]);
+    expect(text).toContain("0,00");
+  });
+
   it("treats a professional without account as inactive", () => {
     renderWithIntl(<AccountStatusBanner account={null} />);
     expect(screen.getByRole("alert").textContent).toContain(messages.subscription.status.none);

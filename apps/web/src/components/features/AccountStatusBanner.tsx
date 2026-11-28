@@ -12,7 +12,8 @@ import type { Account } from "@/types/api";
  * Estado de la cuenta en "Solicitudes en tu zona".
  *
  * Lo pide el negocio: una cuenta inactiva puede ver las solicitudes pero no
- * comprarlas, y el profesional tiene que saberlo antes de intentar comprar.
+ * comprarlas, y el profesional tiene que saberlo antes de intentar comprar. El saldo
+ * se ve en todos los estados, tambien a 0: se conserva aunque la recarga caduque.
  */
 export function AccountStatusBanner({ account }: { account: Account | null }) {
   const locale = useLocale() as AppLocale;
@@ -23,7 +24,14 @@ export function AccountStatusBanner({ account }: { account: Account | null }) {
     return (
       <Alert tone="warning">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <span>{t("bannerDebt", { debt: formatMoney(account.debt, locale) })}</span>
+          <span>
+            <span className="block">
+              {t("bannerDebt", { debt: formatMoney(account.debt, locale) })}
+            </span>
+            <span className="block font-semibold">
+              {t("bannerBalance", { balance: formatMoney(account.balance, locale) })}
+            </span>
+          </span>
           <Link href={href} className="font-semibold text-brand hover:underline">
             {t("bannerManage")}
           </Link>
@@ -48,7 +56,14 @@ export function AccountStatusBanner({ account }: { account: Account | null }) {
   return (
     <Alert tone="warning" title={t(`status.${account?.status ?? "none"}`)}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <span>{t("bannerInactive")}</span>
+        <span>
+          <span className="block">{t("bannerInactive")}</span>
+          {account && (
+            <span className="block font-semibold">
+              {t("bannerBalance", { balance: formatMoney(account.balance, locale) })}
+            </span>
+          )}
+        </span>
         <Link href={href} className="font-semibold text-brand hover:underline">
           {t("bannerCta")}
         </Link>
