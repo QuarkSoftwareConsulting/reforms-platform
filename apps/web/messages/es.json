@@ -445,7 +445,7 @@
       "professionals": "Profesionales",
       "coverage": "Cobertura de leads",
       "liquidity": "Liquidez de leads",
-      "liquidityHint": "Contactos vendidos por solicitud, de media (máximo 5).",
+      "liquidityHint": "Contactos vendidos por solicitud, de media.",
       "paidPurchases": "Compras pagadas",
       "revenue": "Ingresos confirmados",
       "none": "Aún no hay ingresos",
@@ -569,8 +569,8 @@
       "exhausted": "Agotados",
       "paidLeads": "Leads con alguna venta",
       "topupRevenue": "Recargas cobradas",
-      "totalsTitle": "Total histórico",
-      "totalsHint": "Desde el inicio de la plataforma. El periodo elegido solo filtra las gráficas.",
+      "totalsTitle": "Totales",
+      "totalsHint": "No dependen del periodo elegido: el periodo solo filtra las gráficas.",
       "activityTitle": "Actividad por día"
     },
     "users": {

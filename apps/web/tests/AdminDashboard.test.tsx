@@ -38,7 +38,7 @@ describe("AdminDashboard", () => {
     });
     renderWithIntl(<AdminDashboard />);
 
-    // El periodo solo filtra las graficas: los totales deben decir que son historicos.
+    // El periodo solo filtra las graficas: los totales deben decir que no dependen de el.
     expect(
       await screen.findByRole("heading", { name: messages.admin.dashboard.totalsTitle }),
     ).toBeTruthy();

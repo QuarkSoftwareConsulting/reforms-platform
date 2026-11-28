@@ -68,8 +68,9 @@ export function AdminDashboard() {
 
       {dashboard.error && <Alert tone="error">{dashboard.error}</Alert>}
 
-      {/* Los totales cuentan todo el historico y el periodo solo filtra las graficas: sin
-          este rotulo parecia que una grafica en 0 contradecia un total de 46 EUR. */}
+      {/* El periodo solo filtra las graficas: sin este rotulo parecia que una grafica en 0
+          contradecia un total de 46 EUR. No se rotula "historico" porque varias tarjetas
+          (publicados, agotados, cuentas activas) son el estado actual, no un acumulado. */}
       <header>
         <h3 className="text-card-title font-bold text-ink">{t("dashboard.totalsTitle")}</h3>
         <p className="text-help text-secondary">{t("dashboard.totalsHint")}</p>
